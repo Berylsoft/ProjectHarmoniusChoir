@@ -10,6 +10,7 @@ use std::{
 
 use anyhow::Context;
 use axum::{Router, response::IntoResponse, routing};
+use database::Database;
 use tokio::net::TcpListener;
 use tower_http::{
     request_id::{
@@ -23,7 +24,9 @@ use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 use ulid::Ulid;
 
-pub async fn test() -> impl IntoResponse {
+mod database;
+
+async fn test() -> impl IntoResponse {
     "test"
 }
 
@@ -40,11 +43,13 @@ impl MakeRequestId for ServerMakeRequestId {
 }
 
 #[derive(Clone)]
-pub struct ServerState {}
+struct ServerState {
+    db: Database,
+}
 
-pub fn router() -> Router {
+fn router(state: ServerState) -> Router {
     Router::new()
-        .with_state(0_u32)
+        .with_state(state)
         .route("/", routing::get(test))
         .layer((
             SetRequestIdLayer::x_request_id(ServerMakeRequestId),
@@ -56,12 +61,22 @@ pub fn router() -> Router {
         ))
 }
 
-async fn run() -> anyhow::Result<()> {
+fn init_env() {
     let _ = dotenvy::dotenv();
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .init();
+}
+
+async fn run() -> anyhow::Result<()> {
+    init_env();
+
+    let state = ServerState {
+        db: Database::init("sqlite://data/database.db?mode=rwc")
+            .await
+            .context("failed to initialize database")?,
+    };
 
     let host = env::var("HOST")
         .or_else(|err| {
@@ -79,7 +94,7 @@ async fn run() -> anyhow::Result<()> {
 
     info!("listening on {host}");
 
-    axum::serve(listener, router())
+    axum::serve(listener, router(state))
         .await
         .context("failed to serve")?;
 
