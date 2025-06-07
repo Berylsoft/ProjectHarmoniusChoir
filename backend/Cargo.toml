@@ -6,10 +6,18 @@ edition = "2024"
 [dependencies]
 anyhow = { version = "1.0.98", features = ["backtrace"] }
 axum = { version = "0.8.4", features = ["http2", "macros"] }
+base64 = "0.22.1"
+chrono = { version = "0.4.41", features = ["serde"] }
+ciborium = "0.2.2"
+cookie = { version = "0.18.1", features = ["percent-encode", "secure"] }
 dotenvy = "0.15.7"
+ed25519-dalek = { version = "2.1.1", features = ["pkcs8", "rand_core"] }
 futures-core = "0.3.31"
 itertools = "0.14.0"
+rand = "0.9.1"
+rand_core = "0.6.4"
 serde = { version = "1.0.219", features = ["derive"] }
+serde_bytes = "0.11.17"
 sqlx = { version = "0.8.6", features = [
     "runtime-tokio",
     "any",

@@ -146,6 +146,10 @@ CREATE TABLE IF NOT EXISTS "managers" (
 	"id" INTEGER NOT NULL,
 	"revision" INTEGER NOT NULL,
 	"password_argon2" TEXT NOT NULL,
+	"argon2_m" INTEGER NOT NULL,
+	"argon2_t" INTEGER NOT NULL,
+	"argon2_p" INTEGER NOT NULL,
+	"argon2_len" INTEGER NOT NULL,
 	"totp_secret" TEXT NOT NULL,
 	PRIMARY KEY("_id")
 );

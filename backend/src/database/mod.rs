@@ -1,4 +1,7 @@
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    ops::{Deref, DerefMut},
+};
 
 use anyhow::{Context, Result};
 use migration::Migration;
@@ -18,6 +21,7 @@ pub struct Database {
 impl Database {
     #[instrument(level = "debug", skip(url))]
     pub async fn init(url: &str) -> anyhow::Result<Self> {
+        debug!("initialzing database with url: {url}");
         install_default_drivers();
 
         let pool = sqlx::any::AnyPoolOptions::new()
@@ -30,6 +34,20 @@ impl Database {
             .context("failed to run migrations")?;
 
         Ok(Self { pool })
+    }
+}
+
+impl Deref for Database {
+    type Target = sqlx::AnyPool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.pool
+    }
+}
+
+impl DerefMut for Database {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.pool
     }
 }
 
