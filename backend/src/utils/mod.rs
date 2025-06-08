@@ -4,22 +4,22 @@ use serde::Serialize;
 
 #[macro_export]
 macro_rules! impl_deref {
-    ($src:ty => $dst:ty = $($tt:tt)*) => {
-        impl ::core::ops::Deref for $src {
-            type Target = $dst;
+    ($(impl<$($ge:ident),*>)? mut $src:ty => $dst:ty = $($tt:tt)*) => {
+        impl_deref!($(impl<$($ge),*>)? ref $src => $dst = $($tt)*);
 
-            fn deref(&self) -> &Self::Target {
-                &self$($tt)*
+        impl$(<$($ge),*>)? ::core::ops::DerefMut for $src {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self$($tt)*
             }
         }
     };
 
-    (mut $src:ty => $dst:ty = $($tt:tt)*) => {
-        impl_deref!($src => $dst = $($tt)*);
+    ($(impl<$($ge:ident),*>)? ref $src:ty => $dst:ty = $($tt:tt)*) => {
+        impl$(<$($ge),*>)? ::core::ops::Deref for $src {
+            type Target = $dst;
 
-        impl ::core::ops::DerefMut for $src {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self$($tt)*
+            fn deref(&self) -> &Self::Target {
+                &self$($tt)*
             }
         }
     };

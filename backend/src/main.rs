@@ -2,12 +2,12 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 // #![clippy::too_many_line_threshold = 60]
 #![allow(clippy::default_trait_access)]
-#![allow(warnings)]
 
 use std::{
     env::{self, VarError},
-    fmt::Display,
-    io::Cursor,
+    ffi::OsStr,
+    fmt::Debug,
+    fs,
     time::Duration,
 };
 
@@ -15,23 +15,20 @@ use anyhow::{Context, Result};
 use axum::{
     Router,
     body::Body,
-    extract::{OptionalFromRequestParts, Request},
-    http::{Response, StatusCode, request},
+    extract::{Request, State},
+    http::{Response, StatusCode},
     routing,
 };
-use base64::Engine;
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
-use cookie::{
-    Cookie, CookieJar, Expiration, SameSite,
-    time::{Date, OffsetDateTime},
-};
+use cookie::{Cookie, SameSite};
 use database::Database;
 use ed25519_dalek::{
-    SIGNATURE_LENGTH, Signature, SignatureError, SigningKey,
-    VerifyingKey, ed25519::signature::Signer,
+    SigningKey,
+    pkcs8::{DecodePrivateKey, EncodePrivateKey},
 };
-use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use extractors::{Cookies, Token};
+use serde::{Deserialize, Serialize};
 use signing::SignedData;
 use tokio::net::TcpListener;
 use tower_http::{
@@ -43,11 +40,11 @@ use tower_http::{
     trace::{DefaultMakeSpan, TraceLayer},
 };
 use tracing::info;
-use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
+use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
-use utils::to_cbor;
 
 mod database;
+mod extractors;
 mod signing;
 mod utils;
 
@@ -66,81 +63,31 @@ impl MakeRequestId for ServerMakeRequestId {
 #[derive(Clone)]
 struct ServerState {
     db: Database,
-}
-
-fn map_err_warn_bad_request<'log, E: Display>(
-    log: &'log str,
-) -> impl (FnOnce(E) -> Response<Body>) + use<'log, E> {
-    return move |err| {
-        tracing::warn!("{log}: {err}");
-        Response::builder()
-            .status(StatusCode::BAD_REQUEST)
-            .body(Body::empty())
-            .unwrap()
-    };
-}
-
-#[derive(Debug, Default)]
-struct Cookies(pub CookieJar);
-
-impl_deref!(mut Cookies => CookieJar = .0);
-
-impl<S> OptionalFromRequestParts<S> for Cookies
-where
-    S: Send + Sync,
-{
-    type Rejection = Response<Body>;
-
-    async fn from_request_parts(
-        parts: &mut request::Parts,
-        _state: &S,
-    ) -> Result<Option<Self>, Self::Rejection> {
-        parts
-            .headers
-            .get("Cookie")
-            .map(|it| {
-                it.to_str().map_err(map_err_warn_bad_request(
-                    "invalid cookie header value",
-                ))
-            })
-            .transpose()?
-            .map(|it| {
-                let mut jar = CookieJar::new();
-                Cookie::split_parse_encoded(it)
-                    .try_for_each(|it| {
-                        jar.add_original(it?.into_owned());
-
-                        Result::<_, cookie::ParseError>::Ok(())
-                    })
-                    .map(|()| Self(jar))
-                    .map_err(map_err_warn_bad_request("invalid cookie"))
-            })
-            .transpose()
-    }
+    key: SigningKey,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Token {
+struct UserToken {
     pub uid: i64,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub expired: DateTime<Utc>,
 }
 
 async fn test(
-    cookies: Option<Cookies>,
-    req: Request,
+    state: State<ServerState>,
+    token: Token<UserToken>,
+    _req: Request,
 ) -> Result<Response<Body>, Response<Body>> {
-    let mut jar = cookies.unwrap_or_default();
-    dbg!(jar.get("token"));
+    tracing::info!("{:?}", token);
 
     let mut c = Cookie::new(
         "token",
         SignedData::sign(
-            Token {
+            UserToken {
                 uid: 114,
                 expired: Utc::now(),
             },
-            &ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng),
+            &state.key,
         )
         .to_encoded()
         .to_string(),
@@ -159,7 +106,6 @@ async fn test(
 
 fn router(state: ServerState) -> Router {
     Router::new()
-        .with_state(state)
         .route("/", routing::get(test))
         .layer((
             SetRequestIdLayer::x_request_id(ServerMakeRequestId),
@@ -169,34 +115,83 @@ fn router(state: ServerState) -> Router {
             TimeoutLayer::new(Duration::from_secs(15)),
             PropagateRequestIdLayer::x_request_id(),
         ))
+        .with_state(state)
 }
 
 fn init_env() {
     let _ = dotenvy::dotenv();
+
     tracing_subscriber::fmt()
+        .event_format(tracing_subscriber::fmt::format().pretty())
         .with_env_filter(EnvFilter::from_default_env())
-        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        // .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .init();
+}
+
+fn var_optional(
+    key: impl AsRef<OsStr>,
+) -> Result<Option<String>, VarError> {
+    match env::var(key) {
+        Ok(var) => Ok(Some(var)),
+        Err(VarError::NotPresent) => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
+fn get_or_init_signing_key() -> anyhow::Result<SigningKey> {
+    let env_key = var_optional("SIGNING_KEY")
+        .context("failed to get SIGNING_KEY env")?
+        .map(|it| BASE64_URL_SAFE_NO_PAD.decode(it))
+        .transpose()
+        .context("failed to decode SIGNING_KEY as base64")?
+        .map(|it| SigningKey::from_pkcs8_der(&it))
+        .transpose()
+        .context("failed to parse SIGNING_KEY as pkcs8_der")?;
+
+    if let Some(key) = env_key {
+        return Ok(key);
+    }
+
+    let file_key = fs::exists("./signing_key.der")
+        .context("failed to check if signing_key.der exists")?
+        .then(|| fs::read("./signing_key.der"))
+        .transpose()
+        .context("failed to read ./signing_key.der")?
+        .map(|it| SigningKey::from_pkcs8_der(&it))
+        .transpose()
+        .context("failed to parse ./signing_key.der")?;
+
+    if let Some(key) = file_key {
+        return Ok(key);
+    }
+
+    let key = SigningKey::generate(&mut rand_core::OsRng);
+
+    let der = key.to_pkcs8_der().expect("expect encoding success");
+    der.write_der_file("./signing_key.der")
+        .context("failed to write ./signing_key.der")?;
+    let der_base64 = BASE64_URL_SAFE_NO_PAD.encode(der.as_bytes());
+    fs::write("./signing_key.der.base64", der_base64)
+        .context("failed to write ./signing_key.der.base64")?;
+
+    Ok(key)
 }
 
 async fn run() -> anyhow::Result<()> {
     init_env();
 
+    info!("initializing");
     let state = ServerState {
+        key: get_or_init_signing_key()
+            .context("failed to get_or_init signingkey")?,
         db: Database::init("sqlite://data/database.db?mode=rwc")
             .await
             .context("failed to initialize database")?,
     };
 
-    let host = env::var("HOST")
-        .or_else(|err| {
-            if matches!(err, VarError::NotPresent) {
-                Ok("0.0.0.0:8081".to_string())
-            } else {
-                Err(err)
-            }
-        })
-        .context("failed to get HOST env")?;
+    let host = var_optional("HOST")
+        .context("failed to get HOST env")?
+        .unwrap_or_else(|| "0.0.0.0:8081".to_string());
 
     let listener = TcpListener::bind(&host)
         .await

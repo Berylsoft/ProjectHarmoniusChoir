@@ -1,7 +1,6 @@
 use anyhow::Context;
 use itertools::Itertools;
 use sqlx::Connection;
-use tracing::debug;
 
 use super::{BeginStmt, try_end_transaction};
 
@@ -66,7 +65,10 @@ impl Migration {
                     continue;
                 }
 
-                debug!(version = migration.version, "running migration");
+                tracing::info!(
+                    version = migration.version,
+                    "running migration"
+                );
 
                 sqlx::query(migration.sql)
                     .execute(&mut *trans)

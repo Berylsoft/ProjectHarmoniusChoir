@@ -31,11 +31,11 @@ impl<T: Serialize + DeserializeOwned> SignedData<T> {
             .decode(encoded)
             .context("invalid base64")?;
 
-        ciborium::from_reader::<SignedData<T>, _>(Cursor::new(buf))
+        ciborium::from_reader::<Self, _>(Cursor::new(buf))
             .context("invalid data")
     }
 
-    pub fn sign(data: T, key: &SigningKey) -> SignedData<T> {
+    pub fn sign(data: T, key: &SigningKey) -> Self {
         let signature = key.sign(&to_cbor(&data).unwrap()).to_bytes();
         Self { data, signature }
     }

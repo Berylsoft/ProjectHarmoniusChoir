@@ -7,9 +7,7 @@ use anyhow::{Context, Result};
 use migration::Migration;
 use sqlx::{
     Database as SqlxDatabase, Transaction, any::install_default_drivers,
-    sqlite::SqliteConnectOptions,
 };
-use tracing::{debug, instrument};
 
 pub mod migration;
 
@@ -19,9 +17,9 @@ pub struct Database {
 }
 
 impl Database {
-    #[instrument(level = "debug", skip(url))]
+    #[tracing::instrument]
     pub async fn init(url: &str) -> anyhow::Result<Self> {
-        debug!("initialzing database with url: {url}");
+        tracing::info!("initialzing database");
         install_default_drivers();
 
         let pool = sqlx::any::AnyPoolOptions::new()
