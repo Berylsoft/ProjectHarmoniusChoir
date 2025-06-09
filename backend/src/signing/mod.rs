@@ -1,5 +1,3 @@
-use std::io::Cursor;
-
 use anyhow::Context;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use ed25519_dalek::{
@@ -31,7 +29,7 @@ impl<T: Serialize + DeserializeOwned> SignedData<T> {
             .decode(encoded)
             .context("invalid base64")?;
 
-        ciborium::from_reader::<Self, _>(Cursor::new(buf))
+        ciborium::from_reader::<Self, _>(&buf as &[u8])
             .context("invalid data")
     }
 

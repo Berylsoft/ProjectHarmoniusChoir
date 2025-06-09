@@ -16,7 +16,7 @@ use axum::{
     Router,
     body::Body,
     extract::{Request, State},
-    http::{Response, StatusCode},
+    http::{Response, StatusCode, header},
     routing,
 };
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -99,7 +99,7 @@ async fn test(
 
     Ok(Response::builder()
         .status(StatusCode::OK)
-        .header("Set-Cookie", c.encoded().to_string())
+        .header(header::SET_COOKIE, c.encoded().to_string())
         .body(Body::empty())
         .unwrap())
 }

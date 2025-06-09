@@ -192,6 +192,7 @@ dependencies = [
  "ed25519-dalek",
  "futures-core",
  "itertools",
+ "mime",
  "rand 0.9.1",
  "rand_core 0.6.4",
  "serde",

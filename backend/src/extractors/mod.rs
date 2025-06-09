@@ -1,15 +1,26 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use axum::{
     RequestPartsExt,
-    body::Body,
-    extract::{FromRequestParts, OptionalFromRequestParts},
-    http::{Response, StatusCode, header::ToStrError, request},
-    response::IntoResponse,
+    body::{Body, Bytes},
+    extract::{
+        FromRequest, FromRequestParts, OptionalFromRequest,
+        OptionalFromRequestParts, Request, rejection::BytesRejection,
+    },
+    http::{
+        HeaderMap, HeaderValue, StatusCode,
+        header::{self, ToStrError},
+        request,
+    },
+    response::{IntoResponse, Response},
 };
 use cookie::{Cookie, CookieJar};
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::{ServerState, impl_deref, signing::SignedData};
+use crate::{
+    ServerState, impl_deref,
+    signing::SignedData,
+    utils::{content_type_plain_text, response_text},
+};
 
 #[derive(Debug, Default)]
 pub struct Cookies(pub CookieJar);
@@ -26,7 +37,7 @@ where
         parts: &mut request::Parts,
         _: &S,
     ) -> Result<Option<Self>, Self::Rejection> {
-        let Some(cookie) = parts.headers.get("Cookie") else {
+        let Some(cookie) = parts.headers.get(header::COOKIE) else {
             return Ok(None);
         };
 
@@ -83,12 +94,9 @@ impl CookiesRejection {
 }
 
 impl IntoResponse for CookiesRejection {
-    fn into_response(self) -> axum::response::Response {
+    fn into_response(self) -> Response {
         tracing::info!("rejecting cookie: {self}");
-        Response::builder()
-            .status(StatusCode::BAD_REQUEST)
-            .body(Body::from(self.to_response_msg()))
-            .unwrap()
+        response_text(self.to_response_msg(), StatusCode::BAD_REQUEST)
     }
 }
 
@@ -137,16 +145,158 @@ pub enum TokenRejection {
 }
 
 impl IntoResponse for TokenRejection {
-    fn into_response(self) -> axum::response::Response {
+    fn into_response(self) -> Response {
         tracing::info!("rejecting token: {self}");
-        Response::builder()
-            .status(StatusCode::BAD_REQUEST)
-            .body(Body::from(match self {
+        response_text(
+            match self {
                 Self::Cookie(reject) => reject.to_response_msg(),
                 Self::DeserializeToken(_) => "invalid token encoding",
                 Self::Signature(_) => "invalid token signature",
                 Self::Missing => "missing token in cookie",
-            }))
-            .unwrap()
+            },
+            StatusCode::BAD_REQUEST,
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Cbor<T>(pub T);
+
+impl_deref!(impl<T> mut Cbor<T> => T = .0);
+
+impl<T> Cbor<T> {
+    fn check_content_type(headers: &HeaderMap) -> anyhow::Result<()> {
+        let Some(content_type) = headers.get(header::CONTENT_TYPE) else {
+            bail!("missing Content-Type header");
+        };
+
+        let Ok(content_type) = content_type.to_str() else {
+            bail!("invalid value of Content-Type")
+        };
+
+        let Ok(mime) = content_type.parse::<mime::Mime>() else {
+            bail!("invalid mime value");
+        };
+
+        let is_cbor = mime.type_() == "application"
+            && (mime.subtype() == "cbor"
+                || mime.suffix().is_some_and(|name| name == "cbor"));
+
+        if !is_cbor {
+            bail!("not cbor");
+        }
+
+        Ok(())
+    }
+}
+
+impl<T, S> FromRequest<S> for Cbor<T>
+where
+    T: DeserializeOwned,
+    S: Send + Sync,
+{
+    type Rejection = CborRejection;
+
+    async fn from_request(
+        req: Request,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        Self::check_content_type(req.headers())
+            .map_err(CborRejection::ContentType)?;
+
+        let bytes = Bytes::from_request(req, state).await?;
+
+        ciborium::from_reader::<T, _>(&bytes as &[u8])
+            .map_err(CborRejection::Cbor)
+            .map(Self)
+    }
+}
+
+impl<T, S> OptionalFromRequest<S> for Cbor<T>
+where
+    T: DeserializeOwned,
+    S: Send + Sync,
+{
+    type Rejection = CborRejection;
+
+    async fn from_request(
+        req: Request,
+        state: &S,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        let hdrs = req.headers();
+        if hdrs.get(header::CONTENT_TYPE).is_none() {
+            return Ok(None);
+        }
+
+        Self::check_content_type(hdrs)
+            .map_err(CborRejection::ContentType)?;
+
+        let bytes = Bytes::from_request(req, state).await?;
+
+        ciborium::from_reader::<T, _>(&bytes as &[u8])
+            .map_err(CborRejection::Cbor)
+            .map(Self)
+            .map(Some)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum CborRejection {
+    #[error("invalid Content-Type: {0:?}")]
+    ContentType(anyhow::Error),
+    #[error("failed to read body: {0}")]
+    Bytes(#[from] BytesRejection),
+    #[error("failed to parse body: {0}")]
+    Cbor(#[from] ciborium::de::Error<std::io::Error>),
+}
+
+impl IntoResponse for CborRejection {
+    fn into_response(self) -> Response {
+        fn internal_server_error() -> Response<Body> {
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::empty())
+                .unwrap()
+        }
+
+        tracing::warn!("rejecting cbor: {self}");
+
+        match self {
+            Self::ContentType(_) => Response::builder()
+                .status(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+                .body(Body::empty())
+                .unwrap(),
+            Self::Bytes(_) => internal_server_error(),
+            Self::Cbor(err) => match err {
+                ciborium::de::Error::Syntax(idx) => response_text(
+                    format!("idx: {idx}"),
+                    StatusCode::BAD_REQUEST,
+                ),
+                ciborium::de::Error::Semantic(idx, msg) => response_text(
+                    format!("{msg}: {idx:?}"),
+                    StatusCode::BAD_REQUEST,
+                ),
+                _ => internal_server_error(),
+            },
+        }
+    }
+}
+
+impl<T: Serialize> IntoResponse for Cbor<T> {
+    fn into_response(self) -> Response {
+        let mut buf = Vec::<u8>::new();
+        let result = ciborium::into_writer(&*self, &mut buf);
+
+        match result {
+            Ok(()) => ([(header::CONTENT_TYPE, "application/cbor")], buf)
+                .into_response(),
+            Err(err) => {
+                tracing::error!(
+                    "failed to serialize response data as cbor: {err}"
+                );
+                (StatusCode::INTERNAL_SERVER_ERROR, Body::empty())
+                    .into_response()
+            }
+        }
     }
 }

@@ -14,6 +14,7 @@ dotenvy = "0.15.7"
 ed25519-dalek = { version = "2.1.1", features = ["pkcs8", "rand_core"] }
 futures-core = "0.3.31"
 itertools = "0.14.0"
+mime = "0.3.17"
 rand = "0.9.1"
 rand_core = "0.6.4"
 serde = { version = "1.0.219", features = ["derive"] }
