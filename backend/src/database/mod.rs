@@ -17,13 +17,13 @@ pub struct Database {
 }
 
 impl Database {
-    #[tracing::instrument]
-    pub async fn init(url: &str) -> anyhow::Result<Self> {
+    #[tracing::instrument(fields(url = url.as_ref()))]
+    pub async fn init(url: impl AsRef<str>) -> anyhow::Result<Self> {
         tracing::info!("initialzing database");
         install_default_drivers();
 
         let pool = sqlx::any::AnyPoolOptions::new()
-            .connect(url)
+            .connect(url.as_ref())
             .await
             .context("failed to connect")?;
 

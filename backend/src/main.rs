@@ -188,9 +188,15 @@ async fn run() -> anyhow::Result<()> {
     let state = ServerState {
         key: get_or_init_signing_key()
             .context("failed to get_or_init signingkey")?,
-        db: Database::init("sqlite://data/database.db?mode=rwc")
-            .await
-            .context("failed to initialize database")?,
+        db: Database::init(
+            var_optional("SQL_DB")
+                .context("failed to get SQL_DB env")?
+                .unwrap_or_else(|| {
+                    "sqlite://data/database.db?mode=rwc".to_string()
+                }),
+        )
+        .await
+        .context("failed to initialize database")?,
     };
 
     let host = var_optional("HOST")
