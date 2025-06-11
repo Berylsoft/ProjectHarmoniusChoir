@@ -46,8 +46,8 @@ pub fn content_type_plain_text() -> (header::HeaderName, HeaderValue) {
 }
 
 pub fn response_text(
-    text: impl Into<Body>,
     status: impl Into<Option<StatusCode>>,
+    text: impl Into<Body>,
 ) -> Response {
     let status: Option<StatusCode> = status.into();
     (

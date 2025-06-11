@@ -96,7 +96,7 @@ impl CookiesRejection {
 impl IntoResponse for CookiesRejection {
     fn into_response(self) -> Response {
         tracing::info!("rejecting cookie: {self}");
-        response_text(self.to_response_msg(), StatusCode::BAD_REQUEST)
+        response_text(StatusCode::BAD_REQUEST, self.to_response_msg())
     }
 }
 
@@ -148,13 +148,13 @@ impl IntoResponse for TokenRejection {
     fn into_response(self) -> Response {
         tracing::info!("rejecting token: {self}");
         response_text(
+            StatusCode::UNAUTHORIZED,
             match self {
                 Self::Cookie(reject) => reject.to_response_msg(),
                 Self::DeserializeToken(_) => "invalid token encoding",
                 Self::Signature(_) => "invalid token signature",
                 Self::Missing => "missing token in cookie",
             },
-            StatusCode::BAD_REQUEST,
         )
     }
 }
@@ -262,19 +262,19 @@ impl IntoResponse for CborRejection {
         tracing::warn!("rejecting cbor: {self}");
 
         match self {
-            Self::ContentType(_) => Response::builder()
-                .status(StatusCode::UNSUPPORTED_MEDIA_TYPE)
-                .body(Body::empty())
-                .unwrap(),
+            Self::ContentType(_) => response_text(
+                StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                "expect application/cbor",
+            ),
             Self::Bytes(_) => internal_server_error(),
             Self::Cbor(err) => match err {
                 ciborium::de::Error::Syntax(idx) => response_text(
-                    format!("idx: {idx}"),
                     StatusCode::BAD_REQUEST,
+                    format!("idx: {idx}"),
                 ),
                 ciborium::de::Error::Semantic(idx, msg) => response_text(
-                    format!("{msg}: {idx:?}"),
                     StatusCode::BAD_REQUEST,
+                    format!("{msg}: {idx:?}"),
                 ),
                 _ => internal_server_error(),
             },
