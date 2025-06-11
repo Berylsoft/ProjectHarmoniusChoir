@@ -82,14 +82,12 @@ impl Migration {
                     "running migration"
                 );
 
-                sqlx::query(migration.sql)
+                sqlx::raw_sql(migration.sql)
                     .execute(&mut *trans)
                     .await
                     .with_context(|| {
-                        format!(
-                            "failed to execute migration: {migration:?}"
-                        )
-                    })?;
+                    format!("failed to execute migration: {migration:?}")
+                })?;
 
                 sqlx::query(include_str!("./sqls/insert_applied.sql"))
                     .bind(migration.version)
