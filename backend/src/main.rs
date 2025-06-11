@@ -27,7 +27,8 @@ use ed25519_dalek::{
     SigningKey,
     pkcs8::{DecodePrivateKey, EncodePrivateKey},
 };
-use extractors::{Cookies, Token};
+use extractors::Token;
+use mimalloc::MiMalloc;
 use serde::{Deserialize, Serialize};
 use signing::SignedData;
 use tokio::net::TcpListener;
@@ -47,6 +48,9 @@ mod database;
 mod extractors;
 mod signing;
 mod utils;
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: MiMalloc = MiMalloc;
 
 #[derive(Debug, Clone, Copy)]
 struct ServerMakeRequestId;

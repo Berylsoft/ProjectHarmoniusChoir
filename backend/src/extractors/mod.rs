@@ -1,3 +1,5 @@
+use std::io;
+
 use anyhow::{Result, bail};
 use axum::{
     RequestPartsExt,
@@ -7,7 +9,7 @@ use axum::{
         OptionalFromRequestParts, Request, rejection::BytesRejection,
     },
     http::{
-        HeaderMap, HeaderValue, StatusCode,
+        HeaderMap, StatusCode,
         header::{self, ToStrError},
         request,
     },
@@ -17,9 +19,7 @@ use cookie::{Cookie, CookieJar};
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
-    ServerState, impl_deref,
-    signing::SignedData,
-    utils::{content_type_plain_text, response_text},
+    ServerState, impl_deref, signing::SignedData, utils::response_text,
 };
 
 #[derive(Debug, Default)]
@@ -298,5 +298,16 @@ impl<T: Serialize> IntoResponse for Cbor<T> {
                     .into_response()
             }
         }
+    }
+}
+
+impl<T: Serialize> TryFrom<Cbor<T>> for Body {
+    type Error = ciborium::ser::Error<io::Error>;
+
+    fn try_from(value: Cbor<T>) -> Result<Self, Self::Error> {
+        let mut buf = Vec::<u8>::new();
+        ciborium::into_writer(&*value, &mut buf)?;
+
+        Ok(Self::from(buf))
     }
 }
