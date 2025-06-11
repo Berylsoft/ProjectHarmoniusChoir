@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS "users" (
 	"revision" INTEGER NOT NULL,
 	"is_deleted" BOOLEAN NOT NULL,
 	"name" TEXT NOT NULL,
+	"token_id" INTEGER NOT NULL,
 	"wechat_openid" TEXT,
 	PRIMARY KEY("_id")
 );
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS "project_users" (
 CREATE TABLE IF NOT EXISTS "files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"name" TEXT NOT NULL,
-	"sha256sum" TEXT NOT NULL,
+	"sha256sum" BLOB NOT NULL,
 	"size" INTEGER NOT NULL,
 	PRIMARY KEY("id")
 );
@@ -145,13 +146,13 @@ CREATE TABLE IF NOT EXISTS "managers" (
 	"_id" INTEGER NOT NULL UNIQUE,
 	"id" INTEGER NOT NULL,
 	"revision" INTEGER NOT NULL,
-	"pswd_argon2" TEXT NOT NULL,
+	"pswd_argon2" BLOB NOT NULL,
 	"argon2_m" INTEGER NOT NULL,
 	"argon2_t" INTEGER NOT NULL,
 	"argon2_p" INTEGER NOT NULL,
 	"argon2_len" INTEGER NOT NULL,
-	"pswd_salt" TEXT NOT NULL,
-	"totp_secret" TEXT,
+	"pswd_salt" BLOB NOT NULL,
+	"totp_secret" BLOB,
 	"token_id" INTEGER NOT NULL,
 	PRIMARY KEY("_id")
 );

@@ -37,3 +37,10 @@ tower-http = { version = "0.6.5", features = [
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 ulid = { version = "1.2.1", features = ["serde"] }
+
+[dev-dependencies]
+insta = "1.43.1"
+
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3

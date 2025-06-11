@@ -12,25 +12,15 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use axum::{
-    Router,
-    body::Body,
-    extract::{Request, State},
-    http::{Response, StatusCode, header},
-    routing,
-};
+use api::user::wechat_login_or_register;
+use axum::{Router, routing};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
-use chrono::{DateTime, Utc};
-use cookie::{Cookie, SameSite};
 use database::Database;
 use ed25519_dalek::{
     SigningKey,
     pkcs8::{DecodePrivateKey, EncodePrivateKey},
 };
-use extractors::Token;
 use mimalloc::MiMalloc;
-use serde::{Deserialize, Serialize};
-use signing::SignedData;
 use tokio::net::TcpListener;
 use tower_http::{
     request_id::{
@@ -44,6 +34,7 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
 
+mod api;
 mod database;
 mod extractors;
 mod signing;
@@ -70,47 +61,12 @@ struct ServerState {
     key: SigningKey,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct UserToken {
-    pub uid: i64,
-    #[serde(with = "chrono::serde::ts_seconds")]
-    pub expired: DateTime<Utc>,
-}
-
-async fn test(
-    state: State<ServerState>,
-    token: Token<UserToken>,
-    _req: Request,
-) -> Result<Response<Body>, Response<Body>> {
-    tracing::info!("{:?}", token);
-
-    let mut c = Cookie::new(
-        "token",
-        SignedData::sign(
-            UserToken {
-                uid: 114,
-                expired: Utc::now(),
-            },
-            &state.key,
-        )
-        .to_encoded()
-        .to_string(),
-    );
-    c.set_max_age(cookie::time::Duration::days(365));
-    c.set_secure(true);
-    c.set_http_only(true);
-    c.set_same_site(SameSite::Strict);
-
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .header(header::SET_COOKIE, c.encoded().to_string())
-        .body(Body::empty())
-        .unwrap())
-}
-
 fn router(state: ServerState) -> Router {
     Router::new()
-        .route("/", routing::get(test))
+        .route(
+            "/api/user/wechat_login_or_register",
+            routing::post(wechat_login_or_register::router),
+        )
         .layer((
             SetRequestIdLayer::x_request_id(ServerMakeRequestId),
             TraceLayer::new_for_http().make_span_with(

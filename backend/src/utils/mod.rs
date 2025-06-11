@@ -2,10 +2,14 @@ use std::io;
 
 use axum::{
     body::Body,
-    http::{HeaderValue, StatusCode, header},
+    http::{HeaderName, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use serde::Serialize;
+use cookie::{Cookie, SameSite};
+use ed25519_dalek::SigningKey;
+use serde::{Serialize, de::DeserializeOwned};
+
+use crate::signing::SignedData;
 
 #[macro_export]
 macro_rules! impl_deref {
@@ -56,4 +60,26 @@ pub fn response_text(
         text.into(),
     )
         .into_response()
+}
+
+pub fn cookie_set_token<T>(
+    token: T,
+    key: &SigningKey,
+) -> (HeaderName, HeaderValue)
+where
+    T: Serialize + DeserializeOwned,
+{
+    let mut c = Cookie::new(
+        "token",
+        SignedData::sign(token, key).to_encoded().to_string(),
+    );
+    c.set_max_age(cookie::time::Duration::days(365));
+    c.set_secure(true);
+    c.set_http_only(true);
+    c.set_same_site(SameSite::Strict);
+
+    (
+        header::SET_COOKIE,
+        HeaderValue::from_str(c.encoded().to_string().as_str()).unwrap(),
+    )
 }

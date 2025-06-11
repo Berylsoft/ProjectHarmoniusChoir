@@ -13,10 +13,22 @@ pub struct Migration {
 impl Migration {
     pub const fn all() -> &'static [Self] {
         // NOTE: database with empty applied migration is considered version 0
-        const ALL: &[Migration] = &[Migration {
-            version: 1,
-            sql: include_str!("./migrations/20250606_0001_init.sql"),
-        }];
+        const ALL: &[Migration] = &[
+            Migration {
+                version: 1,
+                sql: include_str!("./migrations/20250606_0001_init.sql"),
+            },
+            Migration {
+                version: 2,
+                sql: include_str!("./migrations/20250611_0001_views.sql"),
+            },
+            Migration {
+                version: 3,
+                sql: include_str!(
+                    "./migrations/20250611_0002_indexes.sql"
+                ),
+            },
+        ];
 
         let mut last_ver = 0;
         let mut idx = 0;
