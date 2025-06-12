@@ -12,7 +12,7 @@ use crate::{
     ServerState,
     api::{self, ToJson},
     begin_transaction,
-    database::try_end_transaction,
+    database::{Database, try_end_transaction},
     utils::cookie_set_token,
 };
 
@@ -27,15 +27,36 @@ pub async fn router(
 ) -> api::ApiResult<impl IntoResponse, ToJson> {
     // TODO: actual wechat auth
     tracing::info!("{req:?}");
-    let wechat_openid = &req.code as &str;
+    let wechat_openid = req.code.clone();
 
-    begin_transaction!(state.db, conn, trans);
+    let (uid, token_id) = tokio::task::spawn(do_register_or_login(
+        state.db.clone(),
+        wechat_openid,
+    ))
+    .await
+    .context("join tokio task")??;
 
-    let mut run_migrations = async || {
+    Ok(([cookie_set_token(
+        UserToken {
+            uid,
+            token_id,
+            expired: Utc::now() + TimeDelta::days(7),
+        },
+        &state.key,
+    )],))
+}
+
+pub async fn do_register_or_login(
+    db: Database,
+    wechat_openid: String,
+) -> anyhow::Result<(i64, i64)> {
+    begin_transaction!(db, conn, trans, Immediate);
+
+    let run = async || {
         let exists_user = sqlx::query_as::<_, (i64, i64)>(include_str!(
             "./sqls/get_user_by_wechat_openid.sql"
         ))
-        .bind(wechat_openid)
+        .bind(&wechat_openid)
         .fetch_optional(&mut *trans)
         .await
         .context("fetch exists user by wechat openid")?;
@@ -72,17 +93,7 @@ pub async fn router(
         anyhow::Result::<(_, _)>::Ok(user)
     };
 
-    let (uid, token_id) =
-        try_end_transaction(run_migrations().await, trans)
-            .await
-            .context("transaction end")?;
-
-    Ok(([cookie_set_token(
-        UserToken {
-            uid,
-            token_id,
-            expired: Utc::now() + TimeDelta::days(7),
-        },
-        &state.key,
-    )],))
+    try_end_transaction(run().await, trans)
+        .await
+        .context("transaction end")
 }

@@ -83,16 +83,14 @@ impl IntoResponse for ApiError<ToCbor> {
 
 #[macro_export]
 macro_rules! begin_transaction {
-    ($db:expr, $conn:ident, $trans:ident) => {
+    ($db:expr, $conn:ident, $trans:ident, $stmt:ident) => {
         let mut $conn = ::anyhow::Context::context(
             $db.acquire().await,
             "db connection acquire",
         )?;
 
         let mut $trans = ::anyhow::Context::context(
-            $conn
-                .begin_with($crate::database::BeginStmt::Exclusive)
-                .await,
+            $conn.begin_with($crate::database::BeginStmt::$stmt).await,
             "transaction begin",
         )?;
     };
