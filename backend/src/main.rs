@@ -12,7 +12,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use api::user::wechat_login_or_register;
+use api::user::{update_name, wechat_login_or_register};
 use axum::{Router, routing};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use database::Database;
@@ -66,6 +66,10 @@ fn router(state: ServerState) -> Router {
         .route(
             "/api/user/wechat_login_or_register",
             routing::post(wechat_login_or_register::router),
+        )
+        .route(
+            "/api/user/update_name",
+            routing::post(update_name::router),
         )
         .layer((
             SetRequestIdLayer::x_request_id(ServerMakeRequestId),

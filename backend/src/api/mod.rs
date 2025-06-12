@@ -30,12 +30,20 @@ pub enum Response<'msg, T> {
 #[repr(u64)]
 pub enum ErrCode {
     Unknown = 1,
+    // client error
+    InvalidToken = 4000,
+    // only happens when client send request with specific timing
+    UserNotExists = 6000,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError<T> {
     #[error("{0}")]
     Unknown(#[from] anyhow::Error),
+    #[error("invalid token: {0}")]
+    InvalidToken(&'static str),
+    #[error("user not exists")]
+    UserNotExists,
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
@@ -60,6 +68,28 @@ impl<T> ApiError<T> {
                     },
                 )
             }
+            Self::InvalidToken(msg) => {
+                tracing::info!("rejecting invalid token: {msg}");
+
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Response::Err {
+                        code: ErrCode::InvalidToken,
+                        msg: "please login first".into(),
+                    },
+                )
+            }
+            Self::UserNotExists => {
+                tracing::info!("rejecting non exists user");
+
+                (
+                    StatusCode::NOT_FOUND,
+                    Response::Err {
+                        code: ErrCode::UserNotExists,
+                        msg: "user not exists".into(),
+                    },
+                )
+            }
             Self::__(_) => unreachable!(),
         }
     }
@@ -67,7 +97,9 @@ impl<T> ApiError<T> {
 
 pub type ApiResult<T, S> = Result<T, ApiError<S>>;
 
+#[derive(Debug)]
 pub struct ToJson();
+#[derive(Debug)]
 pub struct ToCbor();
 
 impl IntoResponse for ApiError<ToJson> {
@@ -93,13 +125,25 @@ macro_rules! begin_transaction {
         )?;
 
         let mut $trans = ::anyhow::Context::context(
-            $conn.begin_with($crate::database::BeginStmt::$stmt).await,
+            ::sqlx::Connection::begin_with(
+                &mut *$conn,
+                $crate::database::BeginStmt::$stmt,
+            )
+            .await,
             "transaction begin",
         )?;
     };
 }
 
-pub async fn end_transaction<DB, R>(
+async fn spawn_await<Fut>(fut: Fut) -> anyhow::Result<Fut::Output>
+where
+    Fut: Future + Send + 'static,
+    Fut::Output: Send + 'static,
+{
+    tokio::task::spawn(fut).await.context("join tokio task")
+}
+
+async fn end_transaction<DB, R>(
     result: anyhow::Result<R>,
     trans: sqlx::Transaction<'_, DB>,
 ) -> anyhow::Result<R>

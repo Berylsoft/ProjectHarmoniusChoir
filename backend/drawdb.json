@@ -75,6 +75,20 @@
           "values": []
         },
         {
+          "id": "H0-qzNtZeuAsMogrltPhx",
+          "name": "token_id",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": "",
+          "values": []
+        },
+        {
           "id": "kaQVdE2urZXNPtAFCwhAK",
           "name": "wechat_openid",
           "type": "TEXT",
@@ -95,8 +109,8 @@
     {
       "id": "h8Kkc5zanMAbF3Mlsm0gx",
       "name": "projects",
-      "x": -1060.5,
-      "y": -655.5000000000001,
+      "x": -1180.2387205375258,
+      "y": -916.6624062117686,
       "fields": [
         {
           "name": "id",
@@ -281,8 +295,8 @@
     {
       "id": "AYJCJdxex7gpnryubkllN",
       "name": "project_users",
-      "x": -1052.5,
-      "y": -31.500000000000114,
+      "x": -806.8630578843115,
+      "y": -627.687752328933,
       "fields": [
         {
           "name": "id",
@@ -346,8 +360,8 @@
     {
       "id": "POlQ5a23qldwcdLB2O4Cx",
       "name": "files",
-      "x": -799.1639999999999,
-      "y": -975.4600000000005,
+      "x": -809.03251666911,
+      "y": -1092.692870178831,
       "fields": [
         {
           "name": "id",
@@ -377,7 +391,7 @@
         {
           "id": "0EZ_7PQ8PpQsUzzNSVBtO",
           "name": "sha256sum",
-          "type": "TEXT",
+          "type": "BLOB",
           "default": "",
           "check": "",
           "primary": false,
@@ -385,7 +399,8 @@
           "notNull": true,
           "increment": false,
           "comment": "",
-          "size": ""
+          "size": "",
+          "values": []
         },
         {
           "id": "nUTkkp0YMnZwqxVrvuqVL",
@@ -409,8 +424,8 @@
     {
       "id": "4klCpIm1-I-ur7Uk7czMb",
       "name": "pending_files",
-      "x": -407.164,
-      "y": -1058.96,
+      "x": -809.2433586014613,
+      "y": -396.2242178719516,
       "fields": [
         {
           "name": "id",
@@ -460,8 +475,8 @@
     {
       "id": "F4AHKV3UyPWl6q7U4jOOv",
       "name": "deleted_files",
-      "x": -526.164,
-      "y": -1255.96,
+      "x": -808.465999130301,
+      "y": -1261.0395648151148,
       "fields": [
         {
           "name": "id",
@@ -497,8 +512,8 @@
     {
       "id": "Fohy-LFlfsJxq54i1RpLX",
       "name": "file_infos",
-      "x": -405.0000000000002,
-      "y": -871.4999999999999,
+      "x": -806.5974454826977,
+      "y": -189.27472530646673,
       "fields": [
         {
           "id": "Chuw0wLrVzZoGkGe6ka05",
@@ -563,8 +578,8 @@
     {
       "id": "KpbV-nGscDnH4b_KUjSRu",
       "name": "pre_submits",
-      "x": -595.4999999999993,
-      "y": -600.5000000000002,
+      "x": -502.8982162740755,
+      "y": -775.6953257437285,
       "fields": [
         {
           "name": "id",
@@ -640,8 +655,8 @@
     {
       "id": "IAy-1L0VjmOARNrDUZznL",
       "name": "pre_submit_reviews",
-      "x": -267.1640000000002,
-      "y": -603.46,
+      "x": -179.72649585392367,
+      "y": -746.6167559541093,
       "fields": [
         {
           "name": "id",
@@ -713,7 +728,7 @@
         {
           "id": "oZde7PnePx9b-MNpWZNsn",
           "name": "reason",
-          "type": "BOOLEAN",
+          "type": "TEXT",
           "default": "",
           "check": "",
           "primary": false,
@@ -732,8 +747,8 @@
     {
       "id": "XP01VGqviAnNWsbEfPi6x",
       "name": "submits",
-      "x": -590.0000000000002,
-      "y": -306.5,
+      "x": -502.5624958539237,
+      "y": -449.65675595410926,
       "fields": [
         {
           "name": "id",
@@ -796,8 +811,8 @@
     {
       "id": 8,
       "name": "submit_reviews",
-      "x": -269.664,
-      "y": -303.9600000000005,
+      "x": -182.22649585392344,
+      "y": -447.11675595410975,
       "fields": [
         {
           "name": "id",
@@ -827,7 +842,7 @@
         {
           "id": "oZde7PnePx9b-MNpWZNsn",
           "name": "reason",
-          "type": "BOOLEAN",
+          "type": "TEXT",
           "default": "",
           "check": "",
           "primary": false,
@@ -873,8 +888,8 @@
     {
       "id": "PANLHdz6k-grN1zuqmF1j",
       "name": "masters",
-      "x": -588.9999999999993,
-      "y": -52.50000000000034,
+      "x": -501.56249585392277,
+      "y": -195.6567559541096,
       "fields": [
         {
           "name": "id",
@@ -936,8 +951,8 @@
     {
       "id": "7eHZp8SJwKhGnBOy0aq9a",
       "name": "checked_files",
-      "x": 51.83599999999956,
-      "y": -308.4599999999998,
+      "x": 139.2735041460761,
+      "y": -451.61675595410907,
       "fields": [
         {
           "name": "id",
@@ -987,8 +1002,8 @@
     {
       "id": "S-_ZPZPJVs-d_49mrIuoi",
       "name": "managers",
-      "x": -1490.664,
-      "y": -1191.96,
+      "x": -1533.091105702273,
+      "y": -1221.1875617060102,
       "fields": [
         {
           "id": "6XRHJXX14y_SMyFV1VKE8",
@@ -1032,8 +1047,8 @@
         },
         {
           "id": "IBXhnRmVYNBRTNbZirBQf",
-          "name": "password_argon2",
-          "type": "TEXT",
+          "name": "pswd_argon2",
+          "type": "BLOB",
           "default": "",
           "check": "",
           "primary": false,
@@ -1041,12 +1056,97 @@
           "notNull": true,
           "increment": false,
           "comment": "",
-          "size": ""
+          "size": "",
+          "values": []
+        },
+        {
+          "id": "BEqAuRz44GSgAtypTRj8k",
+          "name": "argon2_m",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": "",
+          "values": []
+        },
+        {
+          "id": "7JNuJG8VcuqYxa4j6hLHv",
+          "name": "argon2_t",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": "",
+          "values": []
+        },
+        {
+          "id": "NzFuEFruFvoqOnoouTDqc",
+          "name": "argon2_p",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": "",
+          "values": []
+        },
+        {
+          "id": "UkqvO0ZW8ScXh66wsQ3Lk",
+          "name": "argon2_len",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": "",
+          "values": []
+        },
+        {
+          "id": "7-daZ-HHf2V5bx8KtRE0B",
+          "name": "pswd_salt",
+          "type": "BLOB",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": "",
+          "values": []
         },
         {
           "id": "8l1c8TcAT-fSyI0Y8JarT",
           "name": "totp_secret",
-          "type": "TEXT",
+          "type": "BLOB",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": false,
+          "increment": false,
+          "comment": "",
+          "size": "",
+          "values": []
+        },
+        {
+          "id": "X_xOEOVxAVoEV8W3RvMGX",
+          "name": "token_id",
+          "type": "INTEGER",
           "default": "",
           "check": "",
           "primary": false,
@@ -1054,7 +1154,8 @@
           "notNull": true,
           "increment": false,
           "comment": "",
-          "size": ""
+          "size": "",
+          "values": []
         }
       ],
       "comment": "",
@@ -1064,8 +1165,8 @@
     {
       "id": "ClpCgTYuhtUxwZbLAUPgj",
       "name": "pending_attachments",
-      "x": -791.1640000000003,
-      "y": -1246.96,
+      "x": -1181.8705022893753,
+      "y": -1096.3437747569315,
       "fields": [
         {
           "name": "id",
@@ -1101,8 +1202,8 @@
     {
       "id": "XD3rvcsUiYpJ5RiLXh_AQ",
       "name": "project_managers",
-      "x": -1142.1639999999998,
-      "y": -947.46,
+      "x": -1182.8468802456237,
+      "y": -1331.189600462779,
       "fields": [
         {
           "name": "id",
@@ -1164,195 +1265,7 @@
       "color": "#175e7a"
     }
   ],
-  "relationships": [
-    {
-      "startTableId": "AYJCJdxex7gpnryubkllN",
-      "startFieldId": "cnzhXoOwpqLLyVEh2mMJn",
-      "endTableId": "75hTMYW5r7ziRzpnr4LUJ",
-      "endFieldId": "D50ZlIDJSg0_QVjQ4C45g",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_project_users_user_id_users",
-      "id": 0
-    },
-    {
-      "startTableId": "AYJCJdxex7gpnryubkllN",
-      "startFieldId": "uHyMn_iNtRsoBQkfa9EVm",
-      "endTableId": "h8Kkc5zanMAbF3Mlsm0gx",
-      "endFieldId": "QO2nz-GBCLzyeDvsQ-fvz",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_project_users_project_id_projects",
-      "id": 1
-    },
-    {
-      "startTableId": "KpbV-nGscDnH4b_KUjSRu",
-      "startFieldId": "1PmwsC4Fojf3CNMQX35Hh",
-      "endTableId": "AYJCJdxex7gpnryubkllN",
-      "endFieldId": "sXLEQebX19hJBXDakNlvl",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_pre_submits_project_user_id_project_users",
-      "id": 2
-    },
-    {
-      "startTableId": "XP01VGqviAnNWsbEfPi6x",
-      "startFieldId": "4-VAWlJvfbj7C8Ojabr6r",
-      "endTableId": "AYJCJdxex7gpnryubkllN",
-      "endFieldId": "sXLEQebX19hJBXDakNlvl",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_submits_project_user_id_project_users",
-      "id": 3
-    },
-    {
-      "startTableId": "PANLHdz6k-grN1zuqmF1j",
-      "startFieldId": "0YHSJDiao3Brzf1SSx8_x",
-      "endTableId": "AYJCJdxex7gpnryubkllN",
-      "endFieldId": "sXLEQebX19hJBXDakNlvl",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_masters_project_user_id_project_users",
-      "id": 4
-    },
-    {
-      "startTableId": "IAy-1L0VjmOARNrDUZznL",
-      "startFieldId": "F-MuQm9keD_l1VUGWyBva",
-      "endTableId": "KpbV-nGscDnH4b_KUjSRu",
-      "endFieldId": "rFpPvP-mTwv2hi0pIFrMI",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_pre_submit_reviews_id_pre_submits",
-      "id": 5
-    },
-    {
-      "startTableId": 8,
-      "startFieldId": "F-MuQm9keD_l1VUGWyBva",
-      "endTableId": "XP01VGqviAnNWsbEfPi6x",
-      "endFieldId": "nf9TUq8UzO8Hdsw5LPDpm",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_pre_submit_reviews_id_submits",
-      "id": 6
-    },
-    {
-      "startTableId": "Fohy-LFlfsJxq54i1RpLX",
-      "startFieldId": "kdvc29Aj5ukbfSHyckccl",
-      "endTableId": "POlQ5a23qldwcdLB2O4Cx",
-      "endFieldId": "FXeJq0_uVz0dJL4Gknw_s",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_files_info_file_id_files",
-      "id": 7
-    },
-    {
-      "startTableId": "4klCpIm1-I-ur7Uk7czMb",
-      "startFieldId": "nhZpfydn4frtieNxLo9fZ",
-      "endTableId": "POlQ5a23qldwcdLB2O4Cx",
-      "endFieldId": "FXeJq0_uVz0dJL4Gknw_s",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_pending_files_file_id_files",
-      "id": 8
-    },
-    {
-      "startTableId": "4klCpIm1-I-ur7Uk7czMb",
-      "startFieldId": "hAkFBdRNfSrATV7MfvKhP",
-      "endTableId": "AYJCJdxex7gpnryubkllN",
-      "endFieldId": "sXLEQebX19hJBXDakNlvl",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_pending_files_project_user_id_project_users",
-      "id": 9
-    },
-    {
-      "startTableId": "h8Kkc5zanMAbF3Mlsm0gx",
-      "startFieldId": "HOd79Zw00Ywd2zMMjLj3r",
-      "endTableId": "POlQ5a23qldwcdLB2O4Cx",
-      "endFieldId": "FXeJq0_uVz0dJL4Gknw_s",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_projects_attachment_file_id_files",
-      "id": 10
-    },
-    {
-      "startTableId": "F4AHKV3UyPWl6q7U4jOOv",
-      "startFieldId": "33j4i23gleM0qR9KfVIQn",
-      "endTableId": "POlQ5a23qldwcdLB2O4Cx",
-      "endFieldId": "FXeJq0_uVz0dJL4Gknw_s",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_deleted_files_file_id_files",
-      "id": 11
-    },
-    {
-      "startTableId": "7eHZp8SJwKhGnBOy0aq9a",
-      "startFieldId": "x1ttUXX1zZ2wcs1iW6clO",
-      "endTableId": "Fohy-LFlfsJxq54i1RpLX",
-      "endFieldId": "kdvc29Aj5ukbfSHyckccl",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_checked_files_file_id_file_infos",
-      "id": 12
-    },
-    {
-      "startTableId": 8,
-      "startFieldId": "sdO5y7mwCrjh6VJgNutVN",
-      "endTableId": "7eHZp8SJwKhGnBOy0aq9a",
-      "endFieldId": "ezdrWALUm3RS2OcUBr6YE",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_submit_reviews_checked_file_group_id_checked_files",
-      "id": 13
-    },
-    {
-      "startTableId": "ClpCgTYuhtUxwZbLAUPgj",
-      "startFieldId": "XiU-H-v0ZjuddyAFS4Ar8",
-      "endTableId": "POlQ5a23qldwcdLB2O4Cx",
-      "endFieldId": "FXeJq0_uVz0dJL4Gknw_s",
-      "cardinality": "one_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_pending_attachments_file_id_files",
-      "id": 15
-    },
-    {
-      "startTableId": "XD3rvcsUiYpJ5RiLXh_AQ",
-      "startFieldId": "eGSrkDBx_3h3crheaIuZm",
-      "endTableId": "S-_ZPZPJVs-d_49mrIuoi",
-      "endFieldId": "ZbDoUW4ijq1FUfEqMb1hF",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_project_managers_manager_id_managers",
-      "id": 16
-    },
-    {
-      "startTableId": "XD3rvcsUiYpJ5RiLXh_AQ",
-      "startFieldId": "r_uT-ehco_a2Y9g4m23CS",
-      "endTableId": "h8Kkc5zanMAbF3Mlsm0gx",
-      "endFieldId": "QO2nz-GBCLzyeDvsQ-fvz",
-      "cardinality": "many_to_one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "fk_manager_to_project_project_id_projects",
-      "id": 17
-    }
-  ],
+  "relationships": [],
   "notes": [],
   "subjectAreas": [],
   "database": "sqlite",

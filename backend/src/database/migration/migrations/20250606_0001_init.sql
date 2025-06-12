@@ -23,9 +23,7 @@ CREATE TABLE IF NOT EXISTS "projects" (
 	"submit_file_size_min" INTEGER NOT NULL,
 	"submit_file_size_max" INTEGER NOT NULL,
 	"master_file_size_max" INTEGER NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("attachment_file_id") REFERENCES "files"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "project_users" (
@@ -33,11 +31,7 @@ CREATE TABLE IF NOT EXISTS "project_users" (
 	"user_id" INTEGER NOT NULL,
 	"project_id" INTEGER NOT NULL,
 	"name" TEXT NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("user_id") REFERENCES "users"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION,
-	FOREIGN KEY ("project_id") REFERENCES "projects"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "files" (
@@ -52,19 +46,13 @@ CREATE TABLE IF NOT EXISTS "pending_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,
 	"project_user_id" INTEGER NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("file_id") REFERENCES "files"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION,
-	FOREIGN KEY ("project_user_id") REFERENCES "project_users"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "deleted_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("file_id") REFERENCES "files"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "file_infos" (
@@ -72,9 +60,7 @@ CREATE TABLE IF NOT EXISTS "file_infos" (
 	"file_id" INTEGER NOT NULL,
 	"target_type" TEXT NOT NULL,
 	"target_id" INTEGER NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("file_id") REFERENCES "files"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "pre_submits" (
@@ -83,9 +69,7 @@ CREATE TABLE IF NOT EXISTS "pre_submits" (
 	"created_at" TEXT NOT NULL,
 	"harmony_group_intention" BOOLEAN,
 	"comment" TEXT NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("project_user_id") REFERENCES "project_users"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "pre_submit_reviews" (
@@ -94,10 +78,8 @@ CREATE TABLE IF NOT EXISTS "pre_submit_reviews" (
 	"lead" BOOLEAN,
 	"choir" BOOLEAN,
 	"harmony" BOOLEAN,
-	"reason" BOOLEAN,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("id") REFERENCES "pre_submits"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	"reason" TEXT,
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "submits" (
@@ -105,22 +87,16 @@ CREATE TABLE IF NOT EXISTS "submits" (
 	"project_user_id" INTEGER NOT NULL,
 	"created_at" TEXT NOT NULL,
 	"comment" TEXT NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("project_user_id") REFERENCES "project_users"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "submit_reviews" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"status" TEXT NOT NULL,
-	"reason" BOOLEAN,
+	"reason" TEXT,
 	"reason_detail" TEXT,
 	"checked_file_group_id" INTEGER,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("id") REFERENCES "submits"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION,
-	FOREIGN KEY ("checked_file_group_id") REFERENCES "checked_files"("group_id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "masters" (
@@ -128,18 +104,14 @@ CREATE TABLE IF NOT EXISTS "masters" (
 	"project_user_id" INTEGER NOT NULL,
 	"created_at" TEXT NOT NULL,
 	"comment" TEXT NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("project_user_id") REFERENCES "project_users"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "checked_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"group_id" INTEGER NOT NULL,
 	"file_id" INTEGER NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("file_id") REFERENCES "file_infos"("file_id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "managers" (
@@ -160,9 +132,7 @@ CREATE TABLE IF NOT EXISTS "managers" (
 CREATE TABLE IF NOT EXISTS "pending_attachments" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("file_id") REFERENCES "files"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "project_managers" (
@@ -170,9 +140,6 @@ CREATE TABLE IF NOT EXISTS "project_managers" (
 	"project_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
 	"is_revoke" BOOLEAN NOT NULL,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("manager_id") REFERENCES "managers"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION,
-	FOREIGN KEY ("project_id") REFERENCES "projects"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	PRIMARY KEY("id")
 );
+

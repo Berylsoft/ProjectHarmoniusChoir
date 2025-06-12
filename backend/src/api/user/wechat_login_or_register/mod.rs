@@ -5,12 +5,11 @@ use axum::{
 };
 use chrono::{TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Connection;
 
 use super::UserToken;
 use crate::{
     ServerState,
-    api::{self, ToJson, end_transaction},
+    api::{self, Response, ToJson, end_transaction, spawn_await},
     begin_transaction,
     database::Database,
     utils::cookie_set_token,
@@ -27,23 +26,23 @@ pub async fn router(
 ) -> api::ApiResult<impl IntoResponse, ToJson> {
     // TODO: actual wechat auth
     tracing::info!("{req:?}");
-    let wechat_openid = req.code.clone();
+    let wechat_openid = req.0.data.code;
 
-    let (uid, token_id) = tokio::task::spawn(do_register_or_login(
-        state.db.clone(),
-        wechat_openid,
+    let (uid, token_id) =
+        spawn_await(do_register_or_login(state.0.db, wechat_openid))
+            .await??;
+
+    Ok((
+        [cookie_set_token(
+            UserToken {
+                uid,
+                token_id,
+                expired: Utc::now() + TimeDelta::days(7),
+            },
+            &state.0.key,
+        )],
+        Json(Response::Ok(())),
     ))
-    .await
-    .context("join tokio task")??;
-
-    Ok(([cookie_set_token(
-        UserToken {
-            uid,
-            token_id,
-            expired: Utc::now() + TimeDelta::days(7),
-        },
-        &state.key,
-    )],))
 }
 
 pub async fn do_register_or_login(
