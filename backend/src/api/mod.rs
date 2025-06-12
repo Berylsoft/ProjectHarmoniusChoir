@@ -2,6 +2,7 @@ use std::{borrow::Cow, marker::PhantomData};
 
 use anyhow::Context;
 use axum::{Json, http::StatusCode, response::IntoResponse};
+use redis::{AsyncTypedCommands, aio::MultiplexedConnection};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
@@ -14,11 +15,35 @@ pub mod user;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request<T> {
     data: T,
-    // TODO:
     nonce: Option<Ulid>,
 }
 
 impl_deref!(impl<T> ref Request<T> => T = .data);
+
+impl<T: Send + Sync> Request<T> {
+    pub async fn verified<S>(
+        self,
+        conn: &mut MultiplexedConnection,
+    ) -> ApiResult<T, S> {
+        let Some(nonce) = self.nonce else {
+            return Ok(self.data);
+        };
+
+        let exists = conn
+            .exists(format!("nonce:{nonce}"))
+            .await
+            .context("failed to check nonce in cache")?;
+
+        if exists {
+            Err(ApiError::UsedNonce)
+        } else {
+            conn.set(format!("nonce:{nonce}"), "")
+                .await
+                .context("failed to set nonce in cache")?;
+            Ok(self.data)
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Response<'msg, T> {
@@ -32,6 +57,7 @@ pub enum ErrCode {
     Unknown = 1,
     // client error
     InvalidToken = 4000,
+    UsedNonce,
     // only happens when client send request with specific timing
     UserNotExists = 6000,
 }
@@ -42,6 +68,8 @@ pub enum ApiError<T> {
     Unknown(#[from] anyhow::Error),
     #[error("invalid token: {0}")]
     InvalidToken(&'static str),
+    #[error("used nonce")]
+    UsedNonce,
     #[error("user not exists")]
     UserNotExists,
     #[error("response serialization type marker")]
@@ -49,6 +77,7 @@ pub enum ApiError<T> {
 }
 
 impl<T> ApiError<T> {
+    #[expect(clippy::cognitive_complexity)]
     pub fn into_api_response(
         self,
     ) -> (StatusCode, Response<'static, ()>) {
@@ -76,6 +105,17 @@ impl<T> ApiError<T> {
                     Response::Err {
                         code: ErrCode::InvalidToken,
                         msg: "please login first".into(),
+                    },
+                )
+            }
+            Self::UsedNonce => {
+                tracing::info!("rejecting used nonce");
+
+                (
+                    StatusCode::BAD_REQUEST,
+                    Response::Err {
+                        code: ErrCode::UsedNonce,
+                        msg: "used nonce".into(),
                     },
                 )
             }

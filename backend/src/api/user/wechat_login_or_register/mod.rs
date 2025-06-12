@@ -23,12 +23,14 @@ pub struct WechatLoginOrRegisterReq {
 }
 
 pub async fn router(
-    state: State<ServerState>,
+    mut state: State<ServerState>,
     req: Json<api::Request<WechatLoginOrRegisterReq>>,
 ) -> api::ApiResult<impl IntoResponse, ToJson> {
+    let req = req.0.verified(&mut state.0.cache).await?;
+
     // TODO: actual wechat auth
     tracing::info!("{req:?}");
-    let wechat_openid = req.0.data.code;
+    let wechat_openid = req.code;
 
     let (uid, token_id) =
         spawn_await(do_register_or_login(state.0.db, wechat_openid))

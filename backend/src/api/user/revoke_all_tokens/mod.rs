@@ -14,10 +14,11 @@ use crate::{
 };
 
 pub async fn router(
-    state: State<ServerState>,
+    mut state: State<ServerState>,
     token: Token<UserToken>,
-    _req: Json<api::Request<()>>,
+    req: Json<api::Request<()>>,
 ) -> ApiResult<impl IntoResponse, ToJson> {
+    req.0.verified(&mut state.cache).await?;
     token.verify(&state.db).await?;
 
     tokio::task::spawn(do_revoke(state.0.db, token.uid))

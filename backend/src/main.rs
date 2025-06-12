@@ -23,6 +23,7 @@ use ed25519_dalek::{
     pkcs8::{DecodePrivateKey, EncodePrivateKey},
 };
 use mimalloc::MiMalloc;
+use redis::aio::MultiplexedConnection;
 use tokio::net::TcpListener;
 use tower_http::{
     request_id::{
@@ -59,8 +60,9 @@ impl MakeRequestId for ServerMakeRequestId {
 
 #[derive(Clone)]
 struct ServerState {
-    db: Database,
     key: SigningKey,
+    db: Database,
+    cache: MultiplexedConnection,
 }
 
 fn router(state: ServerState) -> Router {
@@ -147,6 +149,45 @@ fn get_or_init_signing_key() -> anyhow::Result<SigningKey> {
     Ok(key)
 }
 
+async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
+    info!("connecting cache");
+    let redis_url = var_optional("REDIS_DB")
+        .context("failed to get REDIS_DB env")?
+        .unwrap_or_else(|| "redis://localhost".to_string());
+    let client =
+        redis::Client::open(redis_url).context("invalid redis db url")?;
+    let mut conn = client
+        .get_multiplexed_async_connection()
+        .await
+        .context("failed to get redix connection")?;
+
+    redis::cmd("CONFIG")
+        .arg("SET")
+        .arg("maxmemory")
+        .arg("1gb")
+        .exec_async(&mut conn)
+        .await
+        .context("failed to set maxmemory")?;
+
+    redis::cmd("CONFIG")
+        .arg("SET")
+        .arg("maxmemory-policy")
+        .arg("allkeys-lru")
+        .exec_async(&mut conn)
+        .await
+        .context("failed to set maxmemory-policy")?;
+
+    redis::cmd("CONFIG")
+        .arg("SET")
+        .arg("save")
+        .arg("")
+        .exec_async(&mut conn)
+        .await
+        .context("failed to set save")?;
+
+    Ok(conn)
+}
+
 async fn run() -> anyhow::Result<()> {
     init_env();
 
@@ -163,6 +204,7 @@ async fn run() -> anyhow::Result<()> {
         )
         .await
         .context("failed to initialize database")?,
+        cache: cache_init().await.context("failed to init cache")?,
     };
 
     let host = var_optional("HOST")

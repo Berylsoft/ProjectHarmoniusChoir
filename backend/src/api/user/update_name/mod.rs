@@ -20,16 +20,17 @@ pub struct UpdateName {
 }
 
 pub async fn router(
-    state: State<ServerState>,
+    mut state: State<ServerState>,
     token: Token<UserToken>,
     req: Json<api::Request<UpdateName>>,
 ) -> ApiResult<impl IntoResponse, ToJson> {
+    let req = req.0.verified(&mut state.0.cache).await?;
     token.verify(&state.db).await?;
 
     tokio::task::spawn(do_update_name(
         state.0.db,
         token.uid,
-        req.0.data.new_name,
+        req.new_name,
     ))
     .await
     .context("join tokio task")??;
