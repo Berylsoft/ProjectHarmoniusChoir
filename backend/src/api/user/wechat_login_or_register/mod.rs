@@ -10,9 +10,9 @@ use sqlx::Connection;
 use super::UserToken;
 use crate::{
     ServerState,
-    api::{self, ToJson},
+    api::{self, ToJson, end_transaction},
     begin_transaction,
-    database::{Database, try_end_transaction},
+    database::Database,
     utils::cookie_set_token,
 };
 
@@ -52,7 +52,7 @@ pub async fn do_register_or_login(
 ) -> anyhow::Result<(i64, i64)> {
     begin_transaction!(db, conn, trans, Immediate);
 
-    let run = async || {
+    let res = async {
         let exists_user = sqlx::query_as::<_, (i64, i64)>(include_str!(
             "./sqls/get_user_by_wechat_openid.sql"
         ))
@@ -90,10 +90,9 @@ pub async fn do_register_or_login(
             (uid, token_id)
         };
 
-        anyhow::Result::<(_, _)>::Ok(user)
-    };
+        Ok(user)
+    }
+    .await;
 
-    try_end_transaction(run().await, trans)
-        .await
-        .context("transaction end")
+    end_transaction(res, trans).await
 }

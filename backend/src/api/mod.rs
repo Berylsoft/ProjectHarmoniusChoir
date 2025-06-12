@@ -1,10 +1,13 @@
 use std::{borrow::Cow, marker::PhantomData};
 
+use anyhow::Context;
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
-use crate::{extractors::Cbor, impl_deref};
+use crate::{
+    database::try_end_transaction, extractors::Cbor, impl_deref,
+};
 
 pub mod user;
 
@@ -94,4 +97,16 @@ macro_rules! begin_transaction {
             "transaction begin",
         )?;
     };
+}
+
+pub async fn end_transaction<DB, R>(
+    result: anyhow::Result<R>,
+    trans: sqlx::Transaction<'_, DB>,
+) -> anyhow::Result<R>
+where
+    DB: sqlx::Database,
+{
+    try_end_transaction(result, trans)
+        .await
+        .context("transaction end")
 }
