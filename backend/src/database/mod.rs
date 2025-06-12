@@ -97,21 +97,15 @@ impl From<BeginStmt> for Cow<'static, str> {
 pub async fn try_end_transaction<DB, R, E>(
     result: Result<R, E>,
     trans: Transaction<'_, DB>,
-) -> Result<R, E>
+) -> Result<Result<R, E>, sqlx::Error>
 where
-    E: From<sqlx::Error>,
     DB: SqlxDatabase,
 {
-    match result {
-        Ok(ret) => {
-            trans.commit().await?;
-
-            Ok(ret)
-        }
-        Err(err) => {
-            trans.rollback().await?;
-
-            Err(err)
-        }
+    if result.is_ok() {
+        trans.commit().await?;
+    } else {
+        trans.rollback().await?;
     }
+
+    Ok(result)
 }

@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use super::UserToken;
 use crate::{
     ServerState,
-    api::{self, Response, ToJson, end_transaction, spawn_await},
+    api::{
+        self, ApiResult, Response, ToJson, end_transaction, spawn_await,
+    },
     begin_transaction,
     database::Database,
     utils::cookie_set_token,
@@ -48,7 +50,7 @@ pub async fn router(
 pub async fn do_register_or_login(
     db: Database,
     wechat_openid: String,
-) -> anyhow::Result<(i64, i64)> {
+) -> ApiResult<(i64, i64), ToJson> {
     begin_transaction!(db, conn, trans, Immediate);
 
     let res = async {

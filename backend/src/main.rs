@@ -12,7 +12,9 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use api::user::{update_name, wechat_login_or_register};
+use api::user::{
+    revoke_all_tokens, update_name, wechat_login_or_register,
+};
 use axum::{Router, routing};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use database::Database;
@@ -70,6 +72,10 @@ fn router(state: ServerState) -> Router {
         .route(
             "/api/user/update_name",
             routing::post(update_name::router),
+        )
+        .route(
+            "/api/user/revoke_all_tokens",
+            routing::post(revoke_all_tokens::router),
         )
         .layer((
             SetRequestIdLayer::x_request_id(ServerMakeRequestId),

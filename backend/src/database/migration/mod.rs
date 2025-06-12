@@ -105,7 +105,7 @@ impl Migration {
 
         try_end_transaction(run_migrations().await, trans)
             .await
-            .context("failed to end transaction")?;
+            .context("failed to end transaction")??;
 
         Ok(())
     }

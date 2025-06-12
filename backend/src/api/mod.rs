@@ -143,14 +143,20 @@ where
     tokio::task::spawn(fut).await.context("join tokio task")
 }
 
-async fn end_transaction<DB, R>(
-    result: anyhow::Result<R>,
+async fn end_transaction<DB, R, E, S>(
+    result: Result<R, E>,
     trans: sqlx::Transaction<'_, DB>,
-) -> anyhow::Result<R>
+) -> ApiResult<R, S>
 where
     DB: sqlx::Database,
+    E: Into<ApiError<S>>,
 {
-    try_end_transaction(result, trans)
+    let res = try_end_transaction(result, trans)
         .await
-        .context("transaction end")
+        .context("transaction end");
+
+    match res {
+        Ok(ok) => ok.map_err(Into::into),
+        Err(err) => Err(ApiError::Unknown(err)),
+    }
 }

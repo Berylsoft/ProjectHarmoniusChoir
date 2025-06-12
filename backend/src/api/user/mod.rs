@@ -7,6 +7,7 @@ use crate::{
     database::Database,
 };
 
+pub mod revoke_all_tokens;
 pub mod update_name;
 pub mod wechat_login_or_register;
 

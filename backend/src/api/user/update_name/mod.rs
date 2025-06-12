@@ -65,9 +65,9 @@ pub async fn do_update_name(
                 .context("update_name")?;
         }
 
-        Ok(())
+        ApiResult::<_, _>::Ok(())
     }
     .await;
 
-    end_transaction(res, trans).await.map_err(Into::into)
+    end_transaction(res, trans).await
 }
