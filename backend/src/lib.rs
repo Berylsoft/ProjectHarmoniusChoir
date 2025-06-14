@@ -188,7 +188,9 @@ async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
     Ok(conn)
 }
 
-async fn run() -> anyhow::Result<()> {
+/// # Errors
+/// Fatal errors
+pub async fn run() -> anyhow::Result<()> {
     init_env();
 
     info!("initializing");
@@ -222,12 +224,4 @@ async fn run() -> anyhow::Result<()> {
         .context("failed to serve")?;
 
     Ok(())
-}
-
-fn main() -> anyhow::Result<()> {
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
-
-    rt.block_on(run())
 }
