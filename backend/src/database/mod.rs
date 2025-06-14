@@ -11,7 +11,7 @@ use sqlx::{
 
 pub mod migration;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Database {
     pool: sqlx::AnyPool,
 }
@@ -58,6 +58,7 @@ pub enum BeginStmt {
 }
 
 impl BeginStmt {
+    #[must_use]
     pub const fn stmt(self) -> &'static str {
         match self {
             Self::Deferred => "BEGIN DEFERRED",
@@ -94,6 +95,8 @@ impl From<BeginStmt> for Cow<'static, str> {
 //     try_end_transaction(ret, transaction).await
 // }
 
+/// # Errors
+/// When failed to commit or rollback
 pub async fn try_end_transaction<DB, R, E>(
     result: Result<R, E>,
     trans: Transaction<'_, DB>,

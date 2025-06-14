@@ -11,6 +11,7 @@ pub struct Migration {
 }
 
 impl Migration {
+    #[must_use]
     pub const fn all() -> &'static [Self] {
         // NOTE: database with empty applied migration is considered version 0
         const ALL: &[Migration] = &[
@@ -42,6 +43,13 @@ impl Migration {
         ALL
     }
 
+    #[must_use]
+    pub const fn sql(&self) -> &str {
+        self.sql
+    }
+
+    /// # Errors
+    /// When failed to do database access
     pub async fn run(pool: &sqlx::AnyPool) -> anyhow::Result<()> {
         let mut conn = pool
             .acquire()

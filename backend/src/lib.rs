@@ -38,7 +38,7 @@ use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
 
 mod api;
-mod database;
+pub mod database;
 mod extractors;
 mod signing;
 mod utils;
@@ -224,4 +224,14 @@ pub async fn run() -> anyhow::Result<()> {
         .context("failed to serve")?;
 
     Ok(())
+}
+
+/// # Errors
+/// Fatal errors
+pub fn main() -> anyhow::Result<()> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+
+    rt.block_on(run())
 }
