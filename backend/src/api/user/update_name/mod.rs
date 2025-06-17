@@ -25,27 +25,25 @@ pub async fn router(
     req: Json<api::Request<UpdateName>>,
 ) -> ApiResult<impl IntoResponse, ToJson> {
     let req = req.0.verified(&mut state.0.cache).await?;
-    token.verify(&state.db).await?;
 
-    tokio::task::spawn(do_update_name(
-        state.0.db,
-        token.uid,
-        req.new_name,
-    ))
-    .await
-    .context("join tokio task")??;
+    tokio::task::spawn(do_update_name(state.0.db, token.0, req.new_name))
+        .await
+        .context("join tokio task")??;
 
     Ok(Json(Response::Ok(())))
 }
 
 pub async fn do_update_name(
     db: Database,
-    uid: i64,
+    token: UserToken,
     new_name: String,
 ) -> ApiResult<(), ToJson> {
     begin_transaction!(db, conn, trans, Immediate);
 
     let res = async {
+        token.verify(&mut trans).await?;
+        let uid = token.uid;
+
         let previous_name = sqlx::query_scalar::<_, String>(
             include_str!("./sqls/get_name.sql"),
         )

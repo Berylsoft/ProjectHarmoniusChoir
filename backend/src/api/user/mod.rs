@@ -1,11 +1,9 @@
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::Transaction;
 
-use crate::{
-    api::{ApiError, ApiResult},
-    database::Database,
-};
+use crate::api::{ApiError, ApiResult};
 
 pub mod revoke_all_tokens;
 pub mod update_name;
@@ -20,19 +18,19 @@ pub struct UserToken {
 }
 
 impl UserToken {
-    pub async fn verify<S>(&self, db: &Database) -> ApiResult<(), S> {
+    pub async fn verify<S>(
+        &self,
+        trans: &mut Transaction<'_, sqlx::Any>,
+    ) -> ApiResult<(), S> {
         if self.expired < Utc::now() {
             return Err(ApiError::InvalidToken("expired"));
         }
-
-        let mut conn =
-            db.acquire().await.context("db connection acquire")?;
 
         let token_id = sqlx::query_scalar::<_, i64>(include_str!(
             "./sqls/get_user_token_id_by_uid.sql"
         ))
         .bind(self.uid)
-        .fetch_optional(&mut *conn)
+        .fetch_optional(&mut **trans)
         .await
         .context("get_user_token_id_by_uid")?;
 

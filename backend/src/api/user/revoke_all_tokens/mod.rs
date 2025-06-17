@@ -19,19 +19,24 @@ pub async fn router(
     req: Json<api::Request<()>>,
 ) -> ApiResult<impl IntoResponse, ToJson> {
     req.0.verified(&mut state.cache).await?;
-    token.verify(&state.db).await?;
 
-    tokio::task::spawn(do_revoke(state.0.db, token.uid))
+    tokio::task::spawn(do_revoke(state.0.db, token.0))
         .await
         .context("join tokio task")??;
 
     Ok(Json(Response::Ok(())))
 }
 
-pub async fn do_revoke(db: Database, uid: i64) -> ApiResult<(), ToJson> {
+pub async fn do_revoke(
+    db: Database,
+    token: UserToken,
+) -> ApiResult<(), ToJson> {
     begin_transaction!(db, conn, trans, Immediate);
 
     let res = async {
+        token.verify(&mut trans).await?;
+        let uid = token.uid;
+
         let res = sqlx::query(include_str!("./sqls/inc_token_id.sql"))
             .bind(uid)
             .execute(&mut *trans)

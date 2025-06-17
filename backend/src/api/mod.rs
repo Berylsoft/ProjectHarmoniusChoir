@@ -29,18 +29,15 @@ impl<T: Send + Sync> Request<T> {
             return Ok(self.data);
         };
 
-        let exists = conn
-            .exists(format!("nonce:{nonce}"))
+        let not_exists = conn
+            .set_nx(format!("nonce:{nonce}"), "")
             .await
-            .context("failed to check nonce in cache")?;
+            .context("failed to set_nx nonce in cache")?;
 
-        if exists {
-            Err(ApiError::UsedNonce)
-        } else {
-            conn.set(format!("nonce:{nonce}"), "")
-                .await
-                .context("failed to set nonce in cache")?;
+        if not_exists {
             Ok(self.data)
+        } else {
+            Err(ApiError::UsedNonce)
         }
     }
 }
