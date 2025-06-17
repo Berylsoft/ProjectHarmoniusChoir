@@ -36,3 +36,10 @@ fn user_views() {
         "./sqls/user_views.sql"
     )))
 }
+
+#[test]
+fn manager_views() {
+    insta::assert_snapshot!(run_on_database(include_str!(
+        "./sqls/manager_views.sql"
+    )))
+}
