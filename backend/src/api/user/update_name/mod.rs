@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::UserToken;
 use crate::{
     ServerState,
-    api::{self, ApiError, ApiResult, Response, ToJson, end_transaction},
+    api::{self, ApiResult, Response, ToJson, end_transaction},
     begin_transaction,
     database::Database,
     extractors::Token,
@@ -48,12 +48,9 @@ pub async fn do_update_name(
             include_str!("./sqls/get_name.sql"),
         )
         .bind(uid)
-        .fetch_optional(&mut *trans)
+        .fetch_one(&mut *trans)
         .await
         .context("get_name")?;
-
-        let previous_name =
-            previous_name.ok_or(ApiError::<ToJson>::UserNotExists)?;
 
         if previous_name != new_name {
             sqlx::query(include_str!("./sqls/update_name.sql"))

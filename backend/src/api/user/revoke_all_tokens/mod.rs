@@ -43,10 +43,6 @@ pub async fn do_revoke(
             .await
             .context("inc_token_id")?;
 
-        if res.rows_affected() == 0 {
-            return Err(ApiError::UserNotExists);
-        }
-
         if res.rows_affected() != 1 {
             return Err(ApiError::Unknown(anyhow::anyhow!(
                 "assertion failed: res.rows_affected() == 1"

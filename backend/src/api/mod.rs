@@ -55,8 +55,6 @@ pub enum ErrCode {
     // client error
     InvalidToken = 4000,
     UsedNonce,
-    // only happens when client send request with specific timing
-    UserNotExists = 6000,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -67,14 +65,11 @@ pub enum ApiError<T> {
     InvalidToken(&'static str),
     #[error("used nonce")]
     UsedNonce,
-    #[error("user not exists")]
-    UserNotExists,
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
 
 impl<T> ApiError<T> {
-    #[expect(clippy::cognitive_complexity)]
     pub fn into_api_response(
         self,
     ) -> (StatusCode, Response<'static, ()>) {
@@ -113,17 +108,6 @@ impl<T> ApiError<T> {
                     Response::Err {
                         code: ErrCode::UsedNonce,
                         msg: "used nonce".into(),
-                    },
-                )
-            }
-            Self::UserNotExists => {
-                tracing::info!("rejecting non exists user");
-
-                (
-                    StatusCode::NOT_FOUND,
-                    Response::Err {
-                        code: ErrCode::UserNotExists,
-                        msg: "user not exists".into(),
                     },
                 )
             }
