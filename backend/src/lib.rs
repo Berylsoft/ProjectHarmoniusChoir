@@ -58,14 +58,31 @@ impl MakeRequestId for ServerMakeRequestId {
     }
 }
 
-#[derive(Clone)]
-struct ServerState {
+#[derive(Debug, Clone)]
+pub struct ServerState {
     key: SigningKey,
     db: Database,
     cache: MultiplexedConnection,
 }
 
-fn router(state: ServerState) -> Router {
+impl ServerState {
+    #[must_use]
+    pub const fn new(
+        key: SigningKey,
+        db: Database,
+        cache: MultiplexedConnection,
+    ) -> Self {
+        Self { key, db, cache }
+    }
+}
+
+pub fn router<MakeReqId>(
+    state: ServerState,
+    make_req_id: MakeReqId,
+) -> Router
+where
+    MakeReqId: MakeRequestId + Send + Sync + Clone + 'static,
+{
     Router::new()
         .route(
             "/api/user/wechat_login_or_register",
@@ -80,7 +97,7 @@ fn router(state: ServerState) -> Router {
             routing::post(revoke_all_tokens::router),
         )
         .layer((
-            SetRequestIdLayer::x_request_id(ServerMakeRequestId),
+            SetRequestIdLayer::x_request_id(make_req_id),
             TraceLayer::new_for_http().make_span_with(
                 DefaultMakeSpan::new().include_headers(true),
             ),
@@ -149,7 +166,9 @@ fn get_or_init_signing_key() -> anyhow::Result<SigningKey> {
     Ok(key)
 }
 
-async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
+/// # Errors
+/// invalid env or redis error
+pub async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
     info!("connecting cache");
     let redis_url = var_optional("REDIS_DB")
         .context("failed to get REDIS_DB env")?
@@ -219,7 +238,7 @@ pub async fn run() -> anyhow::Result<()> {
 
     info!("listening on {host}");
 
-    axum::serve(listener, router(state))
+    axum::serve(listener, router(state, ServerMakeRequestId))
         .await
         .context("failed to serve")?;
 
