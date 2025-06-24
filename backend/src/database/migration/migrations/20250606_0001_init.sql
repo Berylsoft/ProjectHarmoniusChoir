@@ -118,12 +118,7 @@ CREATE TABLE IF NOT EXISTS "managers" (
 	"_id" INTEGER NOT NULL UNIQUE,
 	"id" INTEGER NOT NULL,
 	"revision" INTEGER NOT NULL,
-	"pswd_argon2" BLOB NOT NULL,
-	"argon2_m" INTEGER NOT NULL,
-	"argon2_t" INTEGER NOT NULL,
-	"argon2_p" INTEGER NOT NULL,
-	"argon2_len" INTEGER NOT NULL,
-	"pswd_salt" BLOB NOT NULL,
+	"password" TEXT NOT NULL,
 	"totp_secret" BLOB,
 	"token_id" INTEGER NOT NULL,
 	PRIMARY KEY("_id")

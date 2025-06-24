@@ -10,6 +10,7 @@ use crate::{
     database::try_end_transaction, extractors::Cbor, impl_deref,
 };
 
+pub mod manager;
 pub mod user;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -138,7 +139,7 @@ impl IntoResponse for ApiError<ToCbor> {
 }
 
 #[macro_export]
-macro_rules! begin_transaction {
+macro_rules! api_begin_transaction {
     ($db:expr, $conn:ident, $trans:ident, $stmt:ident) => {
         let mut $conn = ::anyhow::Context::context(
             $db.acquire().await,

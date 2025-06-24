@@ -9,7 +9,7 @@ use super::UserToken;
 use crate::{
     ServerState,
     api::{self, ApiResult, Response, ToJson, end_transaction},
-    begin_transaction,
+    api_begin_transaction,
     database::Database,
     extractors::Token,
 };
@@ -38,7 +38,7 @@ pub async fn do_update_name(
     token: UserToken,
     new_name: String,
 ) -> ApiResult<(), ToJson> {
-    begin_transaction!(db, conn, trans, Immediate);
+    api_begin_transaction!(db, conn, trans, Immediate);
 
     let res = async {
         token.verify(&mut trans).await?;

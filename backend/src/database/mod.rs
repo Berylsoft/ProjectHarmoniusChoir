@@ -17,6 +17,8 @@ pub struct Database {
 }
 
 impl Database {
+    /// # Errors
+    /// when database calls failed
     #[tracing::instrument(fields(url = url.as_ref()))]
     pub async fn init(url: impl AsRef<str>) -> anyhow::Result<Self> {
         tracing::info!("initialzing database");

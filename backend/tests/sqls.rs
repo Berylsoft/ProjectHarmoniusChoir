@@ -21,6 +21,7 @@ fn run_on_database(input: &'static str) -> String {
     for migration in Migration::all() {
         write_sqlite(migration.sql());
     }
+    write_sqlite(".mode column");
     write_sqlite(input);
     write_sqlite(".quit");
 

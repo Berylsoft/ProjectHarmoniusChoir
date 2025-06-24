@@ -37,6 +37,8 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
 
+use crate::api::manager::init_root_if_not_exists;
+
 mod api;
 pub mod database;
 mod extractors;
@@ -207,12 +209,7 @@ pub async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
     Ok(conn)
 }
 
-/// # Errors
-/// Fatal errors
-pub async fn run() -> anyhow::Result<()> {
-    init_env();
-
-    info!("initializing");
+async fn initialize_server_state() -> anyhow::Result<ServerState> {
     let state = ServerState {
         key: get_or_init_signing_key()
             .context("failed to get_or_init signingkey")?,
@@ -227,6 +224,26 @@ pub async fn run() -> anyhow::Result<()> {
         .context("failed to initialize database")?,
         cache: cache_init().await.context("failed to init cache")?,
     };
+
+    let default_password = init_root_if_not_exists(&state)
+        .await
+        .context("init_root_if_not_exists")?;
+    if let Some(default_password) = default_password {
+        info!("default root password: {default_password}");
+    }
+
+    Ok(state)
+}
+
+/// # Errors
+/// Fatal errors
+pub async fn run() -> anyhow::Result<()> {
+    init_env();
+
+    info!("initializing");
+    let state = initialize_server_state()
+        .await
+        .context("failed to initialize server state")?;
 
     let host = var_optional("HOST")
         .context("failed to get HOST env")?

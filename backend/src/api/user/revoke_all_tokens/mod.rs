@@ -8,7 +8,7 @@ use super::UserToken;
 use crate::{
     ServerState,
     api::{self, ApiError, ApiResult, Response, ToJson, end_transaction},
-    begin_transaction,
+    api_begin_transaction,
     database::Database,
     extractors::Token,
 };
@@ -31,7 +31,7 @@ pub async fn do_revoke(
     db: Database,
     token: UserToken,
 ) -> ApiResult<(), ToJson> {
-    begin_transaction!(db, conn, trans, Immediate);
+    api_begin_transaction!(db, conn, trans, Immediate);
 
     let res = async {
         token.verify(&mut trans).await?;
