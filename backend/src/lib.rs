@@ -37,9 +37,9 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
 
-use crate::api::manager::init_root_if_not_exists;
+use crate::api::manager::{init_root_if_not_exists, login};
 
-mod api;
+pub mod api;
 pub mod database;
 mod extractors;
 mod signing;
@@ -98,6 +98,7 @@ where
             "/api/user/revoke_all_tokens",
             routing::post(revoke_all_tokens::router),
         )
+        .route("/api/manager/login", routing::post(login::router))
         .layer((
             SetRequestIdLayer::x_request_id(make_req_id),
             TraceLayer::new_for_http().make_span_with(

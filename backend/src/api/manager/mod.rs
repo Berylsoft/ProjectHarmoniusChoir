@@ -1,12 +1,16 @@
 use std::sync::LazyLock;
 
 use anyhow::{Context, ensure};
-use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
+use argon2::{
+    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    password_hash::SaltString,
+};
 use chrono::{DateTime, Utc};
 use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use sqlx::Transaction;
+use tokio::sync::Semaphore;
 
 use crate::{
     ServerState,
@@ -15,11 +19,12 @@ use crate::{
     database::try_end_transaction,
 };
 
+pub mod login;
+
 const ROOT_MID: i64 = 0;
 const ROOT_DEFAULT_PASSWORD_LEN: usize = 32;
-
 // TODO: actual parameter for production server
-pub static ARGON2: LazyLock<argon2::Argon2> = LazyLock::new(|| {
+static ARGON2: LazyLock<argon2::Argon2> = LazyLock::new(|| {
     let params = argon2::Params::new(2 * 1024, 2, 1, Some(64)).unwrap();
     Argon2::new(
         argon2::Algorithm::Argon2id,
@@ -27,6 +32,7 @@ pub static ARGON2: LazyLock<argon2::Argon2> = LazyLock::new(|| {
         params,
     )
 });
+static ARGON2_PARALLEL_SEMAPHORE: Semaphore = Semaphore::const_new(8);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ManagerToken {
@@ -37,7 +43,7 @@ pub struct ManagerToken {
 }
 
 impl ManagerToken {
-    pub async fn verify<S>(
+    async fn verify<S>(
         &self,
         trans: &mut Transaction<'_, sqlx::Any>,
     ) -> ApiResult<(), S> {
@@ -67,9 +73,26 @@ impl ManagerToken {
 
 /// # Return
 /// plain text password if initialized
+/// # Errors
+/// database error
+/// # Panics
+/// broken hash
 pub async fn init_root_if_not_exists(
     state: &ServerState,
 ) -> anyhow::Result<Option<String>> {
+    let mut password = String::with_capacity(ROOT_DEFAULT_PASSWORD_LEN);
+    Alphanumeric.append_string(
+        &mut rand::rng(),
+        &mut password,
+        ROOT_DEFAULT_PASSWORD_LEN,
+    );
+    let password_hash = Sha512::digest(password.as_bytes());
+    let salt = SaltString::generate(&mut rand_core::OsRng);
+    let password_hash = ARGON2
+        .hash_password(&password_hash, &salt)
+        .expect("valid hash");
+    let password_hash = password_hash.serialize();
+
     api_begin_transaction!(state.db, conn, trans, Immediate);
 
     let res: anyhow::Result<_> = async {
@@ -85,19 +108,6 @@ pub async fn init_root_if_not_exists(
             return Ok(None);
         }
 
-        let mut password =
-            String::with_capacity(ROOT_DEFAULT_PASSWORD_LEN);
-        Alphanumeric.append_string(
-            &mut rand::rng(),
-            &mut password,
-            ROOT_DEFAULT_PASSWORD_LEN,
-        );
-        let password_hash = Sha512::digest(password.as_bytes());
-        let salt = SaltString::generate(&mut rand_core::OsRng);
-        let password_hash =
-            ARGON2.hash_password(&password_hash, &salt).unwrap();
-        let password_hash = password_hash.serialize();
-
         let ins_result = sqlx::query(include_str!("./sqls/ins_root.sql"))
             .bind(password_hash.as_str())
             .execute(&mut *trans)
@@ -112,5 +122,26 @@ pub async fn init_root_if_not_exists(
     try_end_transaction(res, trans)
         .await
         .context("end_transaction")?
-        .context("init_root_if_not_exists")
 }
+
+async fn verify_password<S>(
+    pswd_sha512: &[u8; 64],
+    stored_password: &PasswordHash<'_>,
+) -> ApiResult<(), S> {
+    let permit = ARGON2_PARALLEL_SEMAPHORE
+        .acquire()
+        .await
+        .expect("not closed");
+
+    let verify_res = ARGON2.verify_password(pswd_sha512, stored_password);
+
+    if verify_res == Err(argon2::password_hash::Error::Password) {
+        return Err(ApiError::InvalidCredential("password"));
+    }
+
+    verify_res.context("verify password")?;
+    drop(permit);
+    Ok(())
+}
+
+// TODO: update password hash when parameter changed

@@ -12,10 +12,15 @@ use axum::{
     body::Body,
     http::{Request, response::Parts},
 };
-use backend::{ServerState, cache_init, database::Database, router};
+use backend::{
+    ServerState, api::manager::init_root_if_not_exists, cache_init,
+    database::Database, router,
+};
+use ciborium::cbor;
 use cookie::Cookie;
 use ed25519_dalek::SigningKey;
 use serde_json::json;
+use sha2::{Digest, Sha512};
 use tempfile::NamedTempFile;
 use tower::ServiceExt;
 use tower_http::request_id::{MakeRequestId, RequestId};
@@ -34,6 +39,7 @@ impl Display for TestResponse {
 
 struct TestApp {
     router: Router,
+    root_pswd: String,
     // for drop
     #[expect(dead_code)]
     db_tmp: NamedTempFile,
@@ -76,11 +82,19 @@ impl TestApp {
         let body = if is_utf8 {
             String::from_utf8(body)?
         } else {
-            let mut res = String::new();
-            for byte in body {
-                write!(&mut res, "{byte:0>2x}")?;
+            let res = ciborium::from_reader::<ciborium::Value, _>(
+                body.as_slice(),
+            );
+
+            if let Ok(res) = res {
+                serde_json::to_string_pretty(&res).unwrap()
+            } else {
+                let mut res = String::new();
+                for byte in body {
+                    write!(&mut res, "{byte:0>2x}")?;
+                }
+                res
             }
-            res
         };
 
         Ok(TestResponse {
@@ -130,12 +144,18 @@ async fn app() -> anyhow::Result<TestApp> {
 
     let state = ServerState::new(key, db, cache);
 
+    let root_pswd = init_root_if_not_exists(&state).await?.unwrap();
+
     let router = router(state, TestMakeRequestId::default());
-    Ok(TestApp { router, db_tmp })
+    Ok(TestApp {
+        router,
+        root_pswd,
+        db_tmp,
+    })
 }
 
 #[tokio::test]
-async fn login() {
+async fn user_auth() {
     let app = app().await.unwrap();
 
     // TODO: mock wechat api
@@ -159,7 +179,7 @@ async fn login() {
         )
         .await
         .unwrap();
-    insta::assert_snapshot!("response_of_successed_login", res);
+    insta::assert_snapshot!("user_auth_login", res);
 
     // TODO: update name and read name
 
@@ -177,8 +197,45 @@ async fn login() {
         )
         .await
         .unwrap();
-    insta::assert_snapshot!(
-        "response_of_successed_revoke_all_tokens",
-        res
+    insta::assert_snapshot!("user_auth_revoke_tokens", res);
+}
+
+#[tokio::test]
+async fn manager_login() {
+    // TODO:
+    tracing_subscriber::fmt()
+        .with_max_level(tracing_subscriber::filter::LevelFilter::TRACE)
+        .init();
+    let app = app().await.unwrap();
+
+    let mut buf = vec![];
+
+    let pswd = ciborium::Value::Bytes(
+        Sha512::digest(app.root_pswd.as_bytes()).to_vec(),
     );
+    ciborium::into_writer(
+        &cbor!({
+            "data" => {
+                "Start" => {
+                    "mid" => 0,
+                    "password" => pswd,
+                },
+            },
+        })
+        .unwrap(),
+        &mut buf,
+    )
+    .unwrap();
+
+    let res = app
+        .test_req(
+            Request::post("http://host/api/manager/login")
+                .header("Content-Type", "application/cbor")
+                .body(buf.into())
+                .unwrap(),
+            None,
+        )
+        .await
+        .unwrap();
+    insta::assert_snapshot!(res);
 }

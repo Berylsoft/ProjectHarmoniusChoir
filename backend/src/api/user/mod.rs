@@ -18,7 +18,7 @@ pub struct UserToken {
 }
 
 impl UserToken {
-    pub async fn verify<S>(
+    async fn verify<S>(
         &self,
         trans: &mut Transaction<'_, sqlx::Any>,
     ) -> ApiResult<(), S> {

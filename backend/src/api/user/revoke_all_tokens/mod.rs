@@ -13,7 +13,7 @@ use crate::{
     extractors::Token,
 };
 
-pub async fn router(
+pub(crate) async fn router(
     mut state: State<ServerState>,
     token: Token<UserToken>,
     req: Json<api::Request<()>>,
@@ -27,7 +27,7 @@ pub async fn router(
     Ok(Json(Response::Ok(())))
 }
 
-pub async fn do_revoke(
+async fn do_revoke(
     db: Database,
     token: UserToken,
 ) -> ApiResult<(), ToJson> {

@@ -47,3 +47,21 @@ impl<T: Serialize + DeserializeOwned> SignedData<T> {
         .map(|()| self.data)
     }
 }
+
+pub trait IntoSigned {
+    fn into_signed(self, key: &SigningKey) -> SignedData<Self>
+    where
+        Self: Sized;
+}
+
+impl<T> IntoSigned for T
+where
+    T: Serialize + DeserializeOwned,
+{
+    fn into_signed(self, key: &SigningKey) -> SignedData<Self>
+    where
+        Self: Sized,
+    {
+        SignedData::sign(self, key)
+    }
+}

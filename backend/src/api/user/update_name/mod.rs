@@ -19,7 +19,7 @@ pub struct UpdateName {
     new_name: String,
 }
 
-pub async fn router(
+pub(crate) async fn router(
     mut state: State<ServerState>,
     token: Token<UserToken>,
     req: Json<api::Request<UpdateName>>,
@@ -33,7 +33,7 @@ pub async fn router(
     Ok(Json(Response::Ok(())))
 }
 
-pub async fn do_update_name(
+async fn do_update_name(
     db: Database,
     token: UserToken,
     new_name: String,

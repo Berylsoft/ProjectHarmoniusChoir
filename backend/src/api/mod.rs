@@ -22,24 +22,17 @@ pub struct Request<T> {
 impl_deref!(impl<T> ref Request<T> => T = .data);
 
 impl<T: Send + Sync> Request<T> {
-    pub async fn verified<S>(
+    async fn verified<S>(
         self,
-        conn: &mut MultiplexedConnection,
+        cache_conn: &mut MultiplexedConnection,
     ) -> ApiResult<T, S> {
         let Some(nonce) = self.nonce else {
             return Ok(self.data);
         };
 
-        let not_exists = conn
-            .set_nx(format!("nonce:{nonce}"), "")
-            .await
-            .context("failed to set_nx nonce in cache")?;
+        verify_nonce(cache_conn, nonce).await?;
 
-        if not_exists {
-            Ok(self.data)
-        } else {
-            Err(ApiError::UsedNonce)
-        }
+        Ok(self.data)
     }
 }
 
@@ -56,6 +49,7 @@ pub enum ErrCode {
     // client error
     InvalidToken = 4000,
     UsedNonce,
+    InvalidCredential,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -66,11 +60,14 @@ pub enum ApiError<T> {
     InvalidToken(&'static str),
     #[error("used nonce")]
     UsedNonce,
+    #[error("invalid credential: {0}")]
+    InvalidCredential(&'static str),
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
 
 impl<T> ApiError<T> {
+    #[expect(clippy::cognitive_complexity)]
     pub fn into_api_response(
         self,
     ) -> (StatusCode, Response<'static, ()>) {
@@ -109,6 +106,17 @@ impl<T> ApiError<T> {
                     Response::Err {
                         code: ErrCode::UsedNonce,
                         msg: "used nonce".into(),
+                    },
+                )
+            }
+            Self::InvalidCredential(msg) => {
+                tracing::info!("rejecting invalid credential: {msg}");
+
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Response::Err {
+                        code: ErrCode::InvalidCredential,
+                        msg: "invalid credential".into(),
                     },
                 )
             }
@@ -180,5 +188,21 @@ where
     match res {
         Ok(ok) => ok.map_err(Into::into),
         Err(err) => Err(ApiError::Unknown(err)),
+    }
+}
+
+async fn verify_nonce<S>(
+    cache_conn: &mut MultiplexedConnection,
+    nonce: Ulid,
+) -> ApiResult<(), S> {
+    let not_exists = cache_conn
+        .set_nx(format!("nonce:{nonce}"), "")
+        .await
+        .context("failed to set_nx nonce in cache")?;
+
+    if not_exists {
+        Ok(())
+    } else {
+        Err(ApiError::UsedNonce)
     }
 }

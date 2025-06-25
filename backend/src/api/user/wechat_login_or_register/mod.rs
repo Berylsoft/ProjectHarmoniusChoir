@@ -22,7 +22,7 @@ pub struct WechatLoginOrRegisterReq {
     code: String,
 }
 
-pub async fn router(
+pub(crate) async fn router(
     mut state: State<ServerState>,
     req: Json<api::Request<WechatLoginOrRegisterReq>>,
 ) -> api::ApiResult<impl IntoResponse, ToJson> {
@@ -49,7 +49,7 @@ pub async fn router(
     ))
 }
 
-pub async fn do_register_or_login(
+async fn do_register_or_login(
     db: Database,
     wechat_openid: String,
 ) -> ApiResult<(i64, i64), ToJson> {
