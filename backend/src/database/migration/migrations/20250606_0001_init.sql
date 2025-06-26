@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS "users" (
 	"revision" INTEGER NOT NULL,
 	"is_deleted" BOOLEAN NOT NULL,
 	"name" TEXT NOT NULL,
+	-- only for token revoke
 	"token_id" INTEGER NOT NULL,
 	"wechat_openid" TEXT,
 	PRIMARY KEY("_id")
@@ -120,6 +121,7 @@ CREATE TABLE IF NOT EXISTS "managers" (
 	"revision" INTEGER NOT NULL,
 	"password" TEXT NOT NULL,
 	"totp_secret" BLOB,
+	-- only for token revoke
 	"token_id" INTEGER NOT NULL,
 	PRIMARY KEY("_id")
 );
