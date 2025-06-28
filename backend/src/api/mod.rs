@@ -52,6 +52,7 @@ pub enum ErrCode {
     UsedNonce,
     InvalidCredential,
     InsufficientPermission,
+    RequireSudo,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -66,6 +67,8 @@ pub enum ApiError<T> {
     InvalidCredential(&'static str),
     #[error("insufficient permission: {0}")]
     InsufficientPermission(&'static str),
+    #[error("require sudo")]
+    RequireSudo,
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
@@ -134,6 +137,17 @@ impl<T> ApiError<T> {
                     Response::Err {
                         code: ErrCode::InsufficientPermission,
                         msg: "you are not allowed to do this".into(),
+                    },
+                )
+            }
+            Self::RequireSudo => {
+                tracing::info!("rejecting non sudo access");
+
+                (
+                    StatusCode::FORBIDDEN,
+                    Response::Err {
+                        code: ErrCode::RequireSudo,
+                        msg: "enter sudo mode first".into(),
                     },
                 )
             }

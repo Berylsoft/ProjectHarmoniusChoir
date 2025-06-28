@@ -40,6 +40,8 @@ pub struct ManagerToken {
     pub token_id: i64,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub expired: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub sudo_expired: DateTime<Utc>,
 }
 
 impl ManagerToken {
@@ -78,6 +80,24 @@ impl ManagerToken {
 
         if self.mid != ROOT_MID {
             return Err(ApiError::InsufficientPermission("require root"));
+        }
+
+        Ok(())
+    }
+
+    async fn verify_sudo<S>(
+        &self,
+        trans: &mut Transaction<'_, sqlx::Any>,
+        require_root: bool,
+    ) -> ApiResult<(), S> {
+        if require_root {
+            self.verify_root(trans).await?;
+        } else {
+            self.verify(trans).await?;
+        }
+
+        if self.sudo_expired < Utc::now() {
+            return Err(ApiError::RequireSudo);
         }
 
         Ok(())

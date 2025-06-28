@@ -135,6 +135,7 @@ pub(crate) async fn router(
                     mid,
                     token_id,
                     expired: Utc::now() + TimeDelta::days(7),
+                    sudo_expired: Utc::now() - TimeDelta::days(365),
                 },
                 &key,
             )],
