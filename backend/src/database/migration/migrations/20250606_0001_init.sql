@@ -1,3 +1,16 @@
+CREATE TABLE IF NOT EXISTS "managers" (
+	"_id" INTEGER NOT NULL UNIQUE,
+	"id" INTEGER NOT NULL,
+	"revision" INTEGER NOT NULL,
+	"password" TEXT NOT NULL,
+	"totp_secret" BLOB,
+	-- only for token revoke
+	"token_id" INTEGER NOT NULL,
+	-- capacity of unused files in bytes, null for global default, root is unlimited
+	"file_capacity" INTEGER,
+	PRIMARY KEY("_id")
+);
+
 CREATE TABLE IF NOT EXISTS "users" (
 	"_id" INTEGER NOT NULL UNIQUE,
 	"id" INTEGER NOT NULL,
@@ -21,11 +34,24 @@ CREATE TABLE IF NOT EXISTS "projects" (
 	"require_harmony_group_intention" BOOLEAN NOT NULL,
 	"non_disclosure_agreement" TEXT,
 	"attachment_key" TEXT,
+	-- in bytes
 	"pre_submit_file_size_min" INTEGER NOT NULL,
+	-- in bytes
 	"pre_submit_file_size_max" INTEGER NOT NULL,
+	-- in bytes
 	"submit_file_size_min" INTEGER NOT NULL,
+	-- in bytes
 	"submit_file_size_max" INTEGER NOT NULL,
+	-- in bytes
 	"master_file_size_max" INTEGER NOT NULL,
+	PRIMARY KEY("id")
+);
+
+CREATE TABLE IF NOT EXISTS "project_managers" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"project_id" INTEGER NOT NULL,
+	"manager_id" INTEGER NOT NULL,
+	"is_revoke" BOOLEAN NOT NULL,
 	PRIMARY KEY("id")
 );
 
@@ -51,6 +77,12 @@ CREATE TABLE IF NOT EXISTS "files" (
 	PRIMARY KEY("id")
 );
 
+CREATE TABLE IF NOT EXISTS "uploading_files" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"file_id" INTEGER NOT NULL,
+	PRIMARY KEY("id")
+);
+
 CREATE TABLE IF NOT EXISTS "pending_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,
@@ -72,7 +104,7 @@ CREATE TABLE IF NOT EXISTS "file_infos" (
 	PRIMARY KEY("id")
 );
 
-CREATE TABLE IF NOT EXISTS "pre_submits" (
+CREATE TABLE IF NOT EXISTS "status_pre_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"project_user_id" INTEGER NOT NULL,
 	"created_at" TEXT NOT NULL,
@@ -81,7 +113,33 @@ CREATE TABLE IF NOT EXISTS "pre_submits" (
 	PRIMARY KEY("id")
 );
 
-CREATE TABLE IF NOT EXISTS "pre_submit_reviews" (
+CREATE TABLE IF NOT EXISTS "status_submits" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"project_user_id" INTEGER NOT NULL,
+	"created_at" TEXT NOT NULL,
+	"comment" TEXT NOT NULL,
+	PRIMARY KEY("id")
+);
+
+CREATE TABLE IF NOT EXISTS "status_masters" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"project_user_id" INTEGER NOT NULL,
+	"manager_id" INTEGER NOT NULL,
+	"created_at" TEXT NOT NULL,
+	"comment" TEXT NOT NULL,
+	PRIMARY KEY("id")
+);
+
+/* no file upload for this status */
+CREATE TABLE IF NOT EXISTS "status_mixed" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"project_user_id" INTEGER NOT NULL,
+	"manager_id" INTEGER NOT NULL,
+	"created_at" TEXT NOT NULL,
+	PRIMARY KEY("id")
+);
+
+CREATE TABLE IF NOT EXISTS "review_pre_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"manager_id" INTEGER NOT NULL,
 	"status" TEXT NOT NULL,
@@ -92,15 +150,7 @@ CREATE TABLE IF NOT EXISTS "pre_submit_reviews" (
 	PRIMARY KEY("id")
 );
 
-CREATE TABLE IF NOT EXISTS "submits" (
-	"id" INTEGER NOT NULL UNIQUE,
-	"project_user_id" INTEGER NOT NULL,
-	"created_at" TEXT NOT NULL,
-	"comment" TEXT NOT NULL,
-	PRIMARY KEY("id")
-);
-
-CREATE TABLE IF NOT EXISTS "submit_reviews" (
+CREATE TABLE IF NOT EXISTS "review_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"manager_id" INTEGER NOT NULL,
 	"status" TEXT NOT NULL,
@@ -110,45 +160,9 @@ CREATE TABLE IF NOT EXISTS "submit_reviews" (
 	PRIMARY KEY("id")
 );
 
-CREATE TABLE IF NOT EXISTS "masters" (
-	"id" INTEGER NOT NULL UNIQUE,
-	"project_user_id" INTEGER NOT NULL,
-	"manager_id" INTEGER NOT NULL,
-	"created_at" TEXT NOT NULL,
-	"comment" TEXT NOT NULL,
-	PRIMARY KEY("id")
-);
-
 CREATE TABLE IF NOT EXISTS "checked_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"group_id" INTEGER NOT NULL,
-	"file_id" INTEGER NOT NULL,
-	PRIMARY KEY("id")
-);
-
-CREATE TABLE IF NOT EXISTS "managers" (
-	"_id" INTEGER NOT NULL UNIQUE,
-	"id" INTEGER NOT NULL,
-	"revision" INTEGER NOT NULL,
-	"password" TEXT NOT NULL,
-	"totp_secret" BLOB,
-	-- only for token revoke
-	"token_id" INTEGER NOT NULL,
-	-- capacity of unused files in bytes, null for global default, root is unlimited
-	"file_capacity" INTEGER,
-	PRIMARY KEY("_id")
-);
-
-CREATE TABLE IF NOT EXISTS "project_managers" (
-	"id" INTEGER NOT NULL UNIQUE,
-	"project_id" INTEGER NOT NULL,
-	"manager_id" INTEGER NOT NULL,
-	"is_revoke" BOOLEAN NOT NULL,
-	PRIMARY KEY("id")
-);
-
-CREATE TABLE IF NOT EXISTS "uploading_files" (
-	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,
 	PRIMARY KEY("id")
 );
