@@ -65,30 +65,42 @@ impl MakeRequestId for ServerMakeRequestId {
 }
 
 #[derive(Debug, Clone)]
+pub struct S3 {
+    client: aws_sdk_s3::Client,
+    bucket: Arc<str>,
+}
+
+impl S3 {
+    pub fn new(
+        client: aws_sdk_s3::Client,
+        bucket: impl Into<Arc<str>>,
+    ) -> Self {
+        Self {
+            client,
+            bucket: bucket.into(),
+        }
+    }
+}
+
+impl_deref!(ref S3 => aws_sdk_s3::Client = .client);
+
+#[derive(Debug, Clone)]
 pub struct ServerState {
     key: SigningKey,
     db: Database,
     cache: MultiplexedConnection,
-    s3: aws_sdk_s3::Client,
-    s3_bucket: Arc<str>,
+    s3: S3,
 }
 
 impl ServerState {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         key: SigningKey,
         db: Database,
         cache: MultiplexedConnection,
-        s3: aws_sdk_s3::Client,
-        s3_bucket: impl Into<Arc<str>>,
+        s3: S3,
     ) -> Self {
-        Self {
-            key,
-            db,
-            cache,
-            s3,
-            s3_bucket: s3_bucket.into(),
-        }
+        Self { key, db, cache, s3 }
     }
 }
 
@@ -244,7 +256,7 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
 
     let cache = cache_init().await.context("failed to init cache")?;
 
-    let (s3, s3_bucket) = {
+    let s3 = {
         let aws_config =
             aws_config::load_defaults(BehaviorVersion::latest()).await;
         let mut s3_config_builder =
@@ -265,16 +277,11 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
         let bucket = var_optional("S3_BUCKET")
             .context("failed to get S3_BUCKET env")?
             .context("expect S3_BUCKET")?;
-        (client, bucket.into())
+
+        S3::new(client, bucket)
     };
 
-    let state = ServerState {
-        key,
-        db,
-        cache,
-        s3,
-        s3_bucket,
-    };
+    let state = ServerState { key, db, cache, s3 };
 
     let default_password = init_root_if_not_exists(&state)
         .await

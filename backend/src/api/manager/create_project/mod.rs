@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Context;
 use aws_sdk_s3::operation::head_object::HeadObjectError;
 use axum::{
@@ -8,7 +6,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ServerState,
+    S3, ServerState,
     api::{
         self, ApiResult, ToCbor, end_transaction, manager::ManagerToken,
         spawn_await,
@@ -40,23 +38,17 @@ pub(crate) async fn router(
     req: Cbor<api::Request<CreateProjectReq>>,
 ) -> api::ApiResult<Response<Body>, ToCbor> {
     let ServerState {
-        mut cache,
-        db,
-        s3,
-        s3_bucket,
-        ..
+        mut cache, db, s3, ..
     } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    spawn_await(do_create_project(s3, s3_bucket, db, token.0, req))
-        .await??;
+    spawn_await(do_create_project(s3, db, token.0, req)).await??;
 
     Ok(Cbor(api::Response::Ok(())).into_response())
 }
 
 async fn do_create_project(
-    s3: aws_sdk_s3::Client,
-    s3_bucket: Arc<str>,
+    s3: S3,
     db: Database,
     token: ManagerToken,
     req: CreateProjectReq,
@@ -69,7 +61,7 @@ async fn do_create_project(
         if let Some(key) = req.attachment_key.as_deref() {
             let result = s3
                 .head_object()
-                .bucket(&*s3_bucket)
+                .bucket(&*s3.bucket)
                 .key(key)
                 .send()
                 .await;

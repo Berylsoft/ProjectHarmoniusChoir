@@ -14,7 +14,7 @@ use axum::{
     http::{Request, response::Parts},
 };
 use backend::{
-    ServerState, api::manager::init_root_if_not_exists, cache_init,
+    S3, ServerState, api::manager::init_root_if_not_exists, cache_init,
     database::Database, router,
 };
 use ciborium::cbor;
@@ -143,7 +143,7 @@ async fn app() -> anyhow::Result<TestApp> {
         .await
         .context("a redis compatible instance is required")?;
 
-    let (s3, s3_bucket) = {
+    let s3 = {
         let aws_config =
             aws_config::load_defaults(BehaviorVersion::latest()).await;
         let s3_config = aws_sdk_s3::config::Builder::from(&aws_config)
@@ -151,10 +151,10 @@ async fn app() -> anyhow::Result<TestApp> {
             .build();
         let client = aws_sdk_s3::Client::from_conf(s3_config);
 
-        (client, "main")
+        S3::new(client, "main")
     };
 
-    let state = ServerState::new(key, db, cache, s3, s3_bucket);
+    let state = ServerState::new(key, db, cache, s3);
 
     let root_pswd = init_root_if_not_exists(&state).await?.unwrap();
 
