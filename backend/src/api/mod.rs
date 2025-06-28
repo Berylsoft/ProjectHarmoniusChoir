@@ -51,6 +51,7 @@ pub enum ErrCode {
     InvalidToken = 4000,
     UsedNonce,
     InvalidCredential,
+    InsufficientPermission,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -63,6 +64,8 @@ pub enum ApiError<T> {
     UsedNonce,
     #[error("invalid credential: {0}")]
     InvalidCredential(&'static str),
+    #[error("insufficient permission: {0}")]
+    InsufficientPermission(&'static str),
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
@@ -118,6 +121,19 @@ impl<T> ApiError<T> {
                     Response::Err {
                         code: ErrCode::InvalidCredential,
                         msg: "invalid credential".into(),
+                    },
+                )
+            }
+            Self::InsufficientPermission(msg) => {
+                tracing::info!(
+                    "rejecting insufficient permission: {msg}"
+                );
+
+                (
+                    StatusCode::FORBIDDEN,
+                    Response::Err {
+                        code: ErrCode::InsufficientPermission,
+                        msg: "you are not allowed to do this".into(),
                     },
                 )
             }

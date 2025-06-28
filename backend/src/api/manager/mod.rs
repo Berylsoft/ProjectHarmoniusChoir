@@ -69,6 +69,19 @@ impl ManagerToken {
 
         Ok(())
     }
+
+    async fn verify_root<S>(
+        &self,
+        trans: &mut Transaction<'_, sqlx::Any>,
+    ) -> ApiResult<(), S> {
+        self.verify(trans).await?;
+
+        if self.mid != ROOT_MID {
+            return Err(ApiError::InsufficientPermission("require root"));
+        }
+
+        Ok(())
+    }
 }
 
 /// # Return
