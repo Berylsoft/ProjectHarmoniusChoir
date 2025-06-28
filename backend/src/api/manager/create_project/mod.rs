@@ -65,18 +65,17 @@ async fn do_create_project(
                 .key(key)
                 .send()
                 .await;
-            if let Err(err) = result {
-                if let Some(HeadObjectError::NotFound(_)) =
-                    err.as_service_error()
-                {
-                    return Err(api::ApiError::BadParam(
-                        "attachment not found",
-                    ));
-                }
 
-                Err(err)
-                    .context("failed to check if attachment exists")?;
+            if let Err(ref err) = result
+                && let Some(HeadObjectError::NotFound(_)) =
+                    err.as_service_error()
+            {
+                return Err(api::ApiError::BadParam(
+                    "attachment not found",
+                ));
             }
+
+            result.context("failed to check if attachment exists")?;
         }
 
         let create_result =

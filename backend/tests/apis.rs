@@ -66,10 +66,10 @@ impl TestApp {
         let mut headers = String::new();
         for (h, v) in &parts.headers {
             let h = h.to_string();
-            if let Some(strip_hdrs) = strip_hdrs {
-                if strip_hdrs.contains(&h.to_lowercase().as_str()) {
-                    continue;
-                }
+            if let Some(strip_hdrs) = strip_hdrs
+                && strip_hdrs.contains(&h.to_lowercase().as_str())
+            {
+                continue;
             }
             let v = v.to_str().context("invalid header value")?;
 
