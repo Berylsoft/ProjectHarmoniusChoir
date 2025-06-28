@@ -139,12 +139,6 @@ CREATE TABLE IF NOT EXISTS "managers" (
 	PRIMARY KEY("_id")
 );
 
-CREATE TABLE IF NOT EXISTS "pending_attachments" (
-	"id" INTEGER NOT NULL UNIQUE,
-	"file_id" INTEGER NOT NULL,
-	PRIMARY KEY("id")
-);
-
 CREATE TABLE IF NOT EXISTS "project_managers" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"project_id" INTEGER NOT NULL,
