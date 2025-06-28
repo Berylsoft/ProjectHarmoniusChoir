@@ -53,6 +53,7 @@ pub enum ErrCode {
     InvalidCredential,
     InsufficientPermission,
     RequireSudo,
+    BadParam,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -69,6 +70,8 @@ pub enum ApiError<T> {
     InsufficientPermission(&'static str),
     #[error("require sudo")]
     RequireSudo,
+    #[error("bad parameter: {0}")]
+    BadParam(&'static str),
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
@@ -148,6 +151,17 @@ impl<T> ApiError<T> {
                     Response::Err {
                         code: ErrCode::RequireSudo,
                         msg: "enter sudo mode first".into(),
+                    },
+                )
+            }
+            Self::BadParam(reason) => {
+                tracing::info!("rejecting bad parameter: {reason}");
+
+                (
+                    StatusCode::BAD_REQUEST,
+                    Response::Err {
+                        code: ErrCode::BadParam,
+                        msg: reason.into(),
                     },
                 )
             }

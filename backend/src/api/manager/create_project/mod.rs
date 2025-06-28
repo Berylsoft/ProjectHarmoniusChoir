@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use anyhow::Context;
+use aws_sdk_s3::operation::head_object::HeadObjectError;
 use axum::{
     body::Body, extract::State, http::Response, response::IntoResponse,
 };
@@ -24,11 +27,11 @@ pub struct CreateProjectReq {
     require_harmony_group_intention: bool,
     non_disclosure_agreement: Option<String>,
     attachment_key: Option<String>,
-    pre_submit_file_size_min: u64,
-    pre_submit_file_size_max: u64,
-    submit_file_size_min: u64,
-    submit_file_size_max: u64,
-    master_file_size_max: u64,
+    pre_submit_file_size_min: i64,
+    pre_submit_file_size_max: i64,
+    submit_file_size_min: i64,
+    submit_file_size_max: i64,
+    master_file_size_max: i64,
 }
 
 pub(crate) async fn router(
@@ -36,15 +39,24 @@ pub(crate) async fn router(
     token: Token<ManagerToken>,
     req: Cbor<api::Request<CreateProjectReq>>,
 ) -> api::ApiResult<Response<Body>, ToCbor> {
-    let ServerState { mut cache, db, .. } = state.0;
+    let ServerState {
+        mut cache,
+        db,
+        s3,
+        s3_bucket,
+        ..
+    } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    spawn_await(do_create_project(db, token.0, req)).await??;
+    spawn_await(do_create_project(s3, s3_bucket, db, token.0, req))
+        .await??;
 
     Ok(Cbor(api::Response::Ok(())).into_response())
 }
 
 async fn do_create_project(
+    s3: aws_sdk_s3::Client,
+    s3_bucket: Arc<str>,
     db: Database,
     token: ManagerToken,
     req: CreateProjectReq,
@@ -54,9 +66,41 @@ async fn do_create_project(
     let result: ApiResult<(), ToCbor> = async {
         token.verify_sudo(&mut trans, true).await?;
 
+        if let Some(key) = req.attachment_key.as_deref() {
+            let result = s3
+                .head_object()
+                .bucket(&*s3_bucket)
+                .key(key)
+                .send()
+                .await;
+            if let Err(err) = result {
+                if let Some(HeadObjectError::NotFound(_)) =
+                    err.as_service_error()
+                {
+                    return Err(api::ApiError::BadParam(
+                        "attachment not found",
+                    ));
+                }
+
+                Err(err)
+                    .context("failed to check if attachment exists")?;
+            }
+        }
+
         let create_result =
             sqlx::query(include_str!("./sqls/create_project.sql"))
                 .bind(req.name)
+                .bind(req.entry_question)
+                .bind(req.entry_answer)
+                .bind(req.pre_submit_skip_password)
+                .bind(req.require_harmony_group_intention)
+                .bind(req.non_disclosure_agreement)
+                .bind(req.attachment_key)
+                .bind(req.pre_submit_file_size_min)
+                .bind(req.pre_submit_file_size_max)
+                .bind(req.submit_file_size_min)
+                .bind(req.submit_file_size_max)
+                .bind(req.master_file_size_max)
                 .execute(&mut *trans)
                 .await
                 .context("create_project")?;
