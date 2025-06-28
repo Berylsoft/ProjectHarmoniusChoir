@@ -99,6 +99,7 @@ impl LoginToken {
         let rev = sqlx::query_scalar::<_, i64>(include_str!(
             "./sqls/get_manager_revision.sql"
         ))
+        .bind(self.mid)
         .fetch_one(&mut **trans)
         .await
         .context("get_manager_revision")?;
@@ -110,6 +111,7 @@ impl LoginToken {
         let token_id = sqlx::query_scalar::<_, i64>(include_str!(
             "./sqls/get_manager_token_id.sql"
         ))
+        .bind(self.mid)
         .fetch_one(&mut **trans)
         .await
         .context("get_manager_token_id")?;
