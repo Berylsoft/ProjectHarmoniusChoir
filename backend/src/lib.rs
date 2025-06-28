@@ -8,6 +8,7 @@ use std::{
     ffi::OsStr,
     fmt::Debug,
     fs,
+    sync::Arc,
     time::Duration,
 };
 
@@ -15,6 +16,7 @@ use anyhow::{Context, Result};
 use api::user::{
     revoke_all_tokens, update_name, wechat_login_or_register,
 };
+use aws_config::BehaviorVersion;
 use axum::{Router, routing};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use database::Database;
@@ -65,16 +67,26 @@ pub struct ServerState {
     key: SigningKey,
     db: Database,
     cache: MultiplexedConnection,
+    s3: aws_sdk_s3::Client,
+    s3_bucket: Arc<str>,
 }
 
 impl ServerState {
     #[must_use]
-    pub const fn new(
+    pub fn new(
         key: SigningKey,
         db: Database,
         cache: MultiplexedConnection,
+        s3: aws_sdk_s3::Client,
+        s3_bucket: impl Into<Arc<str>>,
     ) -> Self {
-        Self { key, db, cache }
+        Self {
+            key,
+            db,
+            cache,
+            s3,
+            s3_bucket: s3_bucket.into(),
+        }
     }
 }
 
@@ -211,19 +223,51 @@ pub async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
 }
 
 async fn initialize_server_state() -> anyhow::Result<ServerState> {
+    let key = get_or_init_signing_key()
+        .context("failed to get_or_init signingkey")?;
+
+    let db = Database::init(
+        var_optional("SQL_DB")
+            .context("failed to get SQL_DB env")?
+            .unwrap_or_else(|| {
+                "sqlite://data/database.db?mode=rwc".to_string()
+            }),
+    )
+    .await
+    .context("failed to initialize database")?;
+
+    let cache = cache_init().await.context("failed to init cache")?;
+
+    let (s3, s3_bucket) = {
+        let aws_config =
+            aws_config::load_defaults(BehaviorVersion::latest()).await;
+        let mut s3_config_builder =
+            aws_sdk_s3::config::Builder::from(&aws_config);
+
+        let force_path_style = var_optional("S3_FORCE_PATH_STYLE")
+            .context("failed to get S3_FORCE_PATH_STYLE env")?
+            .as_deref()
+            .map(str::parse::<bool>)
+            .transpose()
+            .context("failed to parse S3_FORCE_PATH_STYLE as bool")?;
+        s3_config_builder.set_force_path_style(force_path_style);
+
+        let s3_config = s3_config_builder.build();
+
+        let client = aws_sdk_s3::Client::from_conf(s3_config);
+
+        let bucket = var_optional("S3_BUCKET")
+            .context("failed to get S3_BUCKET env")?
+            .context("expect S3_BUCKET")?;
+        (client, bucket.into())
+    };
+
     let state = ServerState {
-        key: get_or_init_signing_key()
-            .context("failed to get_or_init signingkey")?,
-        db: Database::init(
-            var_optional("SQL_DB")
-                .context("failed to get SQL_DB env")?
-                .unwrap_or_else(|| {
-                    "sqlite://data/database.db?mode=rwc".to_string()
-                }),
-        )
-        .await
-        .context("failed to initialize database")?,
-        cache: cache_init().await.context("failed to init cache")?,
+        key,
+        db,
+        cache,
+        s3,
+        s3_bucket,
     };
 
     let default_password = init_root_if_not_exists(&state)

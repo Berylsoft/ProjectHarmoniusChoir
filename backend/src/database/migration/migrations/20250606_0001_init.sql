@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS "users" (
 	-- only for token revoke
 	"token_id" INTEGER NOT NULL,
 	"wechat_openid" TEXT,
+	-- capacity of unused files in bytes, null for global default
+	"file_capacity" INTEGER,
 	PRIMARY KEY("_id")
 );
 
@@ -18,7 +20,7 @@ CREATE TABLE IF NOT EXISTS "projects" (
 	"pre_submit_skip_password" TEXT NOT NULL,
 	"require_harmony_group_intention" BOOLEAN NOT NULL,
 	"non_disclosure_agreement" TEXT,
-	"attachment_file_id" INTEGER,
+	"attachment_key" TEXT,
 	"pre_submit_file_size_min" INTEGER NOT NULL,
 	"pre_submit_file_size_max" INTEGER NOT NULL,
 	"submit_file_size_min" INTEGER NOT NULL,
@@ -37,19 +39,25 @@ CREATE TABLE IF NOT EXISTS "project_users" (
 
 CREATE TABLE IF NOT EXISTS "files" (
 	"id" INTEGER NOT NULL UNIQUE,
+	-- null if manager_id is set
+	"user_id" INTEGER,
+	-- null if user_id is set
+	"manager_id" INTEGER,
 	"name" TEXT NOT NULL,
-	"sha256sum" BLOB NOT NULL,
+	"s3_key" TEXT NOT NULL,
+	-- in bytes
 	"size" INTEGER NOT NULL,
+	"md5" BLOB NOT NULL,
 	PRIMARY KEY("id")
 );
 
 CREATE TABLE IF NOT EXISTS "pending_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,
-	"project_user_id" INTEGER NOT NULL,
 	PRIMARY KEY("id")
 );
 
+/* not guarantee the file is finished uploading */
 CREATE TABLE IF NOT EXISTS "deleted_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,
@@ -75,6 +83,7 @@ CREATE TABLE IF NOT EXISTS "pre_submits" (
 
 CREATE TABLE IF NOT EXISTS "pre_submit_reviews" (
 	"id" INTEGER NOT NULL UNIQUE,
+	"manager_id" INTEGER NOT NULL,
 	"status" TEXT NOT NULL,
 	"lead" BOOLEAN,
 	"choir" BOOLEAN,
@@ -93,6 +102,7 @@ CREATE TABLE IF NOT EXISTS "submits" (
 
 CREATE TABLE IF NOT EXISTS "submit_reviews" (
 	"id" INTEGER NOT NULL UNIQUE,
+	"manager_id" INTEGER NOT NULL,
 	"status" TEXT NOT NULL,
 	"reason" TEXT,
 	"reason_detail" TEXT,
@@ -103,6 +113,7 @@ CREATE TABLE IF NOT EXISTS "submit_reviews" (
 CREATE TABLE IF NOT EXISTS "masters" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"project_user_id" INTEGER NOT NULL,
+	"manager_id" INTEGER NOT NULL,
 	"created_at" TEXT NOT NULL,
 	"comment" TEXT NOT NULL,
 	PRIMARY KEY("id")
@@ -123,6 +134,8 @@ CREATE TABLE IF NOT EXISTS "managers" (
 	"totp_secret" BLOB,
 	-- only for token revoke
 	"token_id" INTEGER NOT NULL,
+	-- capacity of unused files in bytes, null for global default, root is unlimited
+	"file_capacity" INTEGER,
 	PRIMARY KEY("_id")
 );
 
@@ -137,6 +150,12 @@ CREATE TABLE IF NOT EXISTS "project_managers" (
 	"project_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
 	"is_revoke" BOOLEAN NOT NULL,
+	PRIMARY KEY("id")
+);
+
+CREATE TABLE IF NOT EXISTS "uploading_files" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"file_id" INTEGER NOT NULL,
 	PRIMARY KEY("id")
 );
 

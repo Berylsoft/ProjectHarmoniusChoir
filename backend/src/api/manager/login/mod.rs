@@ -122,7 +122,9 @@ pub(crate) async fn router(
     state: State<ServerState>,
     req: Cbor<api::Request<LoginReq>>,
 ) -> api::ApiResult<Response<Body>, ToCbor> {
-    let ServerState { key, db, mut cache } = state.0;
+    let ServerState {
+        key, db, mut cache, ..
+    } = state.0;
 
     let req = req.0.verified(&mut cache).await?;
 

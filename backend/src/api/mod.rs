@@ -36,6 +36,7 @@ impl<T: Send + Sync> Request<T> {
     }
 }
 
+// TODO: RFC9457
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Response<'msg, T> {
     Ok(T),

@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::Context;
+use aws_config::BehaviorVersion;
 use axum::{
     Router,
     body::Body,
@@ -142,7 +143,18 @@ async fn app() -> anyhow::Result<TestApp> {
         .await
         .context("a redis compatible instance is required")?;
 
-    let state = ServerState::new(key, db, cache);
+    let (s3, s3_bucket) = {
+        let aws_config =
+            aws_config::load_defaults(BehaviorVersion::latest()).await;
+        let s3_config = aws_sdk_s3::config::Builder::from(&aws_config)
+            .force_path_style(true)
+            .build();
+        let client = aws_sdk_s3::Client::from_conf(s3_config);
+
+        (client, "main")
+    };
+
+    let state = ServerState::new(key, db, cache, s3, s3_bucket);
 
     let root_pswd = init_root_if_not_exists(&state).await?.unwrap();
 

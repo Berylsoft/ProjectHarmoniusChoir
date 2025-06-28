@@ -4,41 +4,41 @@ expression: "run_on_database(include_str!(\"./sqls/user_views.sql\"))"
 ---
 BEGIN;
 INSERT INTO users 
-    (id, revision, is_deleted, name,            token_id)
+    (id, revision, is_deleted, name,            token_id, file_capacity)
 VALUES
-    (0,  1,        false,      'user 1',        1),
-    (0,  2,        false,      'user 1 name 2', 1),
-    (0,  3,        true,       'user 1 name 2', 1),
+    (0,  1,        false,      'user 1',        1,        null),
+    (0,  2,        false,      'user 1 name 2', 1,        2000000000),
+    (0,  3,        true,       'user 1 name 2', 1,        2000000000),
 
-    (1,  1,        false,      'user 2',        1),
-    (1,  2,        false,      'user 2 name 2', 1),
-    (1,  3,        false,      'user 2 name 3', 1),
+    (1,  1,        false,      'user 2',        1,        null),
+    (1,  2,        false,      'user 2 name 2', 1,        null),
+    (1,  3,        false,      'user 2 name 3', 1,        null),
 
-    (2,  1,        false,      'user 3',        1),
+    (2,  1,        false,      'user 3',        1,        null),
 
-    (3,  1,        true,       'user 4',        1);
+    (3,  1,        true,       'user 4',        1,        null);
 
 SELECT * FROM users_latest;
-_id  id  revision  is_deleted  name           token_id  wechat_openid
----  --  --------  ----------  -------------  --------  -------------
-6    1   3         0           user 2 name 3  1                      
-7    2   1         0           user 3         1                      
+_id  id  revision  is_deleted  name           token_id  wechat_openid  file_capacity
+---  --  --------  ----------  -------------  --------  -------------  -------------
+6    1   3         0           user 2 name 3  1                                     
+7    2   1         0           user 3         1                                     
 SELECT * FROM users_latest_deleted;
-_id  id  revision  is_deleted  name           token_id  wechat_openid
----  --  --------  ----------  -------------  --------  -------------
-3    0   3         1           user 1 name 2  1                      
-8    3   1         1           user 4         1                      
+_id  id  revision  is_deleted  name           token_id  wechat_openid  file_capacity
+---  --  --------  ----------  -------------  --------  -------------  -------------
+3    0   3         1           user 1 name 2  1                        2000000000   
+8    3   1         1           user 4         1                                     
 SELECT * FROM users;
-_id  id  revision  is_deleted  name           token_id  wechat_openid
----  --  --------  ----------  -------------  --------  -------------
-1    0   1         0           user 1         1                      
-2    0   2         0           user 1 name 2  1                      
-3    0   3         1           user 1 name 2  1                      
-4    1   1         0           user 2         1                      
-5    1   2         0           user 2 name 2  1                      
-6    1   3         0           user 2 name 3  1                      
-7    2   1         0           user 3         1                      
-8    3   1         1           user 4         1                      
+_id  id  revision  is_deleted  name           token_id  wechat_openid  file_capacity
+---  --  --------  ----------  -------------  --------  -------------  -------------
+1    0   1         0           user 1         1                                     
+2    0   2         0           user 1 name 2  1                        2000000000   
+3    0   3         1           user 1 name 2  1                        2000000000   
+4    1   1         0           user 2         1                                     
+5    1   2         0           user 2 name 2  1                                     
+6    1   3         0           user 2 name 3  1                                     
+7    2   1         0           user 3         1                                     
+8    3   1         1           user 4         1                                     
 ROLLBACK;
 
 .quit
