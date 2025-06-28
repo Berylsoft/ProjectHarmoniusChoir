@@ -19,6 +19,7 @@ use crate::{
     database::try_end_transaction,
 };
 
+pub mod create_project;
 pub mod login;
 
 const ROOT_MID: i64 = 0;

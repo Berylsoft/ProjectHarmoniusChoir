@@ -39,7 +39,9 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
 
-use crate::api::manager::{init_root_if_not_exists, login};
+use crate::api::manager::{
+    create_project, init_root_if_not_exists, login,
+};
 
 pub mod api;
 pub mod database;
@@ -111,6 +113,10 @@ where
             routing::post(revoke_all_tokens::router),
         )
         .route("/api/manager/login", routing::post(login::router))
+        .route(
+            "/api/manager/root/create_project",
+            routing::post(create_project::router),
+        )
         .layer((
             SetRequestIdLayer::x_request_id(make_req_id),
             TraceLayer::new_for_http().make_span_with(
