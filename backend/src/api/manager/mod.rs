@@ -125,7 +125,7 @@ pub async fn init_root_if_not_exists(
 }
 
 async fn verify_password<S>(
-    pswd_sha512: &[u8; 64],
+    pswd_sha512: [u8; 64],
     stored_password: &PasswordHash<'_>,
 ) -> ApiResult<(), S> {
     let permit = ARGON2_PARALLEL_SEMAPHORE
@@ -133,7 +133,15 @@ async fn verify_password<S>(
         .await
         .expect("not closed");
 
-    let verify_res = ARGON2.verify_password(pswd_sha512, stored_password);
+    let stored_password = stored_password.serialize();
+    let verify_res = tokio::task::spawn_blocking(move || {
+        ARGON2.verify_password(
+            &pswd_sha512,
+            &stored_password.password_hash(),
+        )
+    })
+    .await
+    .context("failed to wait password verify to return")?;
 
     if verify_res == Err(argon2::password_hash::Error::Password) {
         return Err(ApiError::InvalidCredential("password"));

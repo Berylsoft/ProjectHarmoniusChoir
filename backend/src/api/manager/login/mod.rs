@@ -159,7 +159,7 @@ pub(crate) async fn router(
 
             let pswd = PasswordHash::new(&pswd)
                 .context("expect stored password is valid encoding")?;
-            verify_password(&password, &pswd).await?;
+            verify_password(password, &pswd).await?;
 
             let token = LoginToken {
                 mid,
