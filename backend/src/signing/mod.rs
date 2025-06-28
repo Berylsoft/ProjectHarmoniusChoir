@@ -16,12 +16,17 @@ pub struct SignedData<T> {
 }
 
 impl<T: Serialize + DeserializeOwned> SignedData<T> {
+    /// # Panics
+    /// if [`T`] failed to serialize
     pub fn to_encoded(&self) -> Box<str> {
         BASE64_URL_SAFE_NO_PAD
             .encode(to_cbor(&self).unwrap())
             .into()
     }
 
+    /// # Errors
+    /// not valid base64 of url safe no pad
+    /// unable to encoded data into [`SignedData<T>`]
     pub fn try_from_encoded(
         encoded: impl AsRef<[u8]>,
     ) -> anyhow::Result<Self> {
@@ -33,11 +38,17 @@ impl<T: Serialize + DeserializeOwned> SignedData<T> {
             .context("invalid data")
     }
 
+    /// # Panics
+    /// if [`T`] failed to serialize
     pub fn sign(data: T, key: &SigningKey) -> Self {
         let signature = key.sign(&to_cbor(&data).unwrap()).to_bytes();
         Self { data, signature }
     }
 
+    /// # Errors
+    /// if invalid signature
+    /// # Panics
+    /// if [`T`] failed to serialize
     pub fn verify(self, key: &VerifyingKey) -> anyhow::Result<T> {
         key.verify_strict(
             &to_cbor(&self.data).unwrap(),

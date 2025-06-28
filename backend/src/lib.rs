@@ -46,7 +46,7 @@ use crate::api::manager::{
 pub mod api;
 pub mod database;
 mod extractors;
-mod signing;
+pub mod signing;
 mod utils;
 
 #[global_allocator]
@@ -86,10 +86,10 @@ impl_deref!(ref S3 => aws_sdk_s3::Client = .client);
 
 #[derive(Debug, Clone)]
 pub struct ServerState {
-    key: SigningKey,
-    db: Database,
-    cache: MultiplexedConnection,
-    s3: S3,
+    pub key: SigningKey,
+    pub db: Database,
+    pub cache: MultiplexedConnection,
+    pub s3: S3,
 }
 
 impl ServerState {
@@ -201,7 +201,7 @@ fn get_or_init_signing_key() -> anyhow::Result<SigningKey> {
 
 /// # Errors
 /// invalid env or redis error
-pub async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
+pub async fn init_cache() -> anyhow::Result<MultiplexedConnection> {
     info!("connecting cache");
     let redis_url = var_optional("REDIS_DB")
         .context("failed to get REDIS_DB env")?
@@ -240,6 +240,33 @@ pub async fn cache_init() -> anyhow::Result<MultiplexedConnection> {
     Ok(conn)
 }
 
+/// # Errors
+/// invalid env or s3 error
+pub async fn init_s3() -> anyhow::Result<S3> {
+    let aws_config =
+        aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let mut s3_config_builder =
+        aws_sdk_s3::config::Builder::from(&aws_config);
+
+    let force_path_style = var_optional("S3_FORCE_PATH_STYLE")
+        .context("failed to get S3_FORCE_PATH_STYLE env")?
+        .as_deref()
+        .map(str::parse::<bool>)
+        .transpose()
+        .context("failed to parse S3_FORCE_PATH_STYLE as bool")?;
+    s3_config_builder.set_force_path_style(force_path_style);
+
+    let s3_config = s3_config_builder.build();
+
+    let client = aws_sdk_s3::Client::from_conf(s3_config);
+
+    let bucket = var_optional("S3_BUCKET")
+        .context("failed to get S3_BUCKET env")?
+        .context("expect S3_BUCKET")?;
+
+    Ok(S3::new(client, bucket))
+}
+
 async fn initialize_server_state() -> anyhow::Result<ServerState> {
     let key = get_or_init_signing_key()
         .context("failed to get_or_init signingkey")?;
@@ -254,32 +281,9 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
     .await
     .context("failed to initialize database")?;
 
-    let cache = cache_init().await.context("failed to init cache")?;
+    let cache = init_cache().await.context("failed to init cache")?;
 
-    let s3 = {
-        let aws_config =
-            aws_config::load_defaults(BehaviorVersion::latest()).await;
-        let mut s3_config_builder =
-            aws_sdk_s3::config::Builder::from(&aws_config);
-
-        let force_path_style = var_optional("S3_FORCE_PATH_STYLE")
-            .context("failed to get S3_FORCE_PATH_STYLE env")?
-            .as_deref()
-            .map(str::parse::<bool>)
-            .transpose()
-            .context("failed to parse S3_FORCE_PATH_STYLE as bool")?;
-        s3_config_builder.set_force_path_style(force_path_style);
-
-        let s3_config = s3_config_builder.build();
-
-        let client = aws_sdk_s3::Client::from_conf(s3_config);
-
-        let bucket = var_optional("S3_BUCKET")
-            .context("failed to get S3_BUCKET env")?
-            .context("expect S3_BUCKET")?;
-
-        S3::new(client, bucket)
-    };
+    let s3 = init_s3().await.context("init s3")?;
 
     let state = ServerState { key, db, cache, s3 };
 
