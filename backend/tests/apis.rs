@@ -1,11 +1,8 @@
 use std::{
+    self,
     borrow::Cow,
     collections::HashMap,
     fmt::{Display, Write},
-    sync::{
-        Arc,
-        atomic::{self, AtomicU64},
-    },
 };
 
 use anyhow::Context;
@@ -37,16 +34,13 @@ use totp_rs::TOTP;
 use tower::ServiceExt;
 use tower_http::request_id::{MakeRequestId, RequestId};
 use tracing_subscriber::EnvFilter;
-use ulid::Ulid;
 
 #[derive(Debug, Default, Clone)]
-struct TestMakeRequestId(Arc<AtomicU64>);
+struct TestMakeRequestId;
 
 impl TestMakeRequestId {
     fn branch(&self) -> Self {
-        let v = self.0.load(atomic::Ordering::SeqCst);
-        let v = AtomicU64::new(v);
-        Self(v.into())
+        Self
     }
 }
 
@@ -55,12 +49,8 @@ impl MakeRequestId for TestMakeRequestId {
         &mut self,
         _request: &axum::http::Request<B>,
     ) -> Option<RequestId> {
-        let id = self.0.fetch_add(1, atomic::Ordering::SeqCst);
         Some(RequestId::new(
-            Ulid::from_parts(0, (id + 1).into())
-                .to_string()
-                .parse()
-                .unwrap(),
+            "01D39ZY06FGSCTVN4T2V9PKHFZ".parse().unwrap(),
         ))
     }
 }
@@ -491,8 +481,9 @@ impl TestApp {
     }
 }
 
+/// the first one is the last, other is by order
 macro_rules! next {
-    ($app:expr; $($front:expr),*; $last:expr) => {
+    ($app:expr; $last:expr $(,$front:expr)* $(,)? ) => {
         $app
         $(
             .next($front, stringify!($front))
@@ -572,7 +563,7 @@ async fn entry() -> anyhow::Result<()> {
         .init();
     let app = TestApp::new().await.unwrap();
 
-    next!(app;; manager_login_start);
+    next!(app; manager_login_start);
 
     Ok(())
 }
@@ -604,7 +595,7 @@ async fn manager_login_start(mut app: TestApp) -> anyhow::Result<()> {
     HTTP/1.1 200 OK
     content-length: 327
     content-type: application/cbor
-    x-request-id: 00000000000000000000000001
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
     ");
     insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
     {
@@ -614,7 +605,7 @@ async fn manager_login_start(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
-    next!(app;; async move |app| {
+    next!(app; async move |app| {
         manager_login_end_setup(app, token, totp).await
     });
 
@@ -652,7 +643,7 @@ async fn manager_login_end_setup(
     HTTP/1.1 200 OK
     content-length: 5
     content-type: application/cbor
-    x-request-id: 00000000000000000000000002
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": null
@@ -661,7 +652,7 @@ async fn manager_login_end_setup(
 
     // TODO: revoke then normal login
 
-    next!(app;;user_login);
+    next!(app; user_login);
 
     Ok(())
 }
@@ -689,14 +680,14 @@ async fn user_login(mut app: TestApp) -> anyhow::Result<()> {
     HTTP/1.1 200 OK
     content-length: 11
     content-type: application/json
-    x-request-id: 00000000000000000000000003
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {"Ok":null}
     "#);
 
     // TODO: update name and read name
 
-    next!(app;;user_revoke_all_tokens);
+    next!(app; user_revoke_all_tokens);
 
     Ok(())
 }
@@ -712,7 +703,7 @@ async fn user_revoke_all_tokens(mut app: TestApp) -> anyhow::Result<()> {
     HTTP/1.1 200 OK
     content-length: 11
     content-type: application/json
-    x-request-id: 00000000000000000000000004
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {"Ok":null}
     "#);
