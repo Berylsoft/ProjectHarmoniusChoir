@@ -244,7 +244,7 @@ fn totp_check(
     totp_code: u32,
 ) -> ApiResult<(), ToCbor> {
     totp_new(mid, secret)
-        .check_current(&totp_code.to_string())
+        .check_current(&format!("{totp_code:0>6}"))
         .context("failed to get system time")?
         .then_some(())
         .ok_or(ApiError::InvalidCredential("invalid totp_code"))
