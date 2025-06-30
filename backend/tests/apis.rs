@@ -3,6 +3,8 @@ use std::{
     borrow::Cow,
     collections::HashMap,
     fmt::{Display, Write},
+    io::Write as _,
+    process::{Command, Stdio},
 };
 
 use anyhow::Context;
@@ -478,6 +480,31 @@ impl TestApp {
             builder: Request::builder().method(method),
             app: self,
         }
+    }
+
+    pub fn db_query(&mut self, input: &str) -> String {
+        let mut cmd = Command::new("sqlite3")
+            .arg(self.db_tmp.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+
+        let input = format!(
+            r".mode column
+{}
+.quit
+",
+            input.replace("\t", "")
+        );
+
+        let mut stdin = cmd.stdin.take().unwrap();
+        stdin.write_all(input.as_bytes()).unwrap();
+
+        let output = cmd.wait_with_output().unwrap();
+        assert!(output.status.success());
+
+        String::from_utf8(output.stdout).unwrap()
     }
 }
 
