@@ -40,7 +40,10 @@ use crate::api::{
     manager::{
         acquire_sudo, create_project, init_root_if_not_exists, login,
     },
-    user::{revoke_all_tokens, update_name, wechat_login_or_register},
+    user::{
+        list_projects, revoke_all_tokens, update_name,
+        wechat_login_or_register,
+    },
 };
 
 pub mod api;
@@ -123,6 +126,10 @@ where
         .route(
             "/api/user/revoke_all_tokens",
             routing::post(revoke_all_tokens::router),
+        )
+        .route(
+            "/api/user/list_projects",
+            routing::post(list_projects::router),
         )
         .route("/api/manager/login", routing::post(login::router))
         .route(
