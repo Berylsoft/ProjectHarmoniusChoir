@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS "project_users" (
 	PRIMARY KEY("id")
 );
 
+CREATE TABLE IF NOT EXISTS "nda_agreed" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"project_user_id" INTEGER NOT NULL,
+	PRIMARY KEY("id")
+);
+
 CREATE TABLE IF NOT EXISTS "files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	-- null if manager_id is set
@@ -70,6 +76,7 @@ CREATE TABLE IF NOT EXISTS "files" (
 	-- null if user_id is set
 	"manager_id" INTEGER,
 	"name" TEXT NOT NULL,
+	-- /uploads/{project}/{user}/{stage}/{md5}
 	"s3_key" TEXT NOT NULL,
 	-- in bytes
 	"size" INTEGER NOT NULL,
