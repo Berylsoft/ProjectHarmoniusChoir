@@ -21,6 +21,7 @@ use crate::{
 
 pub mod create_project;
 pub mod login;
+pub mod template;
 
 const ROOT_MID: i64 = 0;
 const ROOT_DEFAULT_PASSWORD_LEN: usize = 32;

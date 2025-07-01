@@ -6,6 +6,7 @@ use sqlx::Transaction;
 use crate::api::{ApiError, ApiResult};
 
 pub mod revoke_all_tokens;
+pub mod template;
 pub mod update_name;
 pub mod wechat_login_or_register;
 
