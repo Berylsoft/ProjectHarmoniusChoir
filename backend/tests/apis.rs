@@ -23,7 +23,7 @@ use backend::{
     init_cache, init_s3, router,
     signing::SignedData,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use ciborium::cbor;
 use cookie::{Cookie, CookieJar};
 use ed25519_dalek::{SigningKey, VerifyingKey};
@@ -357,7 +357,7 @@ impl TestApp {
 
         let root_pswd = init_root_if_not_exists(&state).await?.unwrap();
 
-        let make_req_id = TestMakeRequestId::default();
+        let make_req_id = TestMakeRequestId;
 
         let router = router(state.clone(), make_req_id.clone());
 
@@ -482,6 +482,7 @@ impl TestApp {
         }
     }
 
+    #[expect(unused, reason = "just for quick check on db")]
     pub fn db_query(&mut self, input: &str) -> String {
         let mut cmd = Command::new("sqlite3")
             .arg(self.db_tmp.path())
@@ -678,6 +679,84 @@ async fn manager_login_end_setup(
     "#);
 
     // TODO: revoke then normal login
+    // TODO: invalid acquire_sudo
+
+    next!(app; async move |app| {
+        let totp_code = totp.generate_current().unwrap().parse::<u32>()?;
+        manager_acquire_sudo(app, totp_code, token.expired).await
+    });
+
+    Ok(())
+}
+
+async fn manager_acquire_sudo(
+    mut app: TestApp,
+    totp_code: u32,
+    prev_expired_time: DateTime<Utc>,
+) -> anyhow::Result<()> {
+    let send_time = Utc::now();
+    let mut res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/acquire_sudo")
+        .send_cbor(cbor!({"data" => {
+            "totp_code" => totp_code,
+        }})?)
+        .await?;
+
+    let cookies = res.take_cookies()?;
+    assert_eq!(cookies.iter().count(), 1);
+    let token =
+        verified_token::<ManagerToken>(&cookies, &app.verifying_key())?;
+    assert_eq!(token.mid, 0);
+    assert_eq!(token.expired, prev_expired_time);
+    assert!(token.sudo_expired > send_time);
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 5
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
+
+    next!(app; manager_create_project);
+
+    Ok(())
+}
+
+async fn manager_create_project(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/root/create_project")
+        .send_cbor(cbor!({"data" => {
+            "name"                            => "Test Project",
+            "entry_question"                  => "The Question",
+            "entry_answer"                    => "The Answer",
+            "pre_submit_skip_password"        => "thepswd",
+            "require_harmony_group_intention" => true,
+            "non_disclosure_agreement"        => Some("123"),
+            "attachment_key"                  => Some("test"),
+            "pre_submit_file_size_min"        => 1_000_000,
+            "pre_submit_file_size_max"        => 500_000_000,
+            "submit_file_size_min"            => 1_000_000,
+            "submit_file_size_max"            => 1_000_000_000,
+            "master_file_size_max"            => 1_000_000_000,
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 5
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
 
     next!(app; user_login);
 
@@ -714,7 +793,7 @@ async fn user_login(mut app: TestApp) -> anyhow::Result<()> {
 
     // TODO: update name and read name
 
-    next!(app; user_revoke_all_tokens);
+    next!(app; user_revoke_all_tokens, user_list_projects);
 
     Ok(())
 }
@@ -733,6 +812,25 @@ async fn user_revoke_all_tokens(mut app: TestApp) -> anyhow::Result<()> {
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {"Ok":null}
+    "#);
+
+    Ok(())
+}
+
+async fn user_list_projects(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/list_projects")
+        .send_json(json!({"data": null}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 52
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {"Ok":{"projects":[{"id":1,"name":"Test Project"}]}}
     "#);
 
     Ok(())
