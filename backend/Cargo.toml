@@ -19,6 +19,7 @@ futures-core = "0.3.31"
 itertools = "0.14.0"
 mimalloc = "0.1.46"
 mime = "0.3.17"
+num_enum = "0.7.4"
 rand = "0.9.1"
 rand_core = "0.6.4"
 redis = { version = "0.32.0", features = ["tokio-comp"] }

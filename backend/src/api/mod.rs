@@ -2,6 +2,7 @@ use std::{borrow::Cow, marker::PhantomData};
 
 use anyhow::Context;
 use axum::{Json, http::StatusCode, response::IntoResponse};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use redis::{AsyncTypedCommands, aio::MultiplexedConnection};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
@@ -43,7 +44,16 @@ pub enum Response<'msg, T> {
     Err { code: ErrCode, msg: Cow<'msg, str> },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    IntoPrimitive,
+    TryFromPrimitive,
+)]
+#[serde(try_from = "u64", into = "u64")]
 #[repr(u64)]
 pub enum ErrCode {
     Unknown = 1,
