@@ -169,10 +169,14 @@ async fn verify_password<S>(
 
     let stored_password = stored_password.serialize();
     let verify_res = tokio::task::spawn_blocking(move || {
-        ARGON2.verify_password(
+        let result = ARGON2.verify_password(
             &pswd_sha512,
             &stored_password.password_hash(),
-        )
+        );
+
+        drop(permit);
+
+        result
     })
     .await
     .context("failed to wait password verify to return")?;
@@ -182,7 +186,6 @@ async fn verify_password<S>(
     }
 
     verify_res.context("verify password")?;
-    drop(permit);
     Ok(())
 }
 
