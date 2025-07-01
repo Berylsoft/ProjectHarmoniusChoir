@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use sqlx::Transaction;
 use tokio::sync::Semaphore;
+use totp_rs::TOTP;
 
 use crate::{
     ServerState,
@@ -19,6 +20,7 @@ use crate::{
     database::try_end_transaction,
 };
 
+pub mod acquire_sudo;
 pub mod create_project;
 pub mod login;
 pub mod template;
@@ -103,6 +105,14 @@ impl ManagerToken {
         }
 
         Ok(())
+    }
+
+    async fn verify_totp<S>(
+        &self,
+        trans: &mut Transaction<'_, sqlx::Any>,
+        totp_code: u32,
+    ) -> ApiResult<(), S> {
+        verify_totp(trans, self.mid, totp_code).await
     }
 }
 
@@ -191,3 +201,43 @@ async fn verify_password<S>(
 }
 
 // TODO: update password hash when parameter changed
+
+fn totp_new(secret: Vec<u8>, mid: impl Into<Option<i64>>) -> TOTP {
+    let mid: Option<i64> = mid.into();
+    TOTP::new(
+        totp_rs::Algorithm::SHA1,
+        6,
+        1,
+        30,
+        secret,
+        Some("LuminizorsPassportForAdmins".to_string()),
+        mid.map(|it| it.to_string()).unwrap_or_default(),
+    )
+    .unwrap()
+}
+
+fn totp_check<S>(secret: Vec<u8>, totp_code: u32) -> ApiResult<(), S> {
+    totp_new(secret, None)
+        .check_current(&format!("{totp_code:0>6}"))
+        .context("failed to get system time")?
+        .then_some(())
+        .ok_or(ApiError::InvalidCredential("invalid totp_code"))
+}
+
+async fn verify_totp<S>(
+    trans: &mut Transaction<'_, sqlx::Any>,
+    mid: i64,
+    totp_code: u32,
+) -> ApiResult<(), S> {
+    let totp_secret = sqlx::query_scalar::<_, Vec<u8>>(include_str!(
+        "./sqls/get_manager_totp_secret_by_mid.sql"
+    ))
+    .bind(mid)
+    .fetch_one(&mut **trans)
+    .await
+    .context("get_manager_totp_secret_by_mid")?;
+
+    totp_check(totp_secret, totp_code)?;
+
+    Ok(())
+}

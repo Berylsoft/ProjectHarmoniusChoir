@@ -4,18 +4,21 @@ use axum::{
     body::Body, extract::State, http::Response, response::IntoResponse,
 };
 use chrono::{DateTime, TimeDelta, Utc};
+use ed25519_dalek::SigningKey;
 use rand::RngCore;
 use redis::aio::MultiplexedConnection;
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
-use totp_rs::TOTP;
 use ulid::Ulid;
 
 use crate::{
     ServerState,
     api::{
         self, ApiError, ApiResult, ToCbor,
-        manager::{ManagerToken, verify_password},
+        manager::{
+            ManagerToken, totp_check, totp_new, verify_password,
+            verify_totp,
+        },
         spawn_await, verify_nonce,
     },
     api_begin_transaction,
@@ -130,67 +133,10 @@ pub(crate) async fn router(
 
     let req = req.0.verified(&mut cache).await?;
 
-    let login_finish = |mid: i64, token_id: i64| {
-        Ok((
-            [cookie_set_token(
-                ManagerToken {
-                    mid,
-                    token_id,
-                    expired: Utc::now() + TimeDelta::days(7),
-                    sudo_expired: Utc::now() - TimeDelta::days(365),
-                },
-                &key,
-            )],
-            Cbor(api::Response::Ok(())),
-        )
-            .into_response())
-    };
-
     // TODO: PoW rate limit
-    match req {
+    let response = match req {
         LoginReq::Start { mid, password } => {
-            tracing::debug!("start login");
-
-            let manager =
-                spawn_await(get_manager_for_start_login(db, mid))
-                    .await??;
-            let Some((revision, pswd, totp_secret)) = manager else {
-                return Err(ApiError::InvalidCredential(
-                    "unknown manager",
-                ));
-            };
-
-            let pswd = PasswordHash::new(&pswd)
-                .context("expect stored password is valid encoding")?;
-            verify_password(password, &pswd).await?;
-
-            let token = LoginToken {
-                mid,
-                rev: revision,
-                nonce: Ulid::new(),
-                expired: Utc::now() + TimeDelta::minutes(10),
-            };
-
-            let login_res = if totp_secret.is_some() {
-                LoginRes::TotpVerify {
-                    token: token.into_signed(&key),
-                }
-            } else {
-                let mut secret = [0u8; 20];
-                rand::rng().fill_bytes(&mut secret);
-                let totp = totp_new(mid, secret.to_vec());
-
-                LoginRes::TotpSetup {
-                    token: TotpSetupToken {
-                        secret,
-                        login: token,
-                    }
-                    .into_signed(&key),
-                    totp_url: totp.get_url(),
-                }
-            };
-
-            Ok(Cbor(api::Response::Ok(login_res)).into_response())
+            handle_start_login(db, mid, password, key).await?
         }
         LoginReq::EndSetup { token, totp_code } => {
             tracing::debug!("end login with totp setup");
@@ -199,16 +145,12 @@ pub(crate) async fn router(
                 .map_err(|_| ApiError::InvalidToken("signature"))?;
             token.login.pre_verify(&mut cache).await?;
 
-            totp_check(
-                token.login.mid,
-                token.secret.to_vec(),
-                totp_code,
-            )?;
+            totp_check(token.secret.to_vec(), totp_code)?;
 
             let mid = token.login.mid;
             let token_id = spawn_await(end_setup(db, token)).await??;
 
-            login_finish(mid, token_id)
+            login_finish_res(mid, token_id, &key)
         }
         LoginReq::End { token, totp_code } => {
             tracing::debug!("end login");
@@ -221,33 +163,78 @@ pub(crate) async fn router(
             let token_id =
                 spawn_await(end_login(db, token, totp_code)).await??;
 
-            login_finish(mid, token_id)
+            login_finish_res(mid, token_id, &key)
         }
-    }
+    };
+
+    Ok(response)
 }
 
-fn totp_new(mid: i64, secret: Vec<u8>) -> TOTP {
-    TOTP::new(
-        totp_rs::Algorithm::SHA1,
-        6,
-        1,
-        30,
-        secret,
-        Some("LuminizorsPassportForAdmins".to_string()),
-        mid.to_string(),
-    )
-    .unwrap()
-}
-fn totp_check(
+async fn handle_start_login(
+    db: Database,
     mid: i64,
-    secret: Vec<u8>,
-    totp_code: u32,
-) -> ApiResult<(), ToCbor> {
-    totp_new(mid, secret)
-        .check_current(&format!("{totp_code:0>6}"))
-        .context("failed to get system time")?
-        .then_some(())
-        .ok_or(ApiError::InvalidCredential("invalid totp_code"))
+    password: [u8; 64],
+    key: SigningKey,
+) -> ApiResult<Response<Body>, ToCbor> {
+    tracing::debug!("start login");
+
+    let manager =
+        spawn_await(get_manager_for_start_login(db, mid)).await??;
+    let Some((revision, pswd, totp_secret)) = manager else {
+        return Err(ApiError::InvalidCredential("unknown manager"));
+    };
+
+    let pswd = PasswordHash::new(&pswd)
+        .context("expect stored password is valid encoding")?;
+    verify_password(password, &pswd).await?;
+
+    let token = LoginToken {
+        mid,
+        rev: revision,
+        nonce: Ulid::new(),
+        expired: Utc::now() + TimeDelta::minutes(10),
+    };
+
+    let login_res = if totp_secret.is_some() {
+        LoginRes::TotpVerify {
+            token: token.into_signed(&key),
+        }
+    } else {
+        let mut secret = [0u8; 20];
+        rand::rng().fill_bytes(&mut secret);
+        let totp = totp_new(secret.to_vec(), mid);
+
+        LoginRes::TotpSetup {
+            token: TotpSetupToken {
+                secret,
+                login: token,
+            }
+            .into_signed(&key),
+            totp_url: totp.get_url(),
+        }
+    };
+
+    Ok(Cbor(api::Response::Ok(login_res)).into_response())
+}
+
+fn login_finish_res(
+    mid: i64,
+    token_id: i64,
+    key: &SigningKey,
+) -> axum::http::Response<axum::body::Body> {
+    (
+        [cookie_set_token(
+            ManagerToken {
+                mid,
+                token_id,
+                expired: Utc::now() + TimeDelta::days(7),
+                sudo_expired: Utc::now() - TimeDelta::days(365),
+            },
+            key,
+        )],
+        Cbor(api::Response::Ok(())),
+    )
+        .into_response()
 }
 
 async fn get_manager_for_start_login(
@@ -300,15 +287,7 @@ async fn end_login(
     let res: ApiResult<_, ToCbor> = async {
         let token_id = token.verify(&mut trans).await?;
 
-        let totp_secret = sqlx::query_scalar::<_, Vec<u8>>(include_str!(
-            "./sqls/get_manager_totp_secret.sql"
-        ))
-        .bind(token.mid)
-        .fetch_one(&mut *trans)
-        .await
-        .context("get_manager_totp_secret")?;
-
-        totp_check(token.mid, totp_secret, totp_code)?;
+        verify_totp(&mut trans, token.mid, totp_code).await?;
 
         Ok(token_id)
     }

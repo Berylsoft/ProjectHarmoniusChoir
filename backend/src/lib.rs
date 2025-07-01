@@ -13,9 +13,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use api::user::{
-    revoke_all_tokens, update_name, wechat_login_or_register,
-};
 use aws_config::BehaviorVersion;
 use axum::{Router, routing};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -39,8 +36,11 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
 
-use crate::api::manager::{
-    create_project, init_root_if_not_exists, login,
+use crate::api::{
+    manager::{
+        acquire_sudo, create_project, init_root_if_not_exists, login,
+    },
+    user::{revoke_all_tokens, update_name, wechat_login_or_register},
 };
 
 pub mod api;
@@ -125,6 +125,10 @@ where
             routing::post(revoke_all_tokens::router),
         )
         .route("/api/manager/login", routing::post(login::router))
+        .route(
+            "/api/manager/acquire_sudo",
+            routing::post(acquire_sudo::router),
+        )
         .route(
             "/api/manager/root/create_project",
             routing::post(create_project::router),
