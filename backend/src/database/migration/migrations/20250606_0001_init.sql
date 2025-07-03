@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS "projects" (
 	"submit_file_size_max" INTEGER NOT NULL,
 	-- in bytes
 	"master_file_size_max" INTEGER NOT NULL,
+	-- any changes related to this project is not allowed after this time (use rfc3339)
+	"end_time" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
 
