@@ -70,9 +70,11 @@ async fn do_create_project(
                 && let Some(HeadObjectError::NotFound(_)) =
                     err.as_service_error()
             {
-                return Err(api::ApiError::BadParam(
-                    "attachment not found",
-                ));
+                return Err(api::ApiError::BadParam {
+                    msg: "attachment not found".into(),
+                    detail: format!("attachment {key} not found in s3")
+                        .into_boxed_str(),
+                });
             }
 
             result.context("failed to check if attachment exists")?;

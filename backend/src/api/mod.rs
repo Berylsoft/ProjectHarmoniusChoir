@@ -80,8 +80,8 @@ pub enum ApiError<T> {
     InsufficientPermission(&'static str),
     #[error("require sudo")]
     RequireSudo,
-    #[error("bad parameter: {0}")]
-    BadParam(&'static str),
+    #[error("bad parameter: {detail}")]
+    BadParam { msg: Box<str>, detail: Box<str> },
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
@@ -164,14 +164,14 @@ impl<T> ApiError<T> {
                     },
                 )
             }
-            Self::BadParam(reason) => {
-                tracing::info!("rejecting bad parameter: {reason}");
+            Self::BadParam { msg, detail } => {
+                tracing::info!("rejecting bad parameter: {detail}");
 
                 (
                     StatusCode::BAD_REQUEST,
                     Response::Err {
                         code: ErrCode::BadParam,
-                        msg: reason.into(),
+                        msg: msg.to_string().into(),
                     },
                 )
             }
@@ -260,4 +260,19 @@ async fn verify_nonce<S>(
     } else {
         Err(ApiError::UsedNonce)
     }
+}
+
+#[macro_export]
+macro_rules! api_param_assert {
+    ($expr:expr, $msg:literal) => {
+        if !($expr) {
+            return Err($crate::api::ApiError::BadParam {
+                msg: $msg.into(),
+                detail: stringify!($expr).into(),
+            });
+        }
+    };
+    ($expr:expr) => {
+        api_param_assert!($expr, "bad param")
+    };
 }

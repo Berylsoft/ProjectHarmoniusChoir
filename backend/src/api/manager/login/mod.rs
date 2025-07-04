@@ -21,7 +21,7 @@ use crate::{
         },
         spawn_await, verify_nonce,
     },
-    api_begin_transaction,
+    api_begin_transaction, api_param_assert,
     database::Database,
     extractors::Cbor,
     signing::{IntoSigned, SignedData},
@@ -136,6 +136,7 @@ pub(crate) async fn router(
     // TODO: PoW rate limit
     let response = match req {
         LoginReq::Start { mid, password } => {
+            api_param_assert!(!mid.is_negative());
             handle_start_login(db, mid, password, key).await?
         }
         LoginReq::EndSetup { token, totp_code } => {
