@@ -150,6 +150,7 @@ CREATE TABLE IF NOT EXISTS "status_mixed" (
 
 CREATE TABLE IF NOT EXISTS "review_pre_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
+	"pre_submit_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
 	"status" TEXT NOT NULL,
 	"lead" BOOLEAN,
@@ -161,11 +162,12 @@ CREATE TABLE IF NOT EXISTS "review_pre_submits" (
 
 CREATE TABLE IF NOT EXISTS "review_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
+	"submit_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
+	"checked_file_group_id" INTEGER NOT NULL,
 	"status" TEXT NOT NULL,
 	"reason" TEXT,
 	"reason_detail" TEXT,
-	"checked_file_group_id" INTEGER,
 	PRIMARY KEY("id")
 );
 
