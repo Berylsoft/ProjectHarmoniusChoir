@@ -5,6 +5,7 @@ use sqlx::Transaction;
 
 use crate::api::{ApiError, ApiResult};
 
+pub mod join_project;
 pub mod list_projects;
 pub mod revoke_all_tokens;
 pub mod template;

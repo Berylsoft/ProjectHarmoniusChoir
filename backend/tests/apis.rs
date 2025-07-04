@@ -23,7 +23,7 @@ use backend::{
     init_cache, init_s3, router,
     signing::SignedData,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use ciborium::cbor;
 use cookie::{Cookie, CookieJar};
 use ed25519_dalek::{SigningKey, VerifyingKey};
@@ -728,6 +728,8 @@ async fn manager_acquire_sudo(
 }
 
 async fn manager_create_project(mut app: TestApp) -> anyhow::Result<()> {
+    let end_time = (Utc::now() + TimeDelta::days(7)).to_rfc3339();
+
     let res = app
         .req_builder(Method::POST, 0)
         .api("/manager/root/create_project")
@@ -744,6 +746,7 @@ async fn manager_create_project(mut app: TestApp) -> anyhow::Result<()> {
             "submit_file_size_min"            => 1_000_000,
             "submit_file_size_max"            => 1_000_000_000,
             "master_file_size_max"            => 1_000_000_000,
+            "end_time"                        => end_time,
         }})?)
         .await?;
 
@@ -833,18 +836,90 @@ async fn user_list_projects(mut app: TestApp) -> anyhow::Result<()> {
     {"Ok":{"projects":[{"id":1,"name":"Test Project"}]}}
     "#);
 
+    next!(app; user_join_project_start);
+
     Ok(())
 }
 
-// async fn template(mut app: TestApp) -> anyhow::Result<()> {
-//     let res = app
-//         .req_builder(Method::POST, 0)
-//         .api("")
-//         .send_json(json!({"data": null}))
-//         .send_cbor(cbor!({"data" => null})?)
-//         .await?;
-//
-//     insta::assert_snapshot!(res, @"");
-//
-//     Ok(())
-// }
+async fn user_join_project_start(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/join_project")
+        .send_json(json!({"data": {
+            "Start": {
+                "pid": 1,
+            }
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 44
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {"Ok":{"Start":{"question":"The Question"}}}
+    "#);
+
+    next!(app; user_join_project);
+
+    Ok(())
+}
+
+async fn user_join_project(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/join_project")
+        .send_json(json!({"data": {
+            "Join": {
+                "pid": 1,
+                "answer": "The Answer",
+                "name": "TheName",
+            }
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 16
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {"Ok":"Success"}
+    "#);
+
+    // TODO: remove
+    insta::assert_snapshot!(app.db_query("select * from project_users;"), @r"
+    id  user_id  project_id  name   
+    --  -------  ----------  -------
+    1   0        1           TheName
+    ");
+
+    Ok(())
+}
+
+#[expect(unused, reason = "template")]
+async fn template_manager(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("")
+        .send_json(json!({"data": null}))
+        .await?;
+
+    insta::assert_snapshot!(res, @"");
+
+    Ok(())
+}
+
+#[expect(unused, reason = "template")]
+async fn template_user(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("")
+        .send_cbor(cbor!({"data" => null})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @"");
+
+    Ok(())
+}

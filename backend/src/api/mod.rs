@@ -276,3 +276,19 @@ macro_rules! api_param_assert {
         api_param_assert!($expr, "bad param")
     };
 }
+
+#[macro_export]
+macro_rules! api_assert {
+    ($expr:expr, $msg:literal) => {
+        if !($expr) {
+            return Err($crate::api::ApiError::Unknown(anyhow!(
+                "{}: {}",
+                $msg,
+                stringify!($expr)
+            )));
+        }
+    };
+    ($expr:expr) => {
+        api_param_assert!($expr, "assertion failed")
+    };
+}

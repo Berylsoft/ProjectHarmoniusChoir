@@ -10,5 +10,6 @@ INSERT INTO projects (
     pre_submit_file_size_max,
     submit_file_size_min,
     submit_file_size_max,
-    master_file_size_max
-    ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,? )
+    master_file_size_max,
+    end_time
+    ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,? )

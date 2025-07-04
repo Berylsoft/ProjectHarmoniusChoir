@@ -3,6 +3,7 @@ use aws_sdk_s3::operation::head_object::HeadObjectError;
 use axum::{
     body::Body, extract::State, http::Response, response::IntoResponse,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -30,6 +31,7 @@ pub struct CreateProjectReq {
     submit_file_size_min: i64,
     submit_file_size_max: i64,
     master_file_size_max: i64,
+    end_time: DateTime<Utc>,
 }
 
 pub(crate) async fn router(
@@ -94,6 +96,7 @@ async fn do_create_project(
                 .bind(req.submit_file_size_min)
                 .bind(req.submit_file_size_max)
                 .bind(req.master_file_size_max)
+                .bind(req.end_time.to_rfc3339())
                 .execute(&mut *trans)
                 .await
                 .context("create_project")?;
