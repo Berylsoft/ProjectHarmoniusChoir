@@ -43,7 +43,7 @@ async fn do_(
         // NOTE: decide the verify permission
         token.verify_sudo(&mut trans, true).await?;
 
-        ApiResult::<_, _>::Ok(())
+        ApiResult::Ok(())
     }
     .await;
 

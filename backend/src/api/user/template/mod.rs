@@ -38,7 +38,7 @@ async fn do_(db: Database, token: UserToken) -> ApiResult<(), ToJson> {
     let res = async {
         token.verify(&mut trans).await?;
 
-        ApiResult::<_, _>::Ok(())
+        ApiResult::Ok(())
     }
     .await;
 
