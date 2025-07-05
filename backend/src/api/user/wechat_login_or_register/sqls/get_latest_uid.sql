@@ -1,1 +1,1 @@
-SELECT coalesce(max(id), -1) FROM users;
+SELECT coalesce(max(id), 0) FROM users;
