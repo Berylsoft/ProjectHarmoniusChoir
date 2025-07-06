@@ -1,10 +1,12 @@
 use std::{
     self,
+    any::{Any, TypeId},
     borrow::Cow,
     collections::HashMap,
     fmt::{Display, Write},
     io::Write as _,
     process::{Command, Stdio},
+    sync::Arc,
 };
 
 use anyhow::Context;
@@ -304,14 +306,27 @@ struct TestApp {
     cookies: HashMap<u64, CookieJar>,
     make_req_id: TestMakeRequestId,
     router: Router,
-    root_pswd: String,
+    storage: HashMap<(&'static str, TypeId), Arc<dyn Any>>,
     // for drop
     db_tmp: NamedTempFile,
 }
 
 impl TestApp {
     fn root_pswd_sha512(&self) -> Vec<u8> {
-        Sha512::digest(self.root_pswd.as_bytes()).to_vec()
+        Sha512::digest(self.get::<Box<str>>("root_pswd").as_bytes())
+            .to_vec()
+    }
+
+    fn set<T: 'static>(&mut self, k: &'static str, v: T) {
+        self.storage.insert((k, v.type_id()), Arc::from(v));
+    }
+
+    fn get<T: 'static>(&self, k: &'static str) -> &T {
+        self.storage
+            .get(&(k, TypeId::of::<T>()))
+            .unwrap()
+            .downcast_ref()
+            .unwrap()
     }
 
     fn verifying_key(&self) -> VerifyingKey {
@@ -361,14 +376,18 @@ impl TestApp {
 
         let router = router(state.clone(), make_req_id.clone());
 
-        Ok(Self {
+        let mut this = Self {
             state,
             cookies: HashMap::new(),
             make_req_id,
             router,
-            root_pswd,
+            storage: HashMap::new(),
             db_tmp,
-        })
+        };
+
+        this.set::<Box<str>>("root_pswd", root_pswd);
+
+        Ok(this)
     }
 
     /// only db is branched, key, cache and s3 is shared
@@ -393,14 +412,14 @@ impl TestApp {
 
         let router = router(state.clone(), make_req_id.clone());
 
-        let root_pswd = self.root_pswd.clone();
+        let storage = self.storage.clone();
 
         Ok(Self {
             state,
             cookies,
             make_req_id,
             router,
-            root_pswd,
+            storage,
             db_tmp,
         })
     }
