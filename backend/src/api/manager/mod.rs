@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{Context, ensure};
 use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
-    password_hash::SaltString,
+    password_hash::{PasswordHashString, SaltString},
 };
 use chrono::{DateTime, Utc};
 use rand::distr::{Alphanumeric, SampleString};
@@ -26,7 +26,7 @@ pub mod login;
 pub mod template;
 
 const ROOT_MID: i64 = 0;
-const ROOT_DEFAULT_PASSWORD_LEN: usize = 32;
+const DEFAULT_PASSWORD_LEN: usize = 32;
 // TODO: actual parameter for production server
 static ARGON2: LazyLock<argon2::Argon2> = LazyLock::new(|| {
     let params = argon2::Params::new(2 * 1024, 2, 1, Some(64)).unwrap();
@@ -124,19 +124,8 @@ impl ManagerToken {
 /// broken hash
 pub async fn init_root_if_not_exists(
     state: &ServerState,
-) -> anyhow::Result<Option<String>> {
-    let mut password = String::with_capacity(ROOT_DEFAULT_PASSWORD_LEN);
-    Alphanumeric.append_string(
-        &mut rand::rng(),
-        &mut password,
-        ROOT_DEFAULT_PASSWORD_LEN,
-    );
-    let password_hash = Sha512::digest(password.as_bytes());
-    let salt = SaltString::generate(&mut rand_core::OsRng);
-    let password_hash = ARGON2
-        .hash_password(&password_hash, &salt)
-        .expect("valid hash");
-    let password_hash = password_hash.serialize();
+) -> anyhow::Result<Option<Box<str>>> {
+    let (password, password_hash) = generate_default_password().await?;
 
     api_begin_transaction!(state.db, conn, trans, Immediate);
 
@@ -198,6 +187,47 @@ async fn verify_password<S>(
 
     verify_res.context("verify password")?;
     Ok(())
+}
+
+async fn hash_password(
+    pswd_sha512: [u8; 64],
+) -> anyhow::Result<PasswordHashString> {
+    let permit = ARGON2_PARALLEL_SEMAPHORE
+        .acquire()
+        .await
+        .expect("not closed");
+
+    let password_hash = tokio::task::spawn_blocking(move || {
+        let salt = SaltString::generate(&mut rand_core::OsRng);
+        let password_hash = ARGON2
+            .hash_password(&pswd_sha512, &salt)
+            .context("Argon2::hash_password")?;
+        let password_hash = password_hash.serialize();
+
+        drop(permit);
+
+        anyhow::Result::<_>::Ok(password_hash)
+    })
+    .await
+    .context("failed to wait password verify to return")??;
+
+    Ok(password_hash)
+}
+
+async fn generate_default_password()
+-> anyhow::Result<(Box<str>, PasswordHashString)> {
+    let mut password = String::with_capacity(DEFAULT_PASSWORD_LEN);
+    Alphanumeric.append_string(
+        &mut rand::rng(),
+        &mut password,
+        DEFAULT_PASSWORD_LEN,
+    );
+    let password_hash = Sha512::digest(password.as_bytes());
+    let password_hash = hash_password(password_hash.into())
+        .await
+        .context("hash_password")?;
+
+    Ok((password.into(), password_hash))
 }
 
 // TODO: update password hash when parameter changed
