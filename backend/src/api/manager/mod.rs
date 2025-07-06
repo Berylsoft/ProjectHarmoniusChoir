@@ -24,6 +24,7 @@ pub mod acquire_sudo;
 pub mod create_manager;
 pub mod create_project;
 pub mod login;
+pub mod project_manager_edit;
 pub mod template;
 
 const ROOT_MID: i64 = 0;

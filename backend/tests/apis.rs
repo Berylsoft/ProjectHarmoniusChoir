@@ -820,6 +820,37 @@ async fn manager_create_manager(mut app: TestApp) -> anyhow::Result<()> {
 
     // TODO: login using this manager
 
+    next!(app; manager_project_manager_edit);
+
+    Ok(())
+}
+
+async fn manager_project_manager_edit(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let mid = *app.get::<i64>("manager_1_mid");
+
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/root/project_manager_edit")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "mid" => mid,
+            "is_revoke" => false,
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 5
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
+
     next!(app; user_login);
 
     Ok(())

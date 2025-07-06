@@ -39,7 +39,7 @@ use ulid::Ulid;
 use crate::api::{
     manager::{
         acquire_sudo, create_manager, create_project,
-        init_root_if_not_exists, login,
+        init_root_if_not_exists, login, project_manager_edit,
     },
     user::{
         join_project, list_projects, revoke_all_tokens, update_name,
@@ -148,6 +148,10 @@ where
         .route(
             "/api/manager/root/create_manager",
             routing::post(create_manager::router),
+        )
+        .route(
+            "/api/manager/root/project_manager_edit",
+            routing::post(project_manager_edit::router),
         )
         .layer((
             SetRequestIdLayer::x_request_id(make_req_id),
