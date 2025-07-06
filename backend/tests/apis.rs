@@ -780,6 +780,46 @@ async fn manager_create_project(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_create_manager);
+
+    Ok(())
+}
+
+async fn manager_create_manager(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/root/create_manager")
+        .send_cbor(cbor!({"data" => null})?)
+        .await?;
+
+    let mut body = res.body_to_cbor()?;
+    let mid: i128 = cbor_get(&mut body, &["Ok", "mid"])
+        .as_integer()
+        .unwrap()
+        .into();
+    let mid = mid as i64;
+    let password = cbor_remove(&mut body, &["Ok", "password"]);
+    let password = password.into_text().unwrap().into_boxed_str();
+
+    app.set::<i64>("manager_1_mid", mid);
+    app.set::<Box<str>>("manager_1_password", password);
+
+    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    HTTP/1.1 200 OK
+    content-length: 53
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+    ");
+    insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
+    {
+      "Ok": {
+        "mid": 1
+      }
+    }
+    "#);
+
+    // TODO: login using this manager
+
     next!(app; user_login);
 
     Ok(())
