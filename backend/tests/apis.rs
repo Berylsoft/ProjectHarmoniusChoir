@@ -903,7 +903,7 @@ async fn template_manager(mut app: TestApp) -> anyhow::Result<()> {
     let res = app
         .req_builder(Method::POST, 0)
         .api("")
-        .send_json(json!({"data": null}))
+        .send_cbor(cbor!({"data" => null})?)
         .await?;
 
     insta::assert_snapshot!(res, @"");
@@ -916,7 +916,7 @@ async fn template_user(mut app: TestApp) -> anyhow::Result<()> {
     let res = app
         .req_builder(Method::POST, 1)
         .api("")
-        .send_cbor(cbor!({"data" => null})?)
+        .send_json(json!({"data": null}))
         .await?;
 
     insta::assert_snapshot!(res, @"");
