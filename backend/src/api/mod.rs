@@ -281,14 +281,12 @@ macro_rules! api_param_assert {
 macro_rules! api_assert {
     ($expr:expr, $msg:literal) => {
         if !($expr) {
-            return Err($crate::api::ApiError::Unknown(anyhow!(
-                "{}: {}",
-                $msg,
-                stringify!($expr)
-            )));
+            return Err($crate::api::ApiError::Unknown(
+                ::anyhow::anyhow!("{}: {}", $msg, stringify!($expr)),
+            ));
         }
     };
     ($expr:expr) => {
-        api_param_assert!($expr, "assertion failed")
+        api_assert!($expr, "assertion failed")
     };
 }
