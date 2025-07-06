@@ -1,3 +1,4 @@
+// NOTE: remove
 #![expect(unused, reason = "template")]
 
 use anyhow::Context as _;
