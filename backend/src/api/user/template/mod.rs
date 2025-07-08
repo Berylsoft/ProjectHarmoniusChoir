@@ -25,24 +25,30 @@ pub(crate) async fn router(
     req: Json<api::Request<Req>>,
 ) -> ApiResult<impl IntoResponse, ToJson> {
     let ServerState { mut cache, db, .. } = state.0;
-    let _req = req.0.verified(&mut cache).await?;
+    let req = req.0.verified(&mut cache).await?;
 
     // NOTE: api_param_assert
-    api::spawn_await(do_(db, token.0)).await??;
+    api::spawn_await(do_(db, token.0, req)).await??;
 
     Ok(Json(api::Response::Ok(())))
 }
 
-async fn do_(db: Database, token: UserToken) -> ApiResult<(), ToJson> {
+async fn do_(
+    db: Database,
+    token: UserToken,
+    req: Req,
+) -> ApiResult<(), ToJson> {
     // NOTE: decide the begin mode
     api_begin_transaction!(db, conn, trans, Deferred);
 
-    let res = async {
+    let result = async {
         token.verify(&mut trans).await?;
+
+        std::hint::black_box(req);
 
         ApiResult::Ok(())
     }
     .await;
 
-    api::end_transaction(res, trans).await
+    api::end_transaction(result, trans).await
 }
