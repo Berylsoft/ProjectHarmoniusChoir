@@ -432,6 +432,7 @@ impl TestApp {
     where
         Fut: Future<Output = anyhow::Result<()>>,
     {
+        tracing::info!("running test: {name}");
         next(self.branch().await.context("branch")?)
             .await
             .with_context(|| format!("next: {name}"))
@@ -446,6 +447,7 @@ impl TestApp {
     where
         Fut: Future<Output = anyhow::Result<()>>,
     {
+        tracing::info!("running test: {name}");
         next(self).await.with_context(|| format!("next: {name}"))
     }
 
