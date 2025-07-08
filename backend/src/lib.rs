@@ -38,11 +38,11 @@ use ulid::Ulid;
 
 use crate::api::{
     manager::{
-        acquire_sudo, create_manager, create_project,
+        self, acquire_sudo, create_manager, create_project,
         init_root_if_not_exists, login, project_manager_edit,
     },
     user::{
-        join_project, list_projects, revoke_all_tokens, update_name,
+        self, join_project, revoke_all_tokens, update_name,
         wechat_login_or_register,
     },
 };
@@ -130,7 +130,7 @@ where
         )
         .route(
             "/api/user/list_projects",
-            routing::post(list_projects::router),
+            routing::post(user::list_projects::router),
         )
         .route(
             "/api/user/join_project",
@@ -140,6 +140,10 @@ where
         .route(
             "/api/manager/acquire_sudo",
             routing::post(acquire_sudo::router),
+        )
+        .route(
+            "/api/manager/list_projects",
+            routing::post(manager::list_projects::router),
         )
         .route(
             "/api/manager/root/create_project",

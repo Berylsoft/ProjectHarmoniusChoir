@@ -985,6 +985,38 @@ async fn user_join_project(mut app: TestApp) -> anyhow::Result<()> {
     1   1        1           TheName
     ");
 
+    next!(app; manager_list_projects);
+
+    Ok(())
+}
+
+async fn manager_list_projects(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/list_projects")
+        .send_cbor(cbor!({"data" => null})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 39
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "projects": [
+          {
+            "pid": 1,
+            "name": "Test Project"
+          }
+        ]
+      }
+    }
+    "#);
+
+    // TODO: by non root manager
+
     Ok(())
 }
 

@@ -23,6 +23,7 @@ use crate::{
 pub mod acquire_sudo;
 pub mod create_manager;
 pub mod create_project;
+pub mod list_projects;
 pub mod login;
 pub mod project_manager_edit;
 pub mod template;
@@ -78,13 +79,17 @@ impl ManagerToken {
         Ok(())
     }
 
+    const fn is_root(&self) -> bool {
+        self.mid == ROOT_MID
+    }
+
     async fn verify_root<S>(
         &self,
         trans: &mut Transaction<'_, sqlx::Any>,
     ) -> ApiResult<(), S> {
         self.verify(trans).await?;
 
-        if self.mid != ROOT_MID {
+        if !self.is_root() {
             return Err(ApiError::InsufficientPermission("require root"));
         }
 
