@@ -12,6 +12,7 @@ use crate::{
 };
 
 pub mod manager;
+pub mod shared;
 pub mod user;
 
 #[derive(Debug, Serialize, Deserialize)]

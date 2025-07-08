@@ -146,6 +146,10 @@ where
             routing::post(manager::list_projects::router),
         )
         .route(
+            "/api/manager/list_project_users",
+            routing::post(manager::list_project_users::router),
+        )
+        .route(
             "/api/manager/root/create_project",
             routing::post(create_project::router),
         )

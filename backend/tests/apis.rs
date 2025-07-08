@@ -1012,6 +1012,43 @@ async fn manager_list_projects(mut app: TestApp) -> anyhow::Result<()> {
 
     // TODO: by non root manager
 
+    next!(app; manager_list_project_users);
+
+    Ok(())
+}
+
+async fn manager_list_project_users(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/list_project_users")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "sort_by" => "Status",
+            "reverse" => false,
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 53
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "project_users": [
+          {
+            "id": 1,
+            "name": "TheName",
+            "status": "Entered"
+          }
+        ]
+      }
+    }
+    "#);
+
     Ok(())
 }
 

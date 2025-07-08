@@ -23,6 +23,7 @@ use crate::{
 pub mod acquire_sudo;
 pub mod create_manager;
 pub mod create_project;
+pub mod list_project_users;
 pub mod list_projects;
 pub mod login;
 pub mod project_manager_edit;
@@ -120,6 +121,33 @@ impl ManagerToken {
         totp_code: u32,
     ) -> ApiResult<(), S> {
         verify_totp(trans, self.mid, totp_code).await
+    }
+
+    async fn verify_can_access_project<S>(
+        &self,
+        trans: &mut Transaction<'_, sqlx::Any>,
+        pid: i64,
+    ) -> ApiResult<(), S> {
+        if self.is_root() {
+            return Ok(());
+        }
+
+        let project_manager_id = sqlx::query_scalar::<_, i64>(
+            include_str!("./sqls/get_project_manager_id_by_pid_mid.sql"),
+        )
+        .bind(pid)
+        .bind(self.mid)
+        .fetch_optional(&mut **trans)
+        .await
+        .context("get_project_manager_id_by_pid_mid")?;
+
+        if project_manager_id.is_none() {
+            return Err(ApiError::InsufficientPermission(
+                "not a manager of this project",
+            ));
+        }
+
+        Ok(())
     }
 }
 
