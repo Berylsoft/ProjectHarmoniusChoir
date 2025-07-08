@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS "project_users" (
 	"user_id" INTEGER NOT NULL,
 	"project_id" INTEGER NOT NULL,
 	"name" TEXT NOT NULL,
+	"joined_at" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
 
@@ -152,6 +153,7 @@ CREATE TABLE IF NOT EXISTS "review_pre_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"pre_submit_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
+	"review_at" TEXT NOT NULL,
 	"status" TEXT NOT NULL,
 	"lead" BOOLEAN,
 	"choir" BOOLEAN,
@@ -164,6 +166,7 @@ CREATE TABLE IF NOT EXISTS "review_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"submit_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
+	"review_at" TEXT NOT NULL,
 	"checked_file_group_id" INTEGER NOT NULL,
 	"status" TEXT NOT NULL,
 	"reason" TEXT,

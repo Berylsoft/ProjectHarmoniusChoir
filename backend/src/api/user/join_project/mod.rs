@@ -1,5 +1,6 @@
 use anyhow::Context as _;
 use axum::{Json, extract::State, response::IntoResponse};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -131,6 +132,7 @@ async fn do_join_project(
                 .bind(token.uid)
                 .bind(pid)
                 .bind(&*name)
+                .bind(Utc::now().to_rfc3339())
                 .execute(&mut *trans)
                 .await
                 .context("ins_project_user")?;

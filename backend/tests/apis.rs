@@ -980,13 +980,6 @@ async fn user_join_project(mut app: TestApp) -> anyhow::Result<()> {
     {"Ok":"Success"}
     "#);
 
-    // TODO: remove
-    insta::assert_snapshot!(app.db_query("select * from project_users;"), @r"
-    id  user_id  project_id  name   
-    --  -------  ----------  -------
-    1   1        1           TheName
-    ");
-
     next!(app; manager_list_projects);
 
     Ok(())
