@@ -44,3 +44,10 @@ fn manager_views() {
         "./sqls/manager_views.sql"
     )))
 }
+
+#[test]
+fn project_manager_views() {
+    insta::assert_snapshot!(run_on_database(include_str!(
+        "./sqls/project_manager_views.sql"
+    )))
+}

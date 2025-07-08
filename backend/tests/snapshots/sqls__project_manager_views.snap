@@ -1,0 +1,46 @@
+---
+source: tests/sqls.rs
+expression: "run_on_database(include_str!(\"./sqls/project_manager_views.sql\"))"
+---
+BEGIN;
+INSERT 
+    INTO project_managers 
+        ( id, project_id, manager_id, is_revoke )
+    VALUES
+        ( 1,  1,          1,          false ),
+        ( 2,  2,          1,          false ),
+        ( 3,  1,          2,          false ),
+
+        ( 4,  1,          3,          false ),
+        ( 5,  1,          3,          true ),
+
+        ( 6,  1,          4,          false ),
+        ( 7,  1,          4,          true ),
+        ( 8,  1,          4,          false )
+;
+
+SELECT * FROM project_managers_latest;
+id  project_id  manager_id  is_revoke
+--  ----------  ----------  ---------
+1   1           1           0        
+2   2           1           0        
+3   1           2           0        
+8   1           4           0        
+SELECT * FROM project_managers_latest_revoked;
+id  project_id  manager_id  is_revoke
+--  ----------  ----------  ---------
+5   1           3           1        
+SELECT * FROM project_managers;
+id  project_id  manager_id  is_revoke
+--  ----------  ----------  ---------
+1   1           1           0        
+2   2           1           0        
+3   1           2           0        
+4   1           3           0        
+5   1           3           1        
+6   1           4           0        
+7   1           4           1        
+8   1           4           0        
+ROLLBACK;
+
+.quit

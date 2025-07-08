@@ -30,3 +30,27 @@ CREATE VIEW IF NOT EXISTS managers_latest
 			WHERE id = mgr.id
 		);
 	;
+
+CREATE VIEW IF NOT EXISTS project_managers_latest
+	AS
+		SELECT *
+		FROM project_managers as pmgr
+		WHERE is_revoke = false AND id = (
+			SELECT MAX(id)
+			FROM project_managers
+			WHERE project_id = pmgr.project_id 
+				AND manager_id = pmgr.manager_id
+		)
+	;
+
+CREATE VIEW IF NOT EXISTS project_managers_latest_revoked
+	AS
+		SELECT *
+		FROM project_managers as pmgr
+		WHERE is_revoke = true AND id = (
+			SELECT MAX(id)
+			FROM project_managers
+			WHERE project_id = pmgr.project_id 
+				AND manager_id = pmgr.manager_id
+		)
+	;
