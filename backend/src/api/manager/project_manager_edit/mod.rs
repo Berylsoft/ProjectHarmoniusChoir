@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ServerState,
     api::{self, ApiResult, ToCbor, manager::ManagerToken, spawn_await},
-    api_assert, api_begin_transaction,
+    api_assert, api_begin_transaction, api_param_assert,
     database::Database,
     extractors::{Cbor, Token},
 };
@@ -25,6 +25,8 @@ pub(crate) async fn router(
     let ServerState { mut cache, db, .. } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
+    api_param_assert!(req.pid >= 1);
+    api_param_assert!(req.mid >= 1);
     spawn_await(do_project_manager_edit(db, token.0, req)).await??;
 
     Ok(Cbor(api::Response::Ok(())))
