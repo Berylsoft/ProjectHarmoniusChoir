@@ -27,6 +27,7 @@ pub(crate) async fn router(
     let ServerState { mut cache, db, .. } = state.0;
     let _req = req.0.verified(&mut cache).await?;
 
+    // NOTE: api_param_assert
     api::spawn_await(do_(db, token.0)).await??;
 
     Ok(Json(api::Response::Ok(())))
