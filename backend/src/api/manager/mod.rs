@@ -289,6 +289,7 @@ fn totp_check<S>(secret: Vec<u8>, totp_code: u32) -> ApiResult<(), S> {
         .ok_or(ApiError::InvalidCredential("invalid totp_code"))
 }
 
+/// expect mid exists
 async fn verify_totp<S>(
     trans: &mut Transaction<'_, sqlx::Any>,
     mid: i64,

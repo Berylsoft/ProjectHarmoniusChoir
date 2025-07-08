@@ -71,12 +71,20 @@ async fn do_query_entry_question(
             "./sqls/get_entry_question_by_pid.sql"
         ))
         .bind(pid)
-        .fetch_one(&mut *trans)
+        .fetch_optional(&mut *trans)
         .await
-        .context("get_entry_question_by_pid")?
-        .into_boxed_str();
+        .context("get_entry_question_by_pid")?;
 
-        ApiResult::Ok(JoinProjectRes::Start { question })
+        let Some(question) = question else {
+            return Err(ApiError::BadParam {
+                msg: "invalid pid".into(),
+                detail: format!("project {pid} does not exists").into(),
+            });
+        };
+
+        ApiResult::Ok(JoinProjectRes::Start {
+            question: question.into_boxed_str(),
+        })
     }
     .await;
 

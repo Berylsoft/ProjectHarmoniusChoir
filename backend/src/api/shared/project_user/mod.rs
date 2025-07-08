@@ -32,6 +32,7 @@ pub enum Status {
 }
 
 impl Status {
+    /// expect puid exists
     /// # Returns
     /// the status and the time it was reached
     /// # Errors
