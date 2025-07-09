@@ -47,4 +47,29 @@ impl UserToken {
 
         Ok(())
     }
+
+    /// # Returns
+    /// project_user_id
+    async fn verify_joined_project<S>(
+        &self,
+        trans: &mut Transaction<'_, sqlx::Any>,
+        pid: i64,
+    ) -> ApiResult<i64, S> {
+        let project_user_id = sqlx::query_scalar::<_, i64>(include_str!(
+            "./sqls/get_project_user_id_by_uid_pid.sql"
+        ))
+        .bind(self.uid)
+        .bind(pid)
+        .fetch_optional(&mut **trans)
+        .await
+        .context("get_project_user_id_by_uid_pid")?;
+
+        let Some(project_user_id) = project_user_id else {
+            return Err(ApiError::InsufficientPermission(
+                "have not joined this project",
+            ));
+        };
+
+        Ok(project_user_id)
+    }
 }
