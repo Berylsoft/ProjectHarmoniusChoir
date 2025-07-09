@@ -164,3 +164,52 @@ impl Status {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NdaStatus {
+    NoNda,
+    Pending(Box<str>),
+    Agreed,
+}
+
+impl NdaStatus {
+    /// expect pid and project_uid exists
+    /// # Returns
+    /// the status
+    /// # Errors
+    /// anything unexpected
+    #[expect(clippy::too_many_lines)]
+    pub async fn get_by_pid_puid(
+        trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+        pid: i64,
+        project_uid: i64,
+    ) -> anyhow::Result<Self> {
+        let nda = sqlx::query_scalar::<_, Option<String>>(include_str!(
+            "./sqls/get_project_nda_by_pid.sql"
+        ))
+        .bind(pid)
+        .fetch_one(&mut **trans)
+        .await
+        .context("get_project_nda_by_pid")?;
+
+        let Some(nda) = nda else {
+            return Ok(Self::NoNda);
+        };
+
+        let nda_agreed = sqlx::query_scalar::<_, i64>(include_str!(
+            "./sqls/get_nda_agreed_by_puid.sql"
+        ))
+        .bind(project_uid)
+        .fetch_optional(&mut **trans)
+        .await
+        .context("get_nda_agreed_by_puid")?;
+
+        let ret = if nda_agreed.is_some() {
+            Self::Agreed
+        } else {
+            Self::Pending(nda.into_boxed_str())
+        };
+
+        Ok(ret)
+    }
+}

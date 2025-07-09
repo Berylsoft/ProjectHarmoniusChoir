@@ -7,6 +7,7 @@ use crate::api::{ApiError, ApiResult};
 
 pub mod join_project;
 pub mod list_projects;
+pub mod project_info;
 pub mod revoke_all_tokens;
 pub mod template;
 pub mod update_name;

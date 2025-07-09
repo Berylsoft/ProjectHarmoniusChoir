@@ -136,6 +136,10 @@ where
             "/api/user/join_project",
             routing::post(join_project::router),
         )
+        .route(
+            "/api/user/project_info",
+            routing::post(user::project_info::router),
+        )
         .route("/api/manager/login", routing::post(login::router))
         .route(
             "/api/manager/acquire_sudo",

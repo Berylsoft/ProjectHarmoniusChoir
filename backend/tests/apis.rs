@@ -1049,6 +1049,29 @@ async fn manager_list_project_users(
     }
     "#);
 
+    next!(app; user_project_info);
+
+    Ok(())
+}
+
+async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/project_info")
+        .send_json(json!({"data": {
+            "pid": 1
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 45
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {"Ok":{"status":"Entered","nda_agreed":null}}
+    "#);
+
     Ok(())
 }
 
