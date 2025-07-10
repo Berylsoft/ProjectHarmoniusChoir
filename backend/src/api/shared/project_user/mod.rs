@@ -32,7 +32,7 @@ pub enum Status {
 }
 
 impl Status {
-    /// expect puid exists
+    /// expect `puid` exists
     /// # Returns
     /// the status and the time it was reached
     /// # Errors
@@ -173,12 +173,11 @@ pub enum NdaStatus {
 }
 
 impl NdaStatus {
-    /// expect pid and project_uid exists
+    /// expect `pid` and `project_uid` exists
     /// # Returns
     /// the status
     /// # Errors
     /// anything unexpected
-    #[expect(clippy::too_many_lines)]
     pub async fn get_by_pid_puid(
         trans: &mut sqlx::Transaction<'_, sqlx::Any>,
         pid: i64,

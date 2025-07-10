@@ -50,7 +50,7 @@ impl UserToken {
     }
 
     /// # Returns
-    /// project_user_id
+    /// `project_user_id`
     async fn verify_joined_project<S>(
         &self,
         trans: &mut Transaction<'_, sqlx::Any>,
