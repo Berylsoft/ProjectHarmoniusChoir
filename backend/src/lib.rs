@@ -84,6 +84,10 @@ impl S3 {
             bucket: bucket.into(),
         }
     }
+
+    pub fn bucket(&self) -> &str {
+        &self.bucket
+    }
 }
 
 impl_deref!(ref S3 => aws_sdk_s3::Client = .client);

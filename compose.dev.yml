@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend/
+    depends_on:
+      - cache
+      - s3
+    ports:
+      - "8081:8081"
+    environment:
+      RUST_LOG: backend=trace,sqlx=info,tower_http::trace::make_span=debug,info
+      REDIS_DB: "redis://cache"
+      AWS_ENDPOINT_URL: "http://s3:9000"
+      AWS_REGION: default
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: main
+      S3_FORCE_PATH_STYLE: true
+
+  s3:
+    image: minio/minio
+    ports:
+      - "9001:9001"
+    command: server /mnt/data --console-address ":9001"
+
+  cache:
+    image: valkey/valkey

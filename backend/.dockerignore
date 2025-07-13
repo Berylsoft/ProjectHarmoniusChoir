@@ -1,0 +1,8 @@
+/target
+/.env
+/data
+/signing_key*
+**/.DS_Store
+
+/Dockerfile
+/.gitignore
