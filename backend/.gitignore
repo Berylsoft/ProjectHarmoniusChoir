@@ -2,3 +2,4 @@
 /.env
 /data
 /signing_key*
+**/.DS_Store

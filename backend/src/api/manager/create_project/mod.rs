@@ -1,5 +1,4 @@
 use anyhow::Context;
-use aws_sdk_s3::operation::head_object::HeadObjectError;
 use axum::{
     body::Body, extract::State, http::Response, response::IntoResponse,
 };
@@ -10,7 +9,7 @@ use crate::{
     S3, ServerState,
     api::{
         self, ApiResult, ToCbor, end_transaction, manager::ManagerToken,
-        spawn_await,
+        shared::file, spawn_await,
     },
     api_begin_transaction,
     database::Database,
@@ -61,25 +60,16 @@ async fn do_create_project(
         token.verify_sudo(&mut trans, true).await?;
 
         if let Some(key) = req.attachment_key.as_deref() {
-            let result = s3
-                .head_object()
-                .bucket(&*s3.bucket)
-                .key(key)
-                .send()
-                .await;
-
-            if let Err(ref err) = result
-                && let Some(HeadObjectError::NotFound(_)) =
-                    err.as_service_error()
-            {
+            let exists = file::is_s3_file_exists(&s3, key)
+                .await
+                .context("file::is_s3_file_exists")?;
+            if !exists {
                 return Err(api::ApiError::BadParam {
                     msg: "attachment not found".into(),
                     detail: format!("attachment {key} not found in s3")
                         .into_boxed_str(),
                 });
             }
-
-            result.context("failed to check if attachment exists")?;
         }
 
         let create_result =

@@ -114,3 +114,16 @@ where
 
     Ok(result)
 }
+
+/// # Errors
+/// database errors
+pub async fn last_insert_rowid(
+    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+) -> anyhow::Result<i64> {
+    sqlx::query_scalar::<_, i64>(include_str!(
+        "./sqls/get_last_insert_rowid.sql"
+    ))
+    .fetch_one(&mut **trans)
+    .await
+    .context("get_last_insert_rowid")
+}

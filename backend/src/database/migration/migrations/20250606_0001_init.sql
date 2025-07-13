@@ -74,25 +74,23 @@ CREATE TABLE IF NOT EXISTS "nda_agreed" (
 
 CREATE TABLE IF NOT EXISTS "files" (
 	"id" INTEGER NOT NULL UNIQUE,
-	-- null if manager_id is set
-	"user_id" INTEGER,
-	-- null if user_id is set
+	"project_id" INTEGER NOT NULL,
+	"user_id" INTEGER NOT NULL,
+	-- only when upload by manager, e.g. master
 	"manager_id" INTEGER,
+	"stage" TEXT NOT NULL,
 	"name" TEXT NOT NULL,
 	-- /uploads/{project}/{user}/{stage}/{md5}
 	"s3_key" TEXT NOT NULL,
 	-- in bytes
 	"size" INTEGER NOT NULL,
 	"md5" BLOB NOT NULL,
+	-- mime-type
+	"content_type" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
 
-CREATE TABLE IF NOT EXISTS "uploading_files" (
-	"id" INTEGER NOT NULL UNIQUE,
-	"file_id" INTEGER NOT NULL,
-	PRIMARY KEY("id")
-);
-
+/* for indicate finished upload */
 CREATE TABLE IF NOT EXISTS "pending_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"file_id" INTEGER NOT NULL,

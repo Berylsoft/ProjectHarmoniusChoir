@@ -6,6 +6,7 @@ use std::{
     fmt::{Display, Write},
     io::Write as _,
     process::{Command, Stdio},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -29,8 +30,9 @@ use chrono::{DateTime, TimeDelta, Utc};
 use ciborium::cbor;
 use cookie::{Cookie, CookieJar};
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use hex::ToHex;
 use itertools::Itertools;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use sha2::{Digest, Sha512};
 use tempfile::NamedTempFile;
@@ -97,7 +99,6 @@ impl TestResponse {
             .context("ciborium::from_reader")
     }
 
-    #[expect(dead_code)]
     fn body_to_json(&self) -> anyhow::Result<serde_json::Value> {
         serde_json::from_slice::<serde_json::Value>(&self.body)
             .context("serde_json::from_slice")
@@ -582,8 +583,41 @@ fn cbor_remove(
     value
 }
 
+fn json_get<'v>(
+    value: &'v mut serde_json::Value,
+    keys: &'static [&'static str],
+) -> &'v mut serde_json::Value {
+    let mut cur = value;
+
+    for &key in keys {
+        cur = cur.as_object_mut().unwrap().get_mut(key).unwrap();
+    }
+
+    cur
+}
+
+fn json_remove(
+    value: &mut serde_json::Value,
+    keys: &'static [&'static str],
+) -> serde_json::Value {
+    assert!(!keys.is_empty());
+
+    let parent = json_get(value, &keys[..keys.len() - 1]);
+
+    let parent = parent.as_object_mut().unwrap();
+
+    parent.remove(*keys.last().unwrap()).unwrap()
+}
+
 fn cbor_to_json_string_pretty(
     value: &ciborium::Value,
+) -> anyhow::Result<String> {
+    serde_json::to_string_pretty(value)
+        .context("serde_json::to_string_pretty")
+}
+
+fn json_to_string_pretty(
+    value: &serde_json::Value,
 ) -> anyhow::Result<String> {
     serde_json::to_string_pretty(value)
         .context("serde_json::to_string_pretty")
@@ -1070,6 +1104,139 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {"Ok":{"status":"Entered","nda_agreed":null}}
+    "#);
+
+    next!(app; user_upload_file_start);
+
+    Ok(())
+}
+
+async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
+    let test_file: Box<[u8]> =
+        (*include_bytes!("./apis/test.aac")).into();
+    app.set::<Box<[u8]>>("test_file::data", test_file.clone());
+
+    let md5_hex = format!("{:x}", md5::compute(&test_file));
+    let mut head = Box::new([0_u8; 12]);
+    let copy_len = test_file.len().min(12);
+    head[..copy_len].copy_from_slice(&test_file[..copy_len]);
+
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/upload_file")
+        .send_json(json!({"data": {
+            "Start": {
+                "pid": 1,
+                "name": "test.aac",
+                "size": test_file.len(),
+                "md5": md5_hex,
+                "head": head.encode_hex::<String>(),
+            }
+        }}))
+        .await?;
+
+    let mut body = res.body_to_json()?;
+
+    let file_id = json_get(&mut body, &["Ok", "UploadInfo", "file_id"])
+        .as_i64()
+        .unwrap();
+    app.set::<i64>("test_file::file_id", file_id);
+
+    let presigned_req =
+        json_get(&mut body, &["Ok", "UploadInfo", "presigned_req"]);
+    let uri = json_remove(presigned_req, &["uri"])
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    #[derive(Deserialize)]
+    struct PresignedReq {
+        method: String,
+        headers: Vec<(String, String)>,
+    }
+    let presigned_req: PresignedReq =
+        serde_json::from_value(presigned_req.clone())?;
+    assert_eq!(presigned_req.method, "PUT");
+
+    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    HTTP/1.1 200 OK
+    content-length: 581
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+    ");
+
+    insta::assert_snapshot!(json_to_string_pretty(&body)?, @r#"
+    {
+      "Ok": {
+        "UploadInfo": {
+          "file_id": 1,
+          "presigned_req": {
+            "headers": [
+              [
+                "content-length",
+                "52"
+              ],
+              [
+                "content-md5",
+                "XZwb/lduG3gZIpC+L8GhiQ=="
+              ],
+              [
+                "content-type",
+                "audio/aac"
+              ]
+            ],
+            "method": "PUT"
+          }
+        }
+      }
+    }
+    "#);
+
+    let headers = {
+        use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+        let mut headers = HeaderMap::new();
+        for (k, v) in presigned_req.headers {
+            headers.insert(
+                HeaderName::from_str(&k)?,
+                HeaderValue::from_str(&v)?,
+            );
+        }
+        headers
+    };
+
+    let res = reqwest::Client::new()
+        .put(uri)
+        .headers(headers)
+        .body(test_file.to_vec())
+        .send()
+        .await?;
+    insta::assert_snapshot!(res.status(), @"200 OK");
+
+    next!(app; user_upload_file_finish);
+
+    Ok(())
+}
+
+async fn user_upload_file_finish(mut app: TestApp) -> anyhow::Result<()> {
+    let file_id = *app.get::<i64>("test_file::file_id");
+
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/upload_file")
+        .send_json(json!({"data": {
+            "Finish": {
+                "file_id": file_id
+            }
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 16
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {"Ok":"Success"}
     "#);
 
     Ok(())

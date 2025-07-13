@@ -11,6 +11,8 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use crate::signing::SignedData;
 
+pub mod boxed_u8_arr_hex;
+
 #[macro_export]
 macro_rules! impl_deref {
     ($(impl<$($ge:ident),*>)? mut $src:ty => $dst:ty = $($tt:tt)*) => {

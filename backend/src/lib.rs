@@ -140,6 +140,10 @@ where
             "/api/user/project_info",
             routing::post(user::project_info::router),
         )
+        .route(
+            "/api/user/upload_file",
+            routing::post(user::upload_file::router),
+        )
         .route("/api/manager/login", routing::post(login::router))
         .route(
             "/api/manager/acquire_sudo",

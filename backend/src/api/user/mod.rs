@@ -11,6 +11,7 @@ pub mod project_info;
 pub mod revoke_all_tokens;
 pub mod template;
 pub mod update_name;
+pub mod upload_file;
 pub mod wechat_login_or_register;
 
 #[derive(Debug, Serialize, Deserialize)]
