@@ -371,22 +371,12 @@ impl TestApp {
                 .await
                 .context("a s3 compatible instance is required")?;
 
-            let res = s3.head_bucket().bucket(s3.bucket()).send().await;
-            if let Err(err) = &res
-                && let Some(HeadBucketError::NotFound(_)) =
-                    err.as_service_error()
-            {
-                tracing::info!("s3 bucket not exists, creating");
-                s3.create_bucket().bucket(s3.bucket()).send().await?;
-                s3.put_object()
-                    .bucket(s3.bucket())
-                    .key("test")
-                    .send()
-                    .await
-                    .context("create attachment test file")?;
-            } else {
-                let _ = res.context("create bucket when not exists")?;
-            }
+            s3.put_object()
+                .bucket(s3.bucket())
+                .key("test")
+                .send()
+                .await
+                .context("create attachment test file")?;
 
             s3
         };

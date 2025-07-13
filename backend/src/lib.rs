@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use aws_config::BehaviorVersion;
+use aws_sdk_s3::operation::head_bucket::HeadBucketError;
 use axum::{Router, routing};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use database::Database;
@@ -307,6 +308,23 @@ pub async fn init_s3() -> anyhow::Result<S3> {
     let bucket = var_optional("S3_BUCKET")
         .context("failed to get S3_BUCKET env")?
         .context("expect S3_BUCKET")?;
+
+    let init_bucket = var_optional("S3_INIT_BUCKET_IF_NOT_EXISTS")
+        .context("failed to get S3_INIT_BUCKET_IF_NOT_EXISTS env")?
+        .is_some_and(|it| it == "true");
+
+    if init_bucket {
+        let res = client.head_bucket().bucket(&bucket).send().await;
+        if let Err(err) = &res
+            && let Some(HeadBucketError::NotFound(_)) =
+                err.as_service_error()
+        {
+            tracing::info!("s3 bucket not exists, creating");
+            client.create_bucket().bucket(&bucket).send().await?;
+        } else {
+            let _ = res.context("create bucket when not exists")?;
+        }
+    }
 
     Ok(S3::new(client, bucket))
 }

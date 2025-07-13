@@ -2,8 +2,14 @@ services:
   backend:
     build: ./backend/
     depends_on:
-      - cache
-      - s3
+      cache:
+        condition: service_healthy
+        restart: true
+        required: true
+      s3:
+        condition: service_healthy
+        restart: true
+        required: true
     ports:
       - "8081:8081"
     environment:
@@ -14,6 +20,7 @@ services:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       S3_BUCKET: main
+      S3_INIT_BUCKET_IF_NOT_EXISTS: true
       S3_FORCE_PATH_STYLE: true
 
   s3:
@@ -21,6 +28,18 @@ services:
     ports:
       - "9001:9001"
     command: server /mnt/data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      start_interval: 100ms
 
   cache:
     image: valkey/valkey
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      start_interval: 100ms
