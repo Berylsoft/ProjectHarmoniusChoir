@@ -86,6 +86,7 @@ impl S3 {
         }
     }
 
+    #[must_use]
     pub fn bucket(&self) -> &str {
         &self.bucket
     }

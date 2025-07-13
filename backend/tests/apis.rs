@@ -11,7 +11,6 @@ use std::{
 };
 
 use anyhow::Context;
-use aws_sdk_s3::operation::head_bucket::HeadBucketError;
 use axum::{
     Router,
     body::Body,
