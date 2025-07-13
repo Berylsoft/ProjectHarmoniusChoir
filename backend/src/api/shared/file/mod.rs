@@ -431,13 +431,14 @@ pub async fn is_exists_by_id(
     trans: &mut sqlx::Transaction<'_, sqlx::Any>,
     id: i64,
 ) -> anyhow::Result<bool> {
-    sqlx::query_scalar::<_, bool>(include_str!(
+    sqlx::query_scalar::<_, i64>(include_str!(
         "./sqls/is_file_exists_by_id.sql"
     ))
     .bind(id)
     .fetch_one(&mut **trans)
     .await
     .context("is_file_exists_by_id")
+    .map(|it| it > 0)
 }
 
 /// # Errors
@@ -446,13 +447,14 @@ pub async fn is_pending_by_id(
     trans: &mut sqlx::Transaction<'_, sqlx::Any>,
     id: i64,
 ) -> anyhow::Result<bool> {
-    sqlx::query_scalar::<_, bool>(include_str!(
+    sqlx::query_scalar::<_, i64>(include_str!(
         "./sqls/is_pending_by_file_id.sql"
     ))
     .bind(id)
     .fetch_one(&mut **trans)
     .await
     .context("is_pending_by_file_id")
+    .map(|it| it > 0)
 }
 
 /// # Errors
@@ -461,13 +463,14 @@ pub async fn is_deleted_by_id(
     trans: &mut sqlx::Transaction<'_, sqlx::Any>,
     id: i64,
 ) -> anyhow::Result<bool> {
-    sqlx::query_scalar::<_, bool>(include_str!(
+    sqlx::query_scalar::<_, i64>(include_str!(
         "./sqls/is_deleted_by_file_id.sql"
     ))
     .bind(id)
     .fetch_one(&mut **trans)
     .await
     .context("is_deleted_by_file_id")
+    .map(|it| it > 0)
 }
 
 /// # Errors
@@ -476,11 +479,12 @@ pub async fn is_used_by_id(
     trans: &mut sqlx::Transaction<'_, sqlx::Any>,
     id: i64,
 ) -> anyhow::Result<bool> {
-    sqlx::query_scalar::<_, bool>(include_str!(
+    sqlx::query_scalar::<_, i64>(include_str!(
         "./sqls/is_used_by_file_id.sql"
     ))
     .bind(id)
     .fetch_one(&mut **trans)
     .await
     .context("is_used_by_file_id")
+    .map(|it| it > 0)
 }
