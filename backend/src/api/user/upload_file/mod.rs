@@ -44,7 +44,7 @@ pub enum UploadFileRes {
     },
     Success,
     InvalidStage,
-    UnusedCountReached,
+    CountReached,
     CapacityReached,
     InvalidFileType,
     InvalidFileId,
@@ -134,16 +134,13 @@ async fn do_upload_file_start(
 
         let source = file::Source::new(pid, token.uid, None, stage);
 
-        let count = file::upload_unused_file_count(&mut trans, source)
-            .await
-            .context("file::upload_unused_file_count")?;
-        let count_limit = match stage {
-            file::Stage::PreSubmit => 1,
-            file::Stage::Submit => 1000,
-            file::Stage::Master => unreachable!(),
-        };
-        if count >= count_limit {
-            return Ok(UploadFileRes::UnusedCountReached);
+        let enough = file::upload_check_pending_file_count(
+            &mut trans, source, stage,
+        )
+        .await
+        .context("file::upload_check_pending_file_count")?;
+        if !enough {
+            return Ok(UploadFileRes::CountReached);
         }
 
         let enough_capacity =

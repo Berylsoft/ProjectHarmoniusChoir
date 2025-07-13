@@ -155,29 +155,44 @@ pub(crate) async fn upload_check_capacity(
 }
 
 /// expect `source` is valid
-pub(crate) async fn upload_unused_file_count(
+pub(crate) async fn upload_check_pending_file_count(
     trans: &mut sqlx::Transaction<'_, sqlx::Any>,
     source: Source,
-) -> anyhow::Result<i64> {
-    let count = if let Some(mid) = source.manager_id {
-        sqlx::query_scalar::<_, i64>(include_str!(
-            "./sqls/get_manager_unused_file_count_by_mid.sql"
-        ))
-        .bind(mid)
-        .fetch_one(&mut **trans)
-        .await
-        .context("get_manager_unused_file_count_by_mid")?
-    } else {
-        sqlx::query_scalar::<_, i64>(include_str!(
-            "./sqls/get_user_unused_file_count_by_uid.sql"
-        ))
-        .bind(source.user_id)
-        .fetch_one(&mut **trans)
-        .await
-        .context("get_user_unused_file_count_by_uid")?
+    stage: Stage,
+) -> anyhow::Result<bool> {
+    let limit = match stage {
+        Stage::Submit => 1000,
+        Stage::Master | Stage::PreSubmit => 1,
     };
 
-    Ok(count)
+    let count = match (stage, source.manager_id) {
+        (Stage::PreSubmit | Stage::Submit, None) => {
+            sqlx::query_scalar::<_, i64>(include_str!(
+                "./sqls/get_user_pending_file_count_by_pid_uid.sql"
+            ))
+            .bind(source.project_id)
+            .bind(source.user_id)
+            .fetch_one(&mut **trans)
+            .await
+            .context("get_user_pending_file_count_by_pid_uid")?
+        }
+        (Stage::Master, Some(mid)) => {
+            sqlx::query_scalar::<_, i64>(include_str!(
+                "./sqls/get_manager_pending_file_count_by_pid_uid_mid.sql"
+            ))
+            .bind(source.project_id)
+            .bind(source.user_id)
+            .bind(mid)
+            .fetch_one(&mut **trans)
+            .await
+            .context("get_manager_pending_file_count_by_pid_uid_mid")?
+        }
+        _ => {
+            anyhow::bail!("unreachable");
+        }
+    };
+
+    Ok(count < limit)
 }
 
 /// expect capacity checked and `source` is valid
