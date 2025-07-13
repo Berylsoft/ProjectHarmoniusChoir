@@ -380,10 +380,39 @@ pub async fn run() -> anyhow::Result<()> {
     info!("listening on {host}");
 
     axum::serve(listener, router(state, ServerMakeRequestId))
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .context("failed to serve")?;
 
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("tokio::signal::ctrl_c()");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::terminate(),
+        )
+        .expect("tokio::signal::unix::signal(SignalKind::terminate())")
+        .recv()
+        .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => {},
+        () = terminate => {},
+    }
+
+    tracing::info!("shutdown");
 }
 
 /// # Errors
