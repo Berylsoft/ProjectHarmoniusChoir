@@ -150,6 +150,10 @@ where
             "/api/user/upload_file",
             routing::post(user::upload_file::router),
         )
+        .route(
+            "/api/user/pre_submit",
+            routing::post(user::pre_submit::router),
+        )
         .route("/api/manager/login", routing::post(login::router))
         .route(
             "/api/manager/acquire_sudo",

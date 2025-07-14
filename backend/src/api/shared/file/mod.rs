@@ -503,3 +503,42 @@ pub async fn is_used_by_id(
     .context("is_used_by_file_id")
     .map(|it| it > 0)
 }
+
+/// # Errors
+/// database error
+pub async fn can_use(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+    source: Source,
+) -> anyhow::Result<bool> {
+    sqlx::query_scalar::<_, i64>(include_str!("./sqls/can_use_file.sql"))
+        .bind(id)
+        .bind(source.project_id)
+        .bind(source.user_id)
+        .bind(source.manager_id)
+        .bind(source.manager_id)
+        .bind(source.stage.into_str())
+        .fetch_one(&mut **trans)
+        .await
+        .context("can_use_file")
+        .map(|it| it > 0)
+}
+
+/// expect valid `id`, and checked by `can_use_file`
+/// # Errors
+/// database error
+pub async fn use_file(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+    stage: Stage,
+    target_id: i64,
+) -> anyhow::Result<()> {
+    sqlx::query(include_str!("./sqls/ins_file_info.sql"))
+        .bind(id)
+        .bind(stage.into_str())
+        .bind(target_id)
+        .execute(&mut **trans)
+        .await
+        .context("ins_file_info")?;
+    Ok(())
+}

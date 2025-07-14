@@ -1,5 +1,5 @@
-SELECT EXISTS(
+SELECT EXISTS (
     SELECT 1
         FROM files
-        WHERE id = ?;
+        WHERE id = ?
 );

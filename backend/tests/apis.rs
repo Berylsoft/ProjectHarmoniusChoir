@@ -527,7 +527,7 @@ impl TestApp {
     }
 
     #[expect(unused, reason = "just for quick check on db")]
-    pub fn db_query(&mut self, input: &str) -> String {
+    pub fn db_query_prt(&mut self, input: &str) {
         let mut cmd = Command::new("sqlite3")
             .arg(self.db_tmp.path())
             .stdin(Stdio::piped())
@@ -537,6 +537,7 @@ impl TestApp {
 
         let input = format!(
             r".mode column
+.echo on
 {}
 .quit
 ",
@@ -549,7 +550,9 @@ impl TestApp {
         let output = cmd.wait_with_output().unwrap();
         assert!(output.status.success());
 
-        String::from_utf8(output.stdout).unwrap()
+        let output = String::from_utf8(output.stdout).unwrap();
+
+        println!("{output}");
     }
 }
 
@@ -1248,6 +1251,61 @@ async fn user_upload_file_finish(mut app: TestApp) -> anyhow::Result<()> {
         .send_json(json!({"data": {
             "Finish": {
                 "file_id": file_id
+            }
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 16
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {"Ok":"Success"}
+    "#);
+
+    next!(app; user_pre_submit_info);
+
+    Ok(())
+}
+
+async fn user_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/pre_submit")
+        .send_json(json!({"data": {
+            "Info": {
+                "pid": 1
+            }
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 56
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {"Ok":{"Info":{"require_harmony_group_intention":true}}}
+    "#);
+
+    next!(app; user_pre_submit);
+
+    Ok(())
+}
+
+async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
+    let file_id = *app.get::<i64>("test_file::file_id");
+
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/pre_submit")
+        .send_json(json!({"data": {
+            "Submit": {
+                "pid": 1,
+                "harmony_group_intention": true,
+                "comment": "The Comment",
+                "file_id": file_id,
             }
         }}))
         .await?;
