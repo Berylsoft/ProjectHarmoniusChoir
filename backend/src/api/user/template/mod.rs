@@ -28,16 +28,16 @@ pub(crate) async fn router(
     let req = req.0.verified(&mut cache).await?;
 
     // NOTE: api_param_assert
-    api::spawn_await(do_(db, token.0, req)).await??;
+    let response = api::spawn_await(do_(db, token.0, req)).await??;
 
-    Ok(Json(api::Response::Ok(())))
+    Ok(Json(api::Response::Ok(response)))
 }
 
 async fn do_(
     db: Database,
     token: UserToken,
     req: Req,
-) -> ApiResult<(), ToJson> {
+) -> ApiResult<Res, ToJson> {
     // NOTE: decide the begin mode
     api_begin_transaction!(db, conn, trans, Deferred);
 
@@ -49,7 +49,7 @@ async fn do_(
 
         std::hint::black_box(req);
 
-        ApiResult::Ok(())
+        ApiResult::Ok(Res {})
     }
     .await;
 

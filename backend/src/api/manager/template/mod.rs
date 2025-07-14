@@ -28,16 +28,16 @@ pub(crate) async fn router(
     let req = req.0.verified(&mut cache).await?;
 
     // NOTE: api_param_assert
-    spawn_await(do_(db, token.0, req)).await??;
+    let response = spawn_await(do_(db, token.0, req)).await??;
 
-    Ok(Cbor(api::Response::Ok(())))
+    Ok(Cbor(api::Response::Ok(response)))
 }
 
 async fn do_(
     db: Database,
     token: ManagerToken,
     req: Req,
-) -> ApiResult<(), ToCbor> {
+) -> ApiResult<Res, ToCbor> {
     // NOTE: decide the begin mode
     api_begin_transaction!(db, conn, trans, Deferred);
 
@@ -45,7 +45,7 @@ async fn do_(
         // NOTE: decide the verify permission
         token.verify_sudo(&mut trans, true).await?;
 
-        ApiResult::Ok(())
+        ApiResult::Ok(Res {})
     }
     .await;
 
