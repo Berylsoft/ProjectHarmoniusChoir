@@ -97,7 +97,7 @@ impl LoginToken {
     /// [`ApiError::InvalidToken`] when manager revision changed
     async fn verify(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
     ) -> ApiResult<i64, ToCbor> {
         let rev = sqlx::query_scalar::<_, i64>(include_str!(
             "./sqls/get_manager_revision.sql"

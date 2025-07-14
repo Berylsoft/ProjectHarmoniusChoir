@@ -55,7 +55,7 @@ pub struct ManagerToken {
 impl ManagerToken {
     async fn verify<S>(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
     ) -> ApiResult<(), S> {
         if self.expired < Utc::now() {
             return Err(ApiError::InvalidToken("expired"));
@@ -86,7 +86,7 @@ impl ManagerToken {
 
     async fn verify_root<S>(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
     ) -> ApiResult<(), S> {
         self.verify(trans).await?;
 
@@ -99,7 +99,7 @@ impl ManagerToken {
 
     async fn verify_sudo<S>(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
         require_root: bool,
     ) -> ApiResult<(), S> {
         if require_root {
@@ -117,7 +117,7 @@ impl ManagerToken {
 
     async fn verify_totp<S>(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
         totp_code: u32,
     ) -> ApiResult<(), S> {
         verify_totp(trans, self.mid, totp_code).await
@@ -125,7 +125,7 @@ impl ManagerToken {
 
     async fn verify_can_access_project<S>(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
         pid: i64,
     ) -> ApiResult<(), S> {
         if self.is_root() {
@@ -291,7 +291,7 @@ fn totp_check<S>(secret: Vec<u8>, totp_code: u32) -> ApiResult<(), S> {
 
 /// expect mid exists
 async fn verify_totp<S>(
-    trans: &mut Transaction<'_, sqlx::Any>,
+    trans: &mut Transaction<'_, sqlx::Sqlite>,
     mid: i64,
     totp_code: u32,
 ) -> ApiResult<(), S> {

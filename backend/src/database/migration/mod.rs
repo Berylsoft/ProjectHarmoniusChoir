@@ -50,7 +50,7 @@ impl Migration {
 
     /// # Errors
     /// When failed to do database access
-    pub async fn run(pool: &sqlx::AnyPool) -> anyhow::Result<()> {
+    pub async fn run(pool: &sqlx::SqlitePool) -> anyhow::Result<()> {
         let mut conn = pool
             .acquire()
             .await

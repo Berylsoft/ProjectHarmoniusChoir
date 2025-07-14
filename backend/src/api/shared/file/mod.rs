@@ -100,7 +100,7 @@ impl Source {
 
 /// expect `source` is valid
 pub(crate) async fn upload_check_capacity(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     source: Source,
     size: i64,
 ) -> anyhow::Result<bool> {
@@ -156,7 +156,7 @@ pub(crate) async fn upload_check_capacity(
 
 /// expect `source` is valid
 pub(crate) async fn upload_check_pending_file_count(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     source: Source,
     stage: Stage,
 ) -> anyhow::Result<bool> {
@@ -199,7 +199,7 @@ pub(crate) async fn upload_check_pending_file_count(
 /// # Returns
 /// `file_id` and the pre-signed s3 upload request
 pub(crate) async fn upload_start(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     s3: &S3,
     source: Source,
     name: Box<str>,
@@ -236,7 +236,7 @@ pub(crate) async fn upload_start(
 /// # Returns
 /// None if `file_id` not exists, false if file not finished uploading
 pub(crate) async fn upload_finish(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     s3: &S3,
     file_id: i64,
 ) -> anyhow::Result<Option<bool>> {
@@ -413,7 +413,7 @@ impl Status {
     /// # Errors
     /// database error
     pub async fn get_by_id(
-        trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         id: i64,
     ) -> anyhow::Result<Option<Self>> {
         let exists = is_exists_by_id(trans, id).await?;
@@ -443,7 +443,7 @@ impl Status {
 /// # Errors
 /// database error
 pub async fn is_exists_by_id(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: i64,
 ) -> anyhow::Result<bool> {
     sqlx::query_scalar::<_, i64>(include_str!(
@@ -459,7 +459,7 @@ pub async fn is_exists_by_id(
 /// # Errors
 /// database error
 pub async fn is_pending_by_id(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: i64,
 ) -> anyhow::Result<bool> {
     sqlx::query_scalar::<_, i64>(include_str!(
@@ -475,7 +475,7 @@ pub async fn is_pending_by_id(
 /// # Errors
 /// database error
 pub async fn is_deleted_by_id(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: i64,
 ) -> anyhow::Result<bool> {
     sqlx::query_scalar::<_, i64>(include_str!(
@@ -491,7 +491,7 @@ pub async fn is_deleted_by_id(
 /// # Errors
 /// database error
 pub async fn is_used_by_id(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: i64,
 ) -> anyhow::Result<bool> {
     sqlx::query_scalar::<_, i64>(include_str!(

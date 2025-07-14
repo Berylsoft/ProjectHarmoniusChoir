@@ -25,7 +25,7 @@ pub struct UserToken {
 impl UserToken {
     async fn verify<S>(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
     ) -> ApiResult<(), S> {
         if self.expired < Utc::now() {
             return Err(ApiError::InvalidToken("expired"));
@@ -54,7 +54,7 @@ impl UserToken {
     /// `project_user_id`
     async fn verify_joined_project<S>(
         &self,
-        trans: &mut Transaction<'_, sqlx::Any>,
+        trans: &mut Transaction<'_, sqlx::Sqlite>,
         pid: i64,
     ) -> ApiResult<i64, S> {
         let project_user_id = sqlx::query_scalar::<_, i64>(include_str!(

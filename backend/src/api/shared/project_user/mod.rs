@@ -39,7 +39,7 @@ impl Status {
     /// anything unexpected
     #[expect(clippy::too_many_lines)]
     pub async fn get_by_puid(
-        trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         puid: i64,
     ) -> anyhow::Result<(Self, DateTime<Utc>)> {
         fn parse_time(
@@ -179,7 +179,7 @@ impl NdaStatus {
     /// # Errors
     /// anything unexpected
     pub async fn get_by_pid_puid(
-        trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         pid: i64,
         project_uid: i64,
     ) -> anyhow::Result<Self> {

@@ -29,7 +29,6 @@ serde_bytes = "0.11.17"
 sha2 = "0.10.9"
 sqlx = { version = "0.8.6", features = [
     "runtime-tokio",
-    "any",
     "sqlite",
     "derive",
     "chrono",

@@ -13,7 +13,7 @@ pub mod migration;
 
 #[derive(Debug, Clone)]
 pub struct Database {
-    pool: sqlx::AnyPool,
+    pool: sqlx::SqlitePool,
 }
 
 impl Database {
@@ -24,7 +24,7 @@ impl Database {
         tracing::info!("initialzing database");
         install_default_drivers();
 
-        let pool = sqlx::any::AnyPoolOptions::new()
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
             .connect(url.as_ref())
             .await
             .context("failed to connect")?;
@@ -38,7 +38,7 @@ impl Database {
 }
 
 impl Deref for Database {
-    type Target = sqlx::AnyPool;
+    type Target = sqlx::SqlitePool;
 
     fn deref(&self) -> &Self::Target {
         &self.pool
@@ -118,7 +118,7 @@ where
 /// # Errors
 /// database errors
 pub async fn last_insert_rowid(
-    trans: &mut sqlx::Transaction<'_, sqlx::Any>,
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
 ) -> anyhow::Result<i64> {
     sqlx::query_scalar::<_, i64>(include_str!(
         "./sqls/get_last_insert_rowid.sql"
