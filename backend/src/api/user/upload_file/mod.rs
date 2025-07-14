@@ -100,22 +100,22 @@ async fn do_upload_file_start(
     md5: Box<[u8; 16]>,
     head: Box<[u8; 12]>,
 ) -> ApiResult<UploadFileRes, ToJson> {
+    let file_type = file::Type::detect(&head);
+    let Some(file_type) = file_type else {
+        tracing::debug!("unknown file type");
+        return Ok(UploadFileRes::InvalidFileType);
+    };
+    if !file_type.is_same_as_ext(&*name) {
+        tracing::debug!("file type not equal to extension");
+        return Ok(UploadFileRes::InvalidFileType);
+    }
+
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
         token.verify(&mut trans).await?;
         let project_uid =
             token.verify_joined_project(&mut trans, pid).await?;
-
-        let file_type = file::Type::detect(&head);
-        let Some(file_type) = file_type else {
-            tracing::debug!("unknown file type");
-            return Ok(UploadFileRes::InvalidFileType);
-        };
-        if !file_type.is_same_as_ext(&*name) {
-            tracing::debug!("file type not equal to extension");
-            return Ok(UploadFileRes::InvalidFileType);
-        }
 
         let (status, _) =
             project_user::Status::get_by_puid(&mut trans, project_uid)
