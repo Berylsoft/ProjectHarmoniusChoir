@@ -8,6 +8,7 @@ use std::{
     process::{Command, Stdio},
     str::FromStr,
     sync::Arc,
+    time::Instant,
 };
 
 use anyhow::Context;
@@ -31,6 +32,7 @@ use ciborium::cbor;
 use cookie::{Cookie, CookieJar};
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use hex::ToHex;
+use humantime::format_duration;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
@@ -468,6 +470,8 @@ impl TestApp {
         req: Request<Body>,
         cookie_store_id: u64,
     ) -> anyhow::Result<TestResponse> {
+        let uri = req.uri().clone();
+        let start = Instant::now();
         let res = self
             .router
             .clone()
@@ -479,6 +483,8 @@ impl TestApp {
         let body = axum::body::to_bytes(body, usize::MAX)
             .await
             .context("read body")?;
+        let wall = start.elapsed();
+
         let body = body.to_vec();
 
         let res = TestResponse { parts, body };
@@ -489,6 +495,11 @@ impl TestApp {
                 .unwrap()
                 .add(cookie.clone().into_owned());
         }
+
+        tracing::info!(
+            "request to {uri} finished, wall: {}",
+            format_duration(wall)
+        );
 
         Ok(res)
     }

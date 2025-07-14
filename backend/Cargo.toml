@@ -48,6 +48,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 ulid = { version = "1.2.1", features = ["serde"] }
 
 [dev-dependencies]
+humantime = "2.2.0"
 insta = "1.43.1"
 md5 = "0.8.0"
 reqwest = "0.12.22"
