@@ -576,12 +576,18 @@ fn cbor_get<'v>(
     let mut cur = value;
 
     for &key in keys {
-        cur = cur
-            .as_map_mut()
-            .unwrap()
-            .iter_mut()
-            .find_map(|(k, v)| (k.as_text().unwrap() == key).then_some(v))
-            .unwrap();
+        if let Ok(idx) = key.parse::<usize>() {
+            cur = cur.as_array_mut().unwrap().get_mut(idx).unwrap()
+        } else {
+            cur = cur
+                .as_map_mut()
+                .unwrap()
+                .iter_mut()
+                .find_map(|(k, v)| {
+                    (k.as_text().unwrap() == key).then_some(v)
+                })
+                .unwrap();
+        }
     }
 
     cur
@@ -595,17 +601,18 @@ fn cbor_remove(
 
     let parent = cbor_get(value, &keys[..keys.len() - 1]);
 
-    let parent = parent.as_map_mut().unwrap();
-    let (idx, _) = parent
-        .iter_mut()
-        .find_position(|(k, _)| {
-            &k.as_text().unwrap() == keys.last().unwrap()
-        })
-        .unwrap();
+    let key = *keys.last().unwrap();
 
-    let (_, value) = parent.remove(idx);
-
-    value
+    if let Ok(idx) = key.parse::<usize>() {
+        parent.as_array_mut().unwrap().remove(idx)
+    } else {
+        let parent = parent.as_map_mut().unwrap();
+        let (idx, _) = parent
+            .iter_mut()
+            .find_position(|(k, _)| k.as_text().unwrap() == key)
+            .unwrap();
+        parent.remove(idx).1
+    }
 }
 
 fn json_get<'v>(
@@ -1335,18 +1342,26 @@ async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
         }})?)
         .await?;
 
-    insta::assert_snapshot!(res, @r#"
+    let mut body = res.body_to_cbor()?;
+    let created_at =
+        cbor_remove(&mut body, &["Ok", "pre_submits", "0", "created_at"])
+            .into_text()
+            .unwrap();
+    let created_at: DateTime<Utc> = created_at.parse()?;
+    assert!(created_at <= Utc::now());
+
+    insta::assert_snapshot!(res.to_string_without_body()?, @r"
     HTTP/1.1 200 OK
     content-length: 145
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-
+    ");
+    insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
     {
       "Ok": {
         "pre_submits": [
           {
             "id": 1,
-            "created_at": "2025-07-16T17:54:29.243774Z",
             "harmony_group_intention": true,
             "comment": "The Comment",
             "file_info": {
