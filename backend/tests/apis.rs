@@ -1137,8 +1137,9 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 }
 
 async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
-    let test_file: Box<[u8]> =
-        (*include_bytes!("./apis/test.aac")).into();
+    let test_file: Box<[u8]> = include_bytes!("./apis/test.aac")
+        .to_vec()
+        .into_boxed_slice();
     app.set::<Box<[u8]>>("test_file::data", test_file.clone());
 
     let md5_hex = format!("{:x}", md5::compute(&test_file));
