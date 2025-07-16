@@ -212,3 +212,20 @@ impl NdaStatus {
         Ok(ret)
     }
 }
+
+/// # Errors
+/// database errors
+pub async fn get_project_user_id_by_pid_uid(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    uid: i64,
+    pid: i64,
+) -> anyhow::Result<Option<i64>> {
+    sqlx::query_scalar(include_str!(
+        "./sqls/get_project_user_id_by_uid_pid.sql"
+    ))
+    .bind(uid)
+    .bind(pid)
+    .fetch_optional(&mut **trans)
+    .await
+    .context("get_project_user_id_by_uid_pid")
+}

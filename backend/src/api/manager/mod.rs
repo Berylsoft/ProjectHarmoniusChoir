@@ -26,6 +26,7 @@ pub mod create_project;
 pub mod list_project_users;
 pub mod list_projects;
 pub mod login;
+pub mod pre_submit_info;
 pub mod project_manager_edit;
 pub mod template;
 

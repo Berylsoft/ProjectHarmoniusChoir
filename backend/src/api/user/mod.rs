@@ -3,7 +3,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 
-use crate::api::{ApiError, ApiResult};
+use crate::api::{
+    ApiError, ApiResult,
+    shared::project_user::get_project_user_id_by_pid_uid,
+};
 
 pub mod join_project;
 pub mod list_projects;
@@ -58,14 +61,8 @@ impl UserToken {
         trans: &mut Transaction<'_, sqlx::Sqlite>,
         pid: i64,
     ) -> ApiResult<i64, S> {
-        let project_user_id = sqlx::query_scalar::<_, i64>(include_str!(
-            "./sqls/get_project_user_id_by_uid_pid.sql"
-        ))
-        .bind(self.uid)
-        .bind(pid)
-        .fetch_optional(&mut **trans)
-        .await
-        .context("get_project_user_id_by_uid_pid")?;
+        let project_user_id =
+            get_project_user_id_by_pid_uid(trans, self.uid, pid).await?;
 
         let Some(project_user_id) = project_user_id else {
             return Err(ApiError::InsufficientPermission(

@@ -1319,6 +1319,46 @@ async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
     {"Ok":"Success"}
     "#);
 
+    next!(app; manager_pre_submit_info);
+
+    Ok(())
+}
+
+async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/pre_submit_info")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "uid" => 1,
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 145
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "pre_submits": [
+          {
+            "id": 1,
+            "created_at": "2025-07-16T17:54:29.243774Z",
+            "harmony_group_intention": true,
+            "comment": "The Comment",
+            "file_info": {
+              "id": 1,
+              "name": "test.aac"
+            },
+            "status": null
+          }
+        ]
+      }
+    }
+    "#);
+
     Ok(())
 }
 

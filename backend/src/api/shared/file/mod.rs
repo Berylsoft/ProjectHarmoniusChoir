@@ -32,6 +32,12 @@ impl From<PresignedRequest> for PresignedReq {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Info {
+    pub id: i64,
+    pub name: Box<str>,
+}
+
 #[derive(Debug, Clone, Copy, IntoStaticStr, EnumString)]
 pub enum Stage {
     PreSubmit,

@@ -291,3 +291,12 @@ macro_rules! api_assert {
         api_assert!($expr, "assertion failed")
     };
 }
+
+#[macro_export]
+macro_rules! api_bail {
+    ($($tt:tt)*) => {
+        return Err($crate::api::ApiError::Unknown(
+            ::anyhow::anyhow!($($tt)*),
+        ))
+    };
+}
