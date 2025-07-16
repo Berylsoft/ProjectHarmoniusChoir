@@ -1360,6 +1360,56 @@ async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_get_file);
+
+    Ok(())
+}
+
+async fn manager_get_file(mut app: TestApp) -> anyhow::Result<()> {
+    let file_id = *app.get::<i64>("test_file::file_id");
+
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/get_file")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "file_id" => file_id,
+            "type" => "Preview",
+        }})?)
+        .await?;
+
+    let mut body = res.body_to_cbor()?;
+    let presigned_req = cbor_get(&mut body, &["Ok", "presigned_req"]);
+    let uri = cbor_remove(presigned_req, &["uri"]).into_text().unwrap();
+    let method = cbor_get(presigned_req, &["method"]).as_text().unwrap();
+    tracing::info!("download uri: {uri}");
+
+    assert_eq!(method, "GET");
+
+    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    HTTP/1.1 200 OK
+    content-length: 552
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+    ");
+    insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
+    {
+      "Ok": {
+        "presigned_req": {
+          "method": "GET",
+          "headers": []
+        }
+      }
+    }
+    "#);
+
+    let res = reqwest::Client::new().get(uri).send().await?;
+    insta::assert_snapshot!(res.status(), @"200 OK");
+
+    let data = res.bytes().await?.to_vec();
+    let file_data = app.get::<Box<[u8]>>("test_file::data");
+    assert_eq!(**file_data, data);
+
     Ok(())
 }
 

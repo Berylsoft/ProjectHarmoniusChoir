@@ -65,6 +65,7 @@ pub enum ErrCode {
     InsufficientPermission,
     RequireSudo,
     BadParam,
+    NotFound,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -83,6 +84,8 @@ pub enum ApiError<T> {
     RequireSudo,
     #[error("bad parameter: {detail}")]
     BadParam { msg: Box<str>, detail: Box<str> },
+    #[error("not found: {detail}")]
+    NotFound { msg: Box<str>, detail: Box<str> },
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
@@ -166,12 +169,27 @@ impl<T> ApiError<T> {
                 )
             }
             Self::BadParam { msg, detail } => {
-                tracing::info!("rejecting bad parameter: {detail}");
+                tracing::info!(
+                    "rejecting bad parameter: {msg}({detail})"
+                );
 
                 (
                     StatusCode::BAD_REQUEST,
                     Response::Err {
                         code: ErrCode::BadParam,
+                        msg: msg.to_string().into(),
+                    },
+                )
+            }
+            Self::NotFound { msg, detail } => {
+                tracing::info!(
+                    "requested resource not found: {msg}({detail})"
+                );
+
+                (
+                    StatusCode::NOT_FOUND,
+                    Response::Err {
+                        code: ErrCode::NotFound,
                         msg: msg.to_string().into(),
                     },
                 )
@@ -298,5 +316,18 @@ macro_rules! api_bail {
         return Err($crate::api::ApiError::Unknown(
             ::anyhow::anyhow!($($tt)*),
         ))
+    };
+}
+
+#[macro_export]
+macro_rules! api_bail_not_found {
+    ($msg:expr, $detail:expr) => {
+        return Err($crate::api::ApiError::NotFound {
+            msg: $msg.into(),
+            detail: $detail.into(),
+        })
+    };
+    ($msg:expr) => {
+        api_bail_not_found!($msg, $msg)
     };
 }

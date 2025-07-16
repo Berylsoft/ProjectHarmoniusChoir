@@ -23,6 +23,7 @@ use crate::{
 pub mod acquire_sudo;
 pub mod create_manager;
 pub mod create_project;
+pub mod get_file;
 pub mod list_project_users;
 pub mod list_projects;
 pub mod login;

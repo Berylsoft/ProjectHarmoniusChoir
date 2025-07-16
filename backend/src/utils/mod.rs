@@ -1,4 +1,4 @@
-use std::io;
+use std::{fmt::Write as _, io};
 
 use axum::{
     body::Body,
@@ -84,4 +84,33 @@ where
         header::SET_COOKIE,
         HeaderValue::from_str(c.encoded().to_string().as_str()).unwrap(),
     )
+}
+
+pub fn rfc5987_utf8(data: impl AsRef<str>) -> Box<str> {
+    let data = data.as_ref();
+    let mut encoded = String::with_capacity(data.len());
+
+    encoded.push_str("UTF-8''");
+
+    let mut buf = [0_u8; 4];
+    for ch in data.chars() {
+        match ch {
+            ch if ch.is_ascii_alphanumeric() => {
+                encoded.push(ch);
+            }
+            '!' | '#' | '$' | '&' | '+' | '-' | '.' | '^' | '_' | '`'
+            | '|' | '~' => {
+                encoded.push(ch);
+            }
+            ch => {
+                let utf8_bytes = ch.encode_utf8(&mut buf).as_bytes();
+                for byte in utf8_bytes {
+                    write!(&mut encoded, "%{byte:0>2x}")
+                        .expect("no error when write to string");
+                }
+            }
+        }
+    }
+
+    encoded.into_boxed_str()
 }

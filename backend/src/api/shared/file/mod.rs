@@ -548,3 +548,32 @@ pub async fn use_file(
         .context("ins_file_info")?;
     Ok(())
 }
+
+#[derive(Debug)]
+pub struct DownloadInfo {
+    pub name: Box<str>,
+    pub s3_key: Box<str>,
+}
+
+/// # Errors
+/// database error
+pub async fn download_info(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+    pid: i64,
+) -> anyhow::Result<Option<DownloadInfo>> {
+    let info = sqlx::query_as::<_, (String, String)>(include_str!(
+        "./sqls/get_download_info.sql"
+    ))
+    .bind(id)
+    .bind(pid)
+    .fetch_optional(&mut **trans)
+    .await
+    .context("get_download_info")?
+    .map(|(name, key)| DownloadInfo {
+        name: name.into_boxed_str(),
+        s3_key: key.into_boxed_str(),
+    });
+
+    Ok(info)
+}
