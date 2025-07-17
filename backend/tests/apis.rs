@@ -1157,16 +1157,23 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
         }}))
         .await?;
 
-    insta::assert_snapshot!(res, @r#"
+    let mut body = res.body_to_json()?;
+    let end_time = json_remove(&mut body, &["Ok", "info", "end_time"])
+        .as_str()
+        .unwrap()
+        .to_string();
+    let _: DateTime<Utc> = end_time.parse()?;
+
+    insta::assert_snapshot!(res.to_string_without_body()?, @r"
     HTTP/1.1 200 OK
     content-length: 293
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-
+    ");
+    insta::assert_snapshot!(json_to_string_pretty(&body)?, @r#"
     {
       "Ok": {
         "info": {
-          "end_time": "2025-07-24T15:50:28.758523Z",
           "name": "Test Project",
           "pre_submit_file_size_max": 500000000,
           "pre_submit_file_size_min": 1000000,
