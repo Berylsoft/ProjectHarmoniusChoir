@@ -7,7 +7,7 @@ use crate::{
     ServerState,
     api::{
         self, ApiResult, ToJson,
-        shared::{file, project_user},
+        shared::{file, project, project_user},
         user::UserToken,
     },
     api_begin_transaction,
@@ -16,26 +16,19 @@ use crate::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum PreSubmitReq {
-    Info {
-        pid: i64,
-    },
-    Submit {
-        pid: i64,
-        harmony_group_intention: Option<bool>,
-        comment: Box<str>,
+pub struct PreSubmitReq {
+    pid: i64,
+    harmony_group_intention: Option<bool>,
+    comment: Box<str>,
 
-        file_id: i64,
-    },
+    file_id: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PreSubmitRes {
-    Info {
-        require_harmony_group_intention: bool,
-    },
     Success,
     InvalidStatus,
+    // TODO: use bad param
     InvalidHgi,
     InvalidFile,
 }
@@ -49,68 +42,24 @@ pub(crate) async fn router(
     let req = req.0.verified(&mut cache).await?;
 
     // NOTE: api_param_assert
-    let pre_submit_res = match req {
-        PreSubmitReq::Info { pid } => {
-            api::spawn_await(do_info(db, token.0, pid)).await??
-        }
-        PreSubmitReq::Submit {
-            pid,
-            harmony_group_intention,
-            comment,
-            file_id,
-        } => {
-            api::spawn_await(do_submit(
-                db,
-                token.0,
-                pid,
-                harmony_group_intention,
-                comment,
-                file_id,
-            ))
-            .await??
-        }
-    };
+    let pre_submit_res =
+        api::spawn_await(do_submit(db, token.0, req)).await??;
 
     Ok(Json(api::Response::Ok(pre_submit_res)))
-}
-
-async fn do_info(
-    db: Database,
-    token: UserToken,
-    pid: i64,
-) -> ApiResult<PreSubmitRes, ToJson> {
-    api_begin_transaction!(db, conn, trans, Deferred);
-
-    let result = async {
-        token.verify(&mut trans).await?;
-        let _ = token.verify_joined_project(&mut trans, pid).await?;
-
-        // TODO: maybe not allow calling this when the user can't do pre-submit
-
-        // pid checked by verify_joined_project
-        let require_harmony_group_intention =
-            is_project_require_harmony_group_intention_by_pid(
-                &mut trans, pid,
-            )
-            .await?;
-
-        ApiResult::Ok(PreSubmitRes::Info {
-            require_harmony_group_intention,
-        })
-    }
-    .await;
-
-    api::end_transaction(result, trans).await
 }
 
 async fn do_submit(
     db: Database,
     token: UserToken,
-    pid: i64,
-    hgi: Option<bool>,
-    comment: Box<str>,
-    file_id: i64,
+    req: PreSubmitReq,
 ) -> ApiResult<PreSubmitRes, ToJson> {
+    let PreSubmitReq {
+        pid,
+        harmony_group_intention: hgi,
+        comment,
+        file_id,
+    } = req;
+
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
@@ -119,11 +68,11 @@ async fn do_submit(
             token.verify_joined_project(&mut trans, pid).await?;
 
         // pid checked by verify_joined_project
-        let require_hgi =
-            is_project_require_harmony_group_intention_by_pid(
-                &mut trans, pid,
-            )
-            .await?;
+        let info = project::Info::get_by_id(&mut trans, pid)
+            .await
+            .context("project::Info::get_by_id")?
+            .context("pid verified by verify_joined_project")?;
+        let require_hgi = info.require_harmony_group_intention;
         if hgi.is_some() != require_hgi {
             tracing::debug!(
                 "invalid HGI param: {hgi:?}, require: {require_hgi}"
@@ -180,18 +129,4 @@ async fn do_submit(
     .await;
 
     api::end_transaction(result, trans).await
-}
-
-/// expect `pid` valid
-async fn is_project_require_harmony_group_intention_by_pid(
-    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    pid: i64,
-) -> anyhow::Result<bool> {
-    sqlx::query_scalar(include_str!(
-        "./sqls/get_require_harmony_group_intention_by_pid.sql"
-    ))
-    .bind(pid)
-    .fetch_one(&mut **trans)
-    .await
-    .context("get_require_harmony_group_intention_by_pid")
 }

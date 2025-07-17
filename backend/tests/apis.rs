@@ -1131,11 +1131,11 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 45
+    content-length: 325
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":{"status":"Entered","nda_agreed":null}}
+    {"Ok":{"info":{"name":"Test Project","entry_question":"The Question","require_harmony_group_intention":true,"pre_submit_file_size_min":1000000,"pre_submit_file_size_max":500000000,"submit_file_size_min":1000000,"submit_file_size_max":1000000000,"end_time":"2025-07-24T15:43:46.941657Z"},"status":"Entered","nda_agreed":null}}
     "#);
 
     next!(app; user_upload_file_start);
@@ -1272,31 +1272,6 @@ async fn user_upload_file_finish(mut app: TestApp) -> anyhow::Result<()> {
     {"Ok":"Success"}
     "#);
 
-    next!(app; user_pre_submit_info);
-
-    Ok(())
-}
-
-async fn user_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
-    let res = app
-        .req_builder(Method::POST, 1)
-        .api("/user/pre_submit")
-        .send_json(json!({"data": {
-            "Info": {
-                "pid": 1
-            }
-        }}))
-        .await?;
-
-    insta::assert_snapshot!(res, @r#"
-    HTTP/1.1 200 OK
-    content-length: 56
-    content-type: application/json
-    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-
-    {"Ok":{"Info":{"require_harmony_group_intention":true}}}
-    "#);
-
     next!(app; user_pre_submit);
 
     Ok(())
@@ -1309,12 +1284,10 @@ async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
         .req_builder(Method::POST, 1)
         .api("/user/pre_submit")
         .send_json(json!({"data": {
-            "Submit": {
-                "pid": 1,
-                "harmony_group_intention": true,
-                "comment": "The Comment",
-                "file_id": file_id,
-            }
+            "pid": 1,
+            "harmony_group_intention": true,
+            "comment": "The Comment",
+            "file_id": file_id,
         }}))
         .await?;
 

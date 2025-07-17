@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ServerState,
     api::{
-        self, ApiResult, ToJson, shared::project_user, user::UserToken,
+        self, ApiResult, ToJson,
+        shared::{project, project_user},
+        user::UserToken,
     },
     api_begin_transaction, api_param_assert,
     database::Database,
@@ -19,6 +21,7 @@ pub struct ProjectInfoReq {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectInfoRes {
+    info: project::Info,
     status: project_user::Status,
     /// None for no nda or not applicable
     nda_agreed: Option<bool>,
@@ -56,8 +59,14 @@ async fn do_project_info(
                 .await
                 .context("project_user::Status::get_by_puid")?;
 
+        let info = project::Info::get_by_id(&mut trans, req.pid)
+            .await
+            .context("project::Info::get_by_id")?
+            .context("pid verified by verify_joined_project")?;
+
         if status < project_user::Status::PreSubmitPassed {
             return Ok(ProjectInfoRes {
+                info,
                 status,
                 nda_agreed: None,
             });
@@ -76,7 +85,11 @@ async fn do_project_info(
             project_user::NdaStatus::Agreed => Some(true),
         };
 
-        ApiResult::Ok(ProjectInfoRes { status, nda_agreed })
+        ApiResult::Ok(ProjectInfoRes {
+            info,
+            status,
+            nda_agreed,
+        })
     }
     .await;
 
