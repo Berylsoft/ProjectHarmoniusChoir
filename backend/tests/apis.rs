@@ -1159,15 +1159,14 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 325
+    content-length: 293
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
         "info": {
-          "end_time": "2025-07-24T15:45:43.277080Z",
-          "entry_question": "The Question",
+          "end_time": "2025-07-24T15:50:28.758523Z",
           "name": "Test Project",
           "pre_submit_file_size_max": 500000000,
           "pre_submit_file_size_min": 1000000,

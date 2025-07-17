@@ -6,7 +6,6 @@ use sqlx::prelude::FromRow;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Info {
     pub name: Box<str>,
-    pub entry_question: Box<str>,
     pub require_harmony_group_intention: bool,
     pub pre_submit_file_size_min: i64,
     pub pre_submit_file_size_max: i64,
@@ -49,7 +48,6 @@ impl TryFrom<InfoRow> for Info {
 
         Ok(Self {
             name: value.name.into_boxed_str(),
-            entry_question: value.entry_question.into_boxed_str(),
             require_harmony_group_intention,
             pre_submit_file_size_min,
             pre_submit_file_size_max,
@@ -66,7 +64,6 @@ impl TryFrom<InfoRow> for Info {
 #[derive(Debug, Clone, FromRow)]
 struct InfoRow {
     name: String,
-    entry_question: String,
     require_harmony_group_intention: bool,
     pre_submit_file_size_min: i64,
     pre_submit_file_size_max: i64,
