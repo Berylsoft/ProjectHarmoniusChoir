@@ -131,6 +131,7 @@ async fn do_upload_file_start(
         } else {
             return Ok(UploadFileRes::InvalidStage);
         };
+        // TODO: check file size range
 
         let source = file::Source::new(pid, token.uid, None, stage);
 
@@ -196,6 +197,8 @@ async fn do_upload_file_finish(
 
     let result = async {
         token.verify(&mut trans).await?;
+
+        // TODO: check if the user owned the file?
 
         let res = file::upload_finish(&mut trans, &s3, file_id)
             .await
