@@ -10,8 +10,8 @@ use crate::{
         shared::{file, project_user},
         user::UserToken,
     },
-    api_assert, api_begin_transaction,
-    database::{Database, last_insert_rowid},
+    api_begin_transaction,
+    database::Database,
     extractors::Token,
 };
 
@@ -162,19 +162,16 @@ async fn do_submit(
             return Ok(PreSubmitRes::InvalidStatus);
         }
 
-        let ins_result =
-            sqlx::query(include_str!("./sqls/ins_pre_submit.sql"))
-                .bind(project_uid)
-                .bind(Utc::now().to_rfc3339())
-                .bind(hgi)
-                .bind(&*comment)
-                .execute(&mut *trans)
-                .await
-                .context("ins_pre_submit")?;
-
-        api_assert!(ins_result.rows_affected() == 1);
-
-        let pre_submit_id = last_insert_rowid(&mut trans).await?;
+        let pre_submit_id = sqlx::query_scalar::<_, i64>(include_str!(
+            "./sqls/ins_pre_submit.sql"
+        ))
+        .bind(project_uid)
+        .bind(Utc::now().to_rfc3339())
+        .bind(hgi)
+        .bind(&*comment)
+        .fetch_one(&mut *trans)
+        .await
+        .context("ins_pre_submit")?;
 
         file::use_file(&mut trans, file_id, stage, pre_submit_id).await?;
 

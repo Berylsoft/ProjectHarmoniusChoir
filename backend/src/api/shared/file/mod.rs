@@ -10,7 +10,7 @@ use itertools::Itertools as _;
 use serde::{Deserialize, Serialize};
 use strum::{EnumString, IntoStaticStr};
 
-use crate::{S3, api::shared::project_user, database::last_insert_rowid};
+use crate::{S3, api::shared::project_user};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresignedReq {
@@ -218,23 +218,20 @@ pub(crate) async fn upload_start(
             .await
             .context("presigned_upload_req")?;
 
-    let ins_res = sqlx::query(include_str!("./sqls/ins_file.sql"))
-        .bind(source.project_id)
-        .bind(source.user_id)
-        .bind(source.manager_id)
-        .bind(source.stage.into_str())
-        .bind(&*name)
-        .bind(&*key)
-        .bind(size)
-        .bind(md5.as_slice())
-        .bind(file_type.to_mime_str())
-        .execute(&mut **trans)
-        .await
-        .context("ins_file")?;
-
-    anyhow::ensure!(ins_res.rows_affected() == 1);
-
-    let id = last_insert_rowid(trans).await?;
+    let id =
+        sqlx::query_scalar::<_, i64>(include_str!("./sqls/ins_file.sql"))
+            .bind(source.project_id)
+            .bind(source.user_id)
+            .bind(source.manager_id)
+            .bind(source.stage.into_str())
+            .bind(&*name)
+            .bind(&*key)
+            .bind(size)
+            .bind(md5.as_slice())
+            .bind(file_type.to_mime_str())
+            .fetch_one(&mut **trans)
+            .await
+            .context("ins_file")?;
 
     Ok((id, req))
 }
