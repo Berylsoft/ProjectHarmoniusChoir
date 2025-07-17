@@ -242,21 +242,26 @@ pub(crate) async fn upload_finish(
     trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     s3: &S3,
     file_id: i64,
+    user_id: i64,
+    manager_id: Option<i64>,
 ) -> anyhow::Result<Option<bool>> {
+    let key = sqlx::query_scalar::<_, String>(include_str!(
+        "./sqls/get_file_s3_key_by_id_uid_mid.sql"
+    ))
+    .bind(file_id)
+    .bind(user_id)
+    .bind(manager_id)
+    .bind(manager_id)
+    .fetch_optional(&mut **trans)
+    .await
+    .context("get_file_s3_key_by_id_uid_mid")?;
+
+    let Some(key) = key else { return Ok(None) };
+
     let is_pending = is_pending_by_id(trans, file_id).await?;
     if is_pending {
         return Ok(Some(true));
     }
-
-    let key = sqlx::query_scalar::<_, String>(include_str!(
-        "./sqls/get_file_s3_key_by_file_id.sql"
-    ))
-    .bind(file_id)
-    .fetch_optional(&mut **trans)
-    .await
-    .context("get_file_s3_key_by_file_id")?;
-
-    let Some(key) = key else { return Ok(None) };
 
     let exists = is_s3_file_exists(s3, key)
         .await

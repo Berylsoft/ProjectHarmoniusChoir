@@ -36,6 +36,7 @@ pub enum UploadFileReq {
     },
 }
 
+// TODO: convert some error cause by client implementation issue to bad_param or else
 #[derive(Debug, Serialize, Deserialize)]
 pub enum UploadFileRes {
     UploadInfo {
@@ -47,7 +48,7 @@ pub enum UploadFileRes {
     CountReached,
     CapacityReached,
     InvalidFileType,
-    InvalidFileId,
+    InvalidFile,
     UploadNotFinish,
 }
 
@@ -198,14 +199,14 @@ async fn do_upload_file_finish(
     let result = async {
         token.verify(&mut trans).await?;
 
-        // TODO: check if the user owned the file?
-
-        let res = file::upload_finish(&mut trans, &s3, file_id)
-            .await
-            .context("upload_finish")?;
+        let res = file::upload_finish(
+            &mut trans, &s3, file_id, token.uid, None,
+        )
+        .await
+        .context("upload_finish")?;
 
         let Some(finished) = res else {
-            return Ok(UploadFileRes::InvalidFileId);
+            return Ok(UploadFileRes::InvalidFile);
         };
 
         if !finished {
