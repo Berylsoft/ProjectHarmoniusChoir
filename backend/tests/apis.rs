@@ -835,7 +835,7 @@ async fn manager_create_project(mut app: TestApp) -> anyhow::Result<()> {
             "require_harmony_group_intention" => true,
             "non_disclosure_agreement"        => Some("123"),
             "attachment_key"                  => Some("test"),
-            "pre_submit_file_size_min"        => 1_000_000,
+            "pre_submit_file_size_min"        => 100,
             "pre_submit_file_size_max"        => 500_000_000,
             "submit_file_size_min"            => 1_000_000,
             "submit_file_size_max"            => 1_000_000_000,
@@ -1166,7 +1166,7 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_without_body()?, @r"
     HTTP/1.1 200 OK
-    content-length: 293
+    content-length: 289
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
     ");
@@ -1176,7 +1176,7 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
         "info": {
           "name": "Test Project",
           "pre_submit_file_size_max": 500000000,
-          "pre_submit_file_size_min": 1000000,
+          "pre_submit_file_size_min": 100,
           "require_harmony_group_intention": true,
           "submit_file_size_max": 1000000000,
           "submit_file_size_min": 1000000
@@ -1193,8 +1193,11 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 }
 
 async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
-    let test_file: Box<[u8]> = include_bytes!("./apis/test.aac")
-        .to_vec()
+    let test_file = include_bytes!("./apis/test.aac")
+        .iter()
+        .copied()
+        .pad_using(100, |_| 0)
+        .collect_vec()
         .into_boxed_slice();
     app.set::<Box<[u8]>>("test_file::data", test_file.clone());
 
@@ -1242,7 +1245,7 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_without_body()?, @r"
     HTTP/1.1 200 OK
-    content-length: 581
+    content-length: 582
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
     ");
@@ -1256,11 +1259,11 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
             "headers": [
               [
                 "content-length",
-                "52"
+                "100"
               ],
               [
                 "content-md5",
-                "XZwb/lduG3gZIpC+L8GhiQ=="
+                "XXP6UYU9zlv6g+RDAH4LkA=="
               ],
               [
                 "content-type",
