@@ -111,8 +111,15 @@ impl TestResponse {
             .context("serde_json::to_string_pretty")
     }
 
+    fn json_body_to_string_pretty(&self) -> anyhow::Result<String> {
+        serde_json::to_string_pretty(&self.body_to_json()?)
+            .context("serde_json::to_string_pretty")
+    }
+
     fn any_body_to_string(&self) -> anyhow::Result<Cow<'_, str>> {
-        let res = if let Ok(s) = self.body_to_str() {
+        let res = if let Ok(s) = self.json_body_to_string_pretty() {
+            Cow::from(s)
+        } else if let Ok(s) = self.body_to_str() {
             Cow::from(s)
         } else {
             if let Ok(res) = self.cbor_body_to_json_string_pretty() {
@@ -949,7 +956,9 @@ async fn user_login(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":null}
+    {
+      "Ok": null
+    }
     "#);
 
     // TODO: update name and read name
@@ -972,7 +981,9 @@ async fn user_revoke_all_tokens(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":null}
+    {
+      "Ok": null
+    }
     "#);
 
     Ok(())
@@ -991,7 +1002,16 @@ async fn user_list_projects(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":{"projects":[{"id":1,"name":"Test Project"}]}}
+    {
+      "Ok": {
+        "projects": [
+          {
+            "id": 1,
+            "name": "Test Project"
+          }
+        ]
+      }
+    }
     "#);
 
     next!(app; user_join_project_start);
@@ -1016,7 +1036,13 @@ async fn user_join_project_start(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":{"Start":{"question":"The Question"}}}
+    {
+      "Ok": {
+        "Start": {
+          "question": "The Question"
+        }
+      }
+    }
     "#);
 
     next!(app; user_join_project);
@@ -1043,7 +1069,9 @@ async fn user_join_project(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":"Success"}
+    {
+      "Ok": "Success"
+    }
     "#);
 
     next!(app; manager_list_projects);
@@ -1135,7 +1163,22 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":{"info":{"name":"Test Project","entry_question":"The Question","require_harmony_group_intention":true,"pre_submit_file_size_min":1000000,"pre_submit_file_size_max":500000000,"submit_file_size_min":1000000,"submit_file_size_max":1000000000,"end_time":"2025-07-24T15:43:46.941657Z"},"status":"Entered","nda_agreed":null}}
+    {
+      "Ok": {
+        "info": {
+          "end_time": "2025-07-24T15:45:43.277080Z",
+          "entry_question": "The Question",
+          "name": "Test Project",
+          "pre_submit_file_size_max": 500000000,
+          "pre_submit_file_size_min": 1000000,
+          "require_harmony_group_intention": true,
+          "submit_file_size_max": 1000000000,
+          "submit_file_size_min": 1000000
+        },
+        "nda_agreed": null,
+        "status": "Entered"
+      }
+    }
     "#);
 
     next!(app; user_upload_file_start);
@@ -1269,7 +1312,9 @@ async fn user_upload_file_finish(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":"Success"}
+    {
+      "Ok": "Success"
+    }
     "#);
 
     next!(app; user_pre_submit);
@@ -1297,7 +1342,9 @@ async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
-    {"Ok":"Success"}
+    {
+      "Ok": "Success"
+    }
     "#);
 
     next!(app; manager_pre_submit_info);
