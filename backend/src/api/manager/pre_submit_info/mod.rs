@@ -12,11 +12,11 @@ use crate::{
         shared::{
             file,
             project_user::get_project_user_id_by_pid_uid,
-            submit::{self, PreSubmitStatus},
+            submit::{PreSubmitReviewRow, PreSubmitStatus},
         },
         spawn_await,
     },
-    api_bail, api_begin_transaction,
+    api_begin_transaction,
     database::Database,
     extractors::{Cbor, Token},
 };
@@ -110,33 +110,17 @@ async fn do_pre_submit_info(
 
         for i in infos {
             let status = if let Some(r_status) = i.r_status {
-                let status: submit::Status = r_status
-                    .parse()
-                    .context("parse submit::Status from db result")?;
+                let status: PreSubmitStatus = PreSubmitReviewRow {
+                    status: r_status,
+                    lead: i.r_lead,
+                    choir: i.r_choir,
+                    harmony: i.r_harmony,
+                    reason: i.r_reason,
+                }
+                .try_into()
+                .context("PreSubmitReviewRow try_into PreSubmitStatus")?;
 
-                Some(match status {
-                    submit::Status::Rejected => {
-                        PreSubmitStatus::Rejected {
-                            reason: i
-                                .r_reason
-                                .context("get reason when rejected")?
-                                .parse()
-                                .context("parse reason from db result")?,
-                        }
-                    }
-                    submit::Status::Passed => {
-                        let (Some(lead), Some(choir), Some(harmony)) =
-                            (i.r_lead, i.r_choir, i.r_harmony)
-                        else {
-                            api_bail!("get group info when passed");
-                        };
-                        PreSubmitStatus::Passed {
-                            lead,
-                            choir,
-                            harmony,
-                        }
-                    }
-                })
+                Some(status)
             } else {
                 None
             };

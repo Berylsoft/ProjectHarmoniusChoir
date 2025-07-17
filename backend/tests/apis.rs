@@ -1454,6 +1454,41 @@ async fn manager_get_file(mut app: TestApp) -> anyhow::Result<()> {
     let file_data = app.get::<Box<[u8]>>("test_file::data");
     assert_eq!(**file_data, data);
 
+    next!(app; manager_pre_submit_review);
+
+    Ok(())
+}
+
+async fn manager_pre_submit_review(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/pre_submit_review")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "sid" => 1,
+            "status" => {
+                "Passed" => {
+                    "lead" => true,
+                    "choir" => true,
+                    "harmony" => true,
+                }
+            }
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 12
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": "Success"
+    }
+    "#);
+
     Ok(())
 }
 
@@ -1461,7 +1496,7 @@ async fn manager_get_file(mut app: TestApp) -> anyhow::Result<()> {
 async fn template_manager(mut app: TestApp) -> anyhow::Result<()> {
     let res = app
         .req_builder(Method::POST, 0)
-        .api("")
+        .api("/manager/")
         .send_cbor(cbor!({"data" => null})?)
         .await?;
 
@@ -1474,7 +1509,7 @@ async fn template_manager(mut app: TestApp) -> anyhow::Result<()> {
 async fn template_user(mut app: TestApp) -> anyhow::Result<()> {
     let res = app
         .req_builder(Method::POST, 1)
-        .api("")
+        .api("/user/")
         .send_json(json!({"data": null}))
         .await?;
 

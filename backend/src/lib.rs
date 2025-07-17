@@ -176,6 +176,10 @@ where
             routing::post(manager::get_file::router),
         )
         .route(
+            "/api/manager/pre_submit_review",
+            routing::post(manager::pre_submit_review::router),
+        )
+        .route(
             "/api/manager/root/create_project",
             routing::post(create_project::router),
         )
