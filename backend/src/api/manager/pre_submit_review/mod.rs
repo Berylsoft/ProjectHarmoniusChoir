@@ -90,7 +90,7 @@ async fn do_review(
                 choir,
                 harmony,
             } => PreSubmitReviewRow {
-                status: submit::Status::Rejected.to_string(),
+                status: submit::Status::Passed.to_string(),
                 lead: Some(lead),
                 choir: Some(choir),
                 harmony: Some(harmony),
