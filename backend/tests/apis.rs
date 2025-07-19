@@ -855,7 +855,7 @@ async fn manager_create_project(mut app: TestApp) -> anyhow::Result<()> {
             "entry_answer"                    => "The Answer",
             "pre_submit_skip_password"        => "thepswd",
             "require_harmony_group_intention" => true,
-            "non_disclosure_agreement"        => Some("123"),
+            "non_disclosure_agreement"        => Some("the nda"),
             "attachment_key"                  => Some("test"),
             "pre_submit_file_size_min"        => 100,
             "pre_submit_file_size_max"        => 500_000_000,
@@ -1508,6 +1508,54 @@ async fn manager_pre_submit_review(
 
     {
       "Ok": "Success"
+    }
+    "#);
+
+    next!(app; user_project_info_after_pre_submit_passed);
+
+    Ok(())
+}
+
+async fn user_project_info_after_pre_submit_passed(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    app.db_query_prt("select * from review_pre_submits;");
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/project_info")
+        .send_json(json!({"data": {
+            "pid": 1
+        }}))
+        .await?;
+
+    let mut body = res.body_to_json()?;
+    let end_time = json_remove(&mut body, &["Ok", "info", "end_time"])
+        .as_str()
+        .unwrap()
+        .to_string();
+    let _: DateTime<Utc> = end_time.parse()?;
+
+    insta::assert_snapshot!(res.to_string_with_json(&body)?, @r#"
+    HTTP/1.1 200 OK
+    content-length: 312
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "info": {
+          "name": "Test Project",
+          "pre_submit_file_size_max": 500000000,
+          "pre_submit_file_size_min": 100,
+          "require_harmony_group_intention": true,
+          "submit_file_size_max": 1000000000,
+          "submit_file_size_min": 1000000
+        },
+        "nda_info": {
+          "Pending": "the nda"
+        },
+        "status": "PreSubmitPassed"
+      }
     }
     "#);
 
