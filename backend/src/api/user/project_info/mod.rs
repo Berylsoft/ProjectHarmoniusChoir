@@ -23,8 +23,8 @@ pub struct ProjectInfoReq {
 pub struct ProjectInfoRes {
     info: project::Info,
     status: project_user::Status,
-    /// None for no nda or not applicable
-    nda_agreed: Option<bool>,
+    /// None for not applicable
+    nda_info: Option<project_user::NdaStatus>,
 }
 
 pub(crate) async fn router(
@@ -68,7 +68,7 @@ async fn do_project_info(
             return Ok(ProjectInfoRes {
                 info,
                 status,
-                nda_agreed: None,
+                nda_info: None,
             });
         }
 
@@ -79,16 +79,10 @@ async fn do_project_info(
         .await
         .context("project_user::NdaStatus::get_by_pid_puid")?;
 
-        let nda_agreed = match nda_status {
-            project_user::NdaStatus::NoNda => None,
-            project_user::NdaStatus::Pending(_) => Some(false),
-            project_user::NdaStatus::Agreed => Some(true),
-        };
-
         ApiResult::Ok(ProjectInfoRes {
             info,
             status,
-            nda_agreed,
+            nda_info: Some(nda_status),
         })
     }
     .await;
