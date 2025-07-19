@@ -170,25 +170,14 @@ impl TestResponse {
         Ok(format!("{status_line}\n{headers}"))
     }
 
-    fn to_string_with_cbor(
+    fn to_string_with_body<T: Serialize>(
         &self,
-        body: &ciborium::Value,
+        body: &T,
     ) -> anyhow::Result<String> {
         Ok(format!(
             "{}\n{}",
             self.to_string_without_body()?,
-            cbor_to_json_string_pretty(body)?
-        ))
-    }
-
-    fn to_string_with_json(
-        &self,
-        body: &serde_json::Value,
-    ) -> anyhow::Result<String> {
-        Ok(format!(
-            "{}\n{}",
-            self.to_string_without_body()?,
-            json_to_string_pretty(body)?
+            to_string_pretty(body)?
         ))
     }
 
@@ -670,16 +659,7 @@ fn json_remove(
     parent.remove(*keys.last().unwrap()).unwrap()
 }
 
-fn cbor_to_json_string_pretty(
-    value: &ciborium::Value,
-) -> anyhow::Result<String> {
-    serde_json::to_string_pretty(value)
-        .context("serde_json::to_string_pretty")
-}
-
-fn json_to_string_pretty(
-    value: &serde_json::Value,
-) -> anyhow::Result<String> {
+fn to_string_pretty<T: Serialize>(value: &T) -> anyhow::Result<String> {
     serde_json::to_string_pretty(value)
         .context("serde_json::to_string_pretty")
 }
@@ -735,13 +715,12 @@ async fn manager_login_start(mut app: TestApp) -> anyhow::Result<()> {
             .unwrap();
     let totp = TOTP::from_url(totp_url).unwrap();
 
-    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
     content-length: 327
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-    ");
-    insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
+
     {
       "Ok": {
         "TotpSetup": {}
@@ -901,13 +880,12 @@ async fn manager_create_manager(mut app: TestApp) -> anyhow::Result<()> {
     app.set::<i64>("manager_1_mid", mid);
     app.set::<Box<str>>("manager_1_password", password);
 
-    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
     content-length: 53
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-    ");
-    insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
+
     {
       "Ok": {
         "mid": 1
@@ -1186,13 +1164,12 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
         .to_string();
     let _: DateTime<Utc> = end_time.parse()?;
 
-    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
     content-length: 287
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-    ");
-    insta::assert_snapshot!(json_to_string_pretty(&body)?, @r#"
+
     {
       "Ok": {
         "info": {
@@ -1265,14 +1242,12 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
         serde_json::from_value(presigned_req.clone())?;
     assert_eq!(presigned_req.method, "PUT");
 
-    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
     content-length: 582
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-    ");
 
-    insta::assert_snapshot!(json_to_string_pretty(&body)?, @r#"
     {
       "Ok": {
         "UploadInfo": {
@@ -1401,13 +1376,12 @@ async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
     let created_at: DateTime<Utc> = created_at.parse()?;
     assert!(created_at <= Utc::now());
 
-    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
     content-length: 145
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-    ");
-    insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
+
     {
       "Ok": {
         "pre_submits": [
@@ -1452,13 +1426,12 @@ async fn manager_get_file(mut app: TestApp) -> anyhow::Result<()> {
 
     assert_eq!(method, "GET");
 
-    insta::assert_snapshot!(res.to_string_without_body()?, @r"
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
     content-length: 552
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
-    ");
-    insta::assert_snapshot!(cbor_to_json_string_pretty(&body)?, @r#"
+
     {
       "Ok": {
         "presigned_req": {
@@ -1535,7 +1508,7 @@ async fn user_project_info_after_pre_submit_passed(
         .to_string();
     let _: DateTime<Utc> = end_time.parse()?;
 
-    insta::assert_snapshot!(res.to_string_with_json(&body)?, @r#"
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
     content-length: 312
     content-type: application/json
@@ -1574,7 +1547,7 @@ async fn template_manager(mut app: TestApp) -> anyhow::Result<()> {
     insta::assert_snapshot!(res, @"");
     // NOTE: choose one
     let mut body = res.body_to_cbor()?;
-    insta::assert_snapshot!(res.to_string_with_cbor(&body)?, @"");
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @"");
 
     Ok(())
 }
@@ -1591,7 +1564,7 @@ async fn template_user(mut app: TestApp) -> anyhow::Result<()> {
     insta::assert_snapshot!(res, @"");
     // NOTE: choose one
     let mut body = res.body_to_json()?;
-    insta::assert_snapshot!(res.to_string_with_json(&body)?, @"");
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @"");
 
     Ok(())
 }
