@@ -170,6 +170,28 @@ impl TestResponse {
         Ok(format!("{status_line}\n{headers}"))
     }
 
+    fn to_string_with_cbor(
+        &self,
+        body: &ciborium::Value,
+    ) -> anyhow::Result<String> {
+        Ok(format!(
+            "{}\n{}",
+            self.to_string_without_body()?,
+            cbor_to_json_string_pretty(body)?
+        ))
+    }
+
+    fn to_string_with_json(
+        &self,
+        body: &serde_json::Value,
+    ) -> anyhow::Result<String> {
+        Ok(format!(
+            "{}\n{}",
+            self.to_string_without_body()?,
+            json_to_string_pretty(body)?
+        ))
+    }
+
     fn cookies(&self) -> anyhow::Result<CookieJar> {
         let mut jar = CookieJar::new();
 
@@ -1500,7 +1522,11 @@ async fn template_manager(mut app: TestApp) -> anyhow::Result<()> {
         .send_cbor(cbor!({"data" => null})?)
         .await?;
 
+    // NOTE: choose one
     insta::assert_snapshot!(res, @"");
+    // NOTE: choose one
+    let mut body = res.body_to_cbor()?;
+    insta::assert_snapshot!(res.to_string_with_cbor(&body)?, @"");
 
     Ok(())
 }
@@ -1513,7 +1539,11 @@ async fn template_user(mut app: TestApp) -> anyhow::Result<()> {
         .send_json(json!({"data": null}))
         .await?;
 
+    // NOTE: choose one
     insta::assert_snapshot!(res, @"");
+    // NOTE: choose one
+    let mut body = res.body_to_json()?;
+    insta::assert_snapshot!(res.to_string_with_json(&body)?, @"");
 
     Ok(())
 }
