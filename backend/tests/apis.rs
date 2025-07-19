@@ -2,12 +2,14 @@ use std::{
     self,
     any::{Any, TypeId},
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::{Display, Write},
     io::Write as _,
+    pin::Pin,
     process::{Command, Stdio},
+    rc::Rc,
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Instant,
 };
 
@@ -322,7 +324,16 @@ impl<'app> ReqBuilder<'app> {
     }
 }
 
+struct Task {
+    name: String,
+    fut: Pin<Box<dyn Future<Output = anyhow::Result<()>> + 'static>>,
+}
+
+type TaskQueue = Rc<Mutex<VecDeque<Task>>>;
+
 struct TestApp {
+    queue: TaskQueue,
+
     state: ServerState,
     cookies: HashMap<u64, CookieJar>,
     make_req_id: TestMakeRequestId,
@@ -365,7 +376,7 @@ impl TestApp {
             .map_err(Into::into)
     }
 
-    async fn new() -> anyhow::Result<Self> {
+    async fn new(queue: TaskQueue) -> anyhow::Result<Self> {
         let key = SigningKey::from_bytes(&[
             136, 141, 156, 190, 246, 190, 57, 147, 83, 231, 221, 61, 32,
             132, 191, 56, 141, 84, 134, 182, 89, 43, 161, 46, 112, 142,
@@ -409,6 +420,8 @@ impl TestApp {
         let router = router(state.clone(), make_req_id.clone());
 
         let mut this = Self {
+            queue,
+
             state,
             cookies: HashMap::new(),
             make_req_id,
@@ -424,6 +437,8 @@ impl TestApp {
 
     /// only db is branched, key, cache and s3 is shared
     async fn branch(&self) -> anyhow::Result<Self> {
+        let queue = Rc::clone(&self.queue);
+
         let db_tmp = Self::new_db_tmp_file()?;
         std::fs::copy(self.db_tmp.path(), db_tmp.path())
             .context("copy db for branching")?;
@@ -447,6 +462,8 @@ impl TestApp {
         let storage = self.storage.clone();
 
         Ok(Self {
+            queue,
+
             state,
             cookies,
             make_req_id,
@@ -462,13 +479,14 @@ impl TestApp {
         name: &'static str,
     ) -> anyhow::Result<Self>
     where
-        Fut: Future<Output = anyhow::Result<()>>,
+        Fut: Future<Output = anyhow::Result<()>> + 'static,
     {
-        tracing::info!("running test: {name}");
-        next(self.branch().await.context("branch")?)
-            .await
-            .with_context(|| format!("next: {name}"))
-            .map(|()| self)
+        let app = self.branch().await.context("branch")?;
+        self.queue.lock().unwrap().push_back(Task {
+            name: name.into(),
+            fut: Box::pin(next(app)),
+        });
+        Ok(self)
     }
 
     async fn next_term<Fut>(
@@ -477,10 +495,14 @@ impl TestApp {
         name: &'static str,
     ) -> anyhow::Result<()>
     where
-        Fut: Future<Output = anyhow::Result<()>>,
+        Fut: Future<Output = anyhow::Result<()>> + 'static,
     {
-        tracing::info!("running test: {name}");
-        next(self).await.with_context(|| format!("next: {name}"))
+        let queue = Rc::clone(&self.queue);
+        queue.lock().unwrap().push_back(Task {
+            name: name.into(),
+            fut: Box::pin(next(self)),
+        });
+        Ok(())
     }
 
     async fn send(
@@ -685,9 +707,26 @@ async fn entry() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
-    let app = TestApp::new().await.unwrap();
+
+    let queue = Rc::new(Mutex::new(VecDeque::new()));
+
+    let app = TestApp::new(Rc::clone(&queue)).await.unwrap();
 
     next!(app; manager_login_start);
+
+    loop {
+        let Some(task) = queue.lock().unwrap().pop_front() else {
+            break;
+        };
+
+        let Task { name, fut } = task;
+
+        tracing::info!("running {name}");
+        let start = Instant::now();
+        fut.await.with_context(|| format!("running: {name}"))?;
+        let elapsed = start.elapsed();
+        tracing::info!("{name} finished in {}", format_duration(elapsed));
+    }
 
     Ok(())
 }
