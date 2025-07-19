@@ -1492,7 +1492,6 @@ async fn manager_pre_submit_review(
 async fn user_project_info_after_pre_submit_passed(
     mut app: TestApp,
 ) -> anyhow::Result<()> {
-    app.db_query_prt("select * from review_pre_submits;");
     let res = app
         .req_builder(Method::POST, 1)
         .api("/user/project_info")
