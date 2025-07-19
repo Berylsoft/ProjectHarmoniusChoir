@@ -154,6 +154,10 @@ where
             "/api/user/pre_submit",
             routing::post(user::pre_submit::router),
         )
+        .route(
+            "/api/user/agree_nda",
+            routing::post(user::agree_nda::router),
+        )
         .route("/api/manager/login", routing::post(login::router))
         .route(
             "/api/manager/acquire_sudo",

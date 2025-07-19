@@ -66,6 +66,7 @@ pub enum ErrCode {
     RequireSudo,
     BadParam,
     NotFound,
+    InvalidStatus,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -86,12 +87,14 @@ pub enum ApiError<T> {
     BadParam { msg: Box<str>, detail: Box<str> },
     #[error("not found: {detail}")]
     NotFound { msg: Box<str>, detail: Box<str> },
+    #[error("invalid status: {detail}")]
+    InvalidStatus { msg: Box<str>, detail: Box<str> },
     #[error("response serialization type marker")]
     __(PhantomData<T>),
 }
 
 impl<T> ApiError<T> {
-    #[expect(clippy::cognitive_complexity)]
+    #[expect(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub fn into_api_response(
         self,
     ) -> (StatusCode, Response<'static, ()>) {
@@ -190,6 +193,19 @@ impl<T> ApiError<T> {
                     StatusCode::NOT_FOUND,
                     Response::Err {
                         code: ErrCode::NotFound,
+                        msg: msg.to_string().into(),
+                    },
+                )
+            }
+            Self::InvalidStatus { msg, detail } => {
+                tracing::info!(
+                    "rejecting invalid status: {msg}({detail})"
+                );
+
+                (
+                    StatusCode::CONFLICT,
+                    Response::Err {
+                        code: ErrCode::InvalidStatus,
                         msg: msg.to_string().into(),
                     },
                 )
@@ -329,5 +345,18 @@ macro_rules! api_bail_not_found {
     };
     ($msg:expr) => {
         api_bail_not_found!($msg, $msg)
+    };
+}
+
+#[macro_export]
+macro_rules! api_bail_status {
+    ($msg:expr, $detail:expr) => {
+        return Err($crate::api::ApiError::InvalidStatus {
+            msg: $msg.into(),
+            detail: $detail.into(),
+        })
+    };
+    ($msg:expr) => {
+        api_bail_status!($msg, $msg)
     };
 }

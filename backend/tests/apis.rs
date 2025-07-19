@@ -1570,6 +1570,31 @@ async fn user_project_info_after_pre_submit_passed(
     }
     "#);
 
+    next!(app; user_agree_nda);
+
+    Ok(())
+}
+
+async fn user_agree_nda(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/agree_nda")
+        .send_json(json!({"data": {
+            "pid": 1,
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 11
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
+
     Ok(())
 }
 

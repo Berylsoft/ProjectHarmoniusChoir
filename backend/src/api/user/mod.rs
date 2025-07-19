@@ -8,6 +8,7 @@ use crate::api::{
     shared::project_user::get_project_user_id_by_pid_uid,
 };
 
+pub mod agree_nda;
 pub mod join_project;
 pub mod list_projects;
 pub mod pre_submit;
