@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 
 use crate::api::{
-    ApiError, ApiResult,
-    shared::project_user::get_project_user_id_by_pid_uid,
+    ApiError, ApiResult, shared::project_user::get_id_by_pid_uid,
 };
 
 pub mod agree_nda;
@@ -64,7 +63,7 @@ impl UserToken {
         pid: i64,
     ) -> ApiResult<i64, S> {
         let project_user_id =
-            get_project_user_id_by_pid_uid(trans, self.uid, pid).await?;
+            get_id_by_pid_uid(trans, self.uid, pid).await?;
 
         let Some(project_user_id) = project_user_id else {
             return Err(ApiError::InsufficientPermission(

@@ -215,7 +215,7 @@ impl NdaStatus {
 
 /// # Errors
 /// database errors
-pub async fn get_project_user_id_by_pid_uid(
+pub async fn get_id_by_pid_uid(
     trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     uid: i64,
     pid: i64,

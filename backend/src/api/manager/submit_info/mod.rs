@@ -11,7 +11,7 @@ use crate::{
         manager::ManagerToken,
         shared::{
             file, project_user,
-            submit::{PreSubmitReviewRow, PreSubmitStatus},
+            submit::{SubmitReviewRow, SubmitStatus},
         },
         spawn_await,
     },
@@ -21,72 +21,68 @@ use crate::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PreSubmitInfoReq {
+pub struct SubmitInfoReq {
     pid: i64,
     uid: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PreSubmitInfoRes {
-    pre_submits: Vec<PreSubmitInfo>,
+pub struct SubmitInfoRes {
+    submits: Vec<SubmitInfo>,
+    checked_files: Vec<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PreSubmitInfo {
+pub struct SubmitInfo {
     id: i64,
     created_at: DateTime<Utc>,
-    harmony_group_intention: Option<bool>,
     comment: Box<str>,
-    file_info: file::Info,
-    status: Option<PreSubmitStatus>,
+    files: Vec<file::Info>,
+    status: Option<SubmitStatus>,
 }
 
 pub(crate) async fn router(
     state: State<ServerState>,
     token: Token<ManagerToken>,
-    req: Cbor<api::Request<PreSubmitInfoReq>>,
+    req: Cbor<api::Request<SubmitInfoReq>>,
 ) -> api::ApiResult<impl IntoResponse, ToCbor> {
     let ServerState { mut cache, db, .. } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    // NOTE: api_param_assert
     let response =
-        spawn_await(do_pre_submit_info(db, token.0, req)).await??;
+        spawn_await(do_submit_info(db, token.0, req)).await??;
 
     Ok(Cbor(api::Response::Ok(response)))
 }
 
-async fn do_pre_submit_info(
+async fn do_submit_info(
     db: Database,
     token: ManagerToken,
-    req: PreSubmitInfoReq,
-) -> ApiResult<PreSubmitInfoRes, ToCbor> {
+    req: SubmitInfoReq,
+) -> ApiResult<SubmitInfoRes, ToCbor> {
     api_begin_transaction!(db, conn, trans, Deferred);
 
     let result = async {
         #[derive(Debug, FromRow)]
-        struct PreSubmitInfoRow {
+        struct SubmitInfoRow {
             id: i64,
             created_at: String,
-            harmony_group_intention: Option<bool>,
             comment: String,
-            f_id: i64,
-            f_name: String,
             r_status: Option<String>,
-            r_lead: Option<bool>,
-            r_choir: Option<bool>,
-            r_harmony: Option<bool>,
             r_reason: Option<String>,
+            r_reason_detail: Option<String>,
+            r_checked_file_group_id: Option<i64>,
         }
 
         token.verify(&mut trans).await?;
         token.verify_can_access_project(&mut trans, req.pid).await?;
 
-        let project_uid =
+        // pid verified verify_can_access_project
+        let puid =
             project_user::get_id_by_pid_uid(&mut trans, req.uid, req.pid)
                 .await?;
 
-        let Some(project_uid) = project_uid else {
+        let Some(puid) = puid else {
             return Err(ApiError::BadParam {
                 msg: "invalid uid/pid".into(),
                 detail: format!(
@@ -97,50 +93,70 @@ async fn do_pre_submit_info(
             });
         };
 
-        let infos: Vec<PreSubmitInfoRow> = sqlx::query_as(include_str!(
-            "./sqls/get_pre_submit_info_by_puid.sql"
+        let infos: Vec<SubmitInfoRow> = sqlx::query_as(include_str!(
+            "./sqls/get_submit_info_by_puid.sql"
         ))
-        .bind(project_uid)
+        .bind(puid)
         .fetch_all(&mut *trans)
         .await
-        .context("get_pre_submit_info_by_puid")?;
+        .context("get_submit_info_by_puid")?;
 
-        let mut pre_submits = Vec::with_capacity(infos.len());
+        let mut submits = Vec::with_capacity(infos.len());
+        let mut checked_group: Option<i64> = None;
 
         for i in infos {
-            let status = if let Some(r_status) = i.r_status {
-                let status: PreSubmitStatus = PreSubmitReviewRow {
-                    status: r_status,
-                    lead: i.r_lead,
-                    choir: i.r_choir,
-                    harmony: i.r_harmony,
+            let status = if let Some(status) = i.r_status {
+                let status: SubmitStatus = SubmitReviewRow {
+                    status,
                     reason: i.r_reason,
+                    reason_detail: i.r_reason_detail,
                 }
                 .try_into()
-                .context("PreSubmitReviewRow try_into PreSubmitStatus")?;
+                .context("SubmitReviewRow try_into PreSubmitStatus")?;
 
                 Some(status)
             } else {
                 None
             };
 
-            pre_submits.push(PreSubmitInfo {
+            let files =
+                file::Info::get_all_of_submit_by_sid(&mut trans, i.id)
+                    .await?;
+
+            submits.push(SubmitInfo {
                 id: i.id,
                 created_at: i
                     .created_at
                     .parse()
-                    .context("info.created_at.parse()")?,
-                harmony_group_intention: i.harmony_group_intention,
+                    .context("parse created_at into DateTime")?,
                 comment: i.comment.into_boxed_str(),
-                file_info: file::Info {
-                    id: i.f_id,
-                    name: i.f_name.into_boxed_str(),
-                },
+                files,
                 status,
             });
+
+            if checked_group.is_none()
+                && let Some(id) = i.r_checked_file_group_id
+            {
+                checked_group = Some(id);
+            }
         }
 
-        ApiResult::Ok(PreSubmitInfoRes { pre_submits })
+        let checked_files = if let Some(group_id) = checked_group {
+            sqlx::query_scalar(include_str!(
+                "./sqls/get_checked_files_by_group_id.sql"
+            ))
+            .bind(group_id)
+            .fetch_all(&mut *trans)
+            .await
+            .context("get_checked_files_by_group_id")?
+        } else {
+            vec![]
+        };
+
+        ApiResult::Ok(SubmitInfoRes {
+            submits,
+            checked_files,
+        })
     }
     .await;
 

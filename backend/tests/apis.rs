@@ -1626,6 +1626,55 @@ async fn user_submit(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_submit_info);
+
+    Ok(())
+}
+
+async fn manager_submit_info(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/submit_info")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "uid" => 1,
+        }})?)
+        .await?;
+
+    let mut body = res.body_to_cbor()?;
+    let created_at =
+        cbor_remove(&mut body, &["Ok", "submits", "0", "created_at"])
+            .into_text()
+            .unwrap();
+    let created_at: DateTime<Utc> = created_at.parse()?;
+    assert!(created_at <= Utc::now());
+
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
+    HTTP/1.1 200 OK
+    content-length: 155
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "submits": [
+          {
+            "id": 1,
+            "comment": "some comment for submit, or maybe not",
+            "files": [
+              {
+                "id": 1,
+                "name": "test.aac"
+              }
+            ],
+            "status": null
+          }
+        ],
+        "checked_files": []
+      }
+    }
+    "#);
+
     Ok(())
 }
 

@@ -38,6 +38,30 @@ pub struct Info {
     pub name: Box<str>,
 }
 
+impl Info {
+    /// expect `sid` valid
+    pub async fn get_all_of_submit_by_sid(
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        sid: i64,
+    ) -> anyhow::Result<Vec<Self>> {
+        let files: Vec<(i64, String)> = sqlx::query_as(include_str!(
+            "./sqls/get_file_infos_of_submit_by_sid.sql"
+        ))
+        .bind(sid)
+        .fetch_all(&mut **trans)
+        .await
+        .context("get_file_infos_of_submit_by_sid")?;
+
+        Ok(files
+            .into_iter()
+            .map(|(id, name)| Info {
+                id,
+                name: name.into_boxed_str(),
+            })
+            .collect_vec())
+    }
+}
+
 #[derive(
     Debug,
     Clone,

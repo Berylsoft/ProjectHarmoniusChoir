@@ -101,6 +101,36 @@ pub enum SubmitStatus {
     Passed,
 }
 
+impl TryFrom<SubmitReviewRow> for SubmitStatus {
+    type Error = anyhow::Error;
+
+    fn try_from(value: SubmitReviewRow) -> Result<Self, Self::Error> {
+        let status: Status = value
+            .status
+            .parse()
+            .context("parse Status from db result")?;
+
+        Ok(match status {
+            Status::Rejected => Self::Rejected {
+                reason: value
+                    .reason
+                    .context("get reason when rejected")?
+                    .parse()
+                    .context("parse reason from db result")?,
+                detail: value.reason_detail.map(String::into_boxed_str),
+            },
+            Status::Passed => Self::Passed,
+        })
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub struct SubmitReviewRow {
+    pub status: String,
+    pub reason: Option<String>,
+    pub reason_detail: Option<String>,
+}
+
 #[derive(
     Debug,
     Clone,
