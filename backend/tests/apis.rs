@@ -590,9 +590,13 @@ impl TestApp {
         let output = cmd.wait_with_output().unwrap();
         assert!(output.status.success());
 
-        let output = String::from_utf8(output.stdout).unwrap();
+        let output = output.stdout;
 
-        println!("{output}");
+        if let Ok(output) = str::from_utf8(&output) {
+            println!("{output}");
+        } else {
+            std::fs::write("test_db_query_out.bin", output).unwrap();
+        }
     }
 }
 
@@ -1581,6 +1585,33 @@ async fn user_agree_nda(mut app: TestApp) -> anyhow::Result<()> {
         .api("/user/agree_nda")
         .send_json(json!({"data": {
             "pid": 1,
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 11
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
+
+    next!(app; user_submit);
+
+    Ok(())
+}
+
+async fn user_submit(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/submit")
+        .send_json(json!({"data": {
+            "pid": 1,
+            "comment": "some comment for submit, or maybe not",
+            "files": [1],
         }}))
         .await?;
 

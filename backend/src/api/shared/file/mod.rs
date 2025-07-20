@@ -38,7 +38,18 @@ pub struct Info {
     pub name: Box<str>,
 }
 
-#[derive(Debug, Clone, Copy, IntoStaticStr, EnumString)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    IntoStaticStr,
+    EnumString,
+)]
 pub enum Stage {
     PreSubmit,
     Submit,
@@ -407,14 +418,13 @@ impl Type {
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Status {
     Deleted,
     Uploading,
     Pending,
-    Used,
+    // used by (target_type, target_id)
+    Used(Box<[(Stage, i64)]>),
 }
 
 impl Status {
@@ -442,9 +452,15 @@ impl Status {
             return Ok(Some(Self::Uploading));
         }
 
-        let used = is_used_by_id(trans, id).await?;
+        let used = get_file_users_by_id(trans, id).await?;
 
-        Ok(Some(if used { Self::Used } else { Self::Pending }))
+        Ok(Some(
+            if used.is_empty() {
+                Self::Pending
+            } else {
+                Self::Used(used)
+            },
+        ))
     }
 }
 
@@ -498,23 +514,32 @@ pub async fn is_deleted_by_id(
 
 /// # Errors
 /// database error
-pub async fn is_used_by_id(
+pub async fn get_file_users_by_id(
     trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: i64,
-) -> anyhow::Result<bool> {
-    sqlx::query_scalar::<_, i64>(include_str!(
-        "./sqls/is_used_by_file_id.sql"
+) -> anyhow::Result<Box<[(Stage, i64)]>> {
+    let users = sqlx::query_as::<_, (String, i64)>(include_str!(
+        "./sqls/get_file_users_by_id.sql"
     ))
     .bind(id)
-    .fetch_one(&mut **trans)
+    .fetch_all(&mut **trans)
     .await
-    .context("is_used_by_file_id")
-    .map(|it| it > 0)
+    .context("get_file_users_by_id")?;
+
+    let mut result = Vec::with_capacity(users.len());
+
+    for (stage, target_id) in users {
+        let stage: Stage =
+            stage.parse().context("parse stage from db")?;
+        result.push((stage, target_id));
+    }
+
+    Ok(result.into_boxed_slice())
 }
 
 /// # Errors
 /// database error
-pub async fn can_use(
+pub async fn is_uploaded_by(
     trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     id: i64,
     source: Source,

@@ -14,6 +14,7 @@ pub mod list_projects;
 pub mod pre_submit;
 pub mod project_info;
 pub mod revoke_all_tokens;
+pub mod submit;
 pub mod template;
 pub mod update_name;
 pub mod upload_file;

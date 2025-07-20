@@ -93,8 +93,9 @@ async fn do_submit(
             return Ok(PreSubmitRes::InvalidFile);
         }
 
-        let can_use = file::can_use(&mut trans, file_id, source).await?;
-        if !can_use {
+        let is_uploaded_by =
+            file::is_uploaded_by(&mut trans, file_id, source).await?;
+        if !is_uploaded_by {
             tracing::debug!("the user can't use this file");
             return Ok(PreSubmitRes::InvalidFile);
         }

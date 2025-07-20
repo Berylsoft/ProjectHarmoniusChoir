@@ -158,6 +158,7 @@ where
             "/api/user/agree_nda",
             routing::post(user::agree_nda::router),
         )
+        .route("/api/user/submit", routing::post(user::submit::router))
         .route("/api/manager/login", routing::post(login::router))
         .route(
             "/api/manager/acquire_sudo",
