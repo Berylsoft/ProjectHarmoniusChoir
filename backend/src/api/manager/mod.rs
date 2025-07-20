@@ -31,6 +31,7 @@ pub mod pre_submit_info;
 pub mod pre_submit_review;
 pub mod project_manager_edit;
 pub mod submit_info;
+pub mod submit_review;
 pub mod template;
 
 const ROOT_MID: i64 = 0;

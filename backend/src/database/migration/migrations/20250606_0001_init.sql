@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS "review_submits" (
 	"submit_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
 	"review_at" TEXT NOT NULL,
-	"checked_file_group_id" INTEGER NOT NULL,
+	"checked_file_group_id" INTEGER,
 	"status" TEXT NOT NULL,
 	"reason" TEXT,
 	"reason_detail" TEXT,

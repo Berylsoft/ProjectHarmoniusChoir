@@ -1675,6 +1675,34 @@ async fn manager_submit_info(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_submit_review);
+
+    Ok(())
+}
+
+async fn manager_submit_review(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/submit_review")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "sid" => 1,
+            "status" => "Passed",
+            "checked_files" => [1],
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 5
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
+
     Ok(())
 }
 

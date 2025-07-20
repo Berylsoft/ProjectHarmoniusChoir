@@ -142,13 +142,8 @@ async fn do_submit_info(
         }
 
         let checked_files = if let Some(group_id) = checked_group {
-            sqlx::query_scalar(include_str!(
-                "./sqls/get_checked_files_by_group_id.sql"
-            ))
-            .bind(group_id)
-            .fetch_all(&mut *trans)
-            .await
-            .context("get_checked_files_by_group_id")?
+            file::get_checked_files_by_group_id(&mut trans, group_id)
+                .await?
         } else {
             vec![]
         };

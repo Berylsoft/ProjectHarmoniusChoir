@@ -40,6 +40,8 @@ pub struct Info {
 
 impl Info {
     /// expect `sid` valid
+    /// # Errors
+    /// database error
     pub async fn get_all_of_submit_by_sid(
         trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         sid: i64,
@@ -54,7 +56,7 @@ impl Info {
 
         Ok(files
             .into_iter()
-            .map(|(id, name)| Info {
+            .map(|(id, name)| Self {
                 id,
                 name: name.into_boxed_str(),
             })
@@ -627,4 +629,22 @@ pub async fn download_info(
     });
 
     Ok(info)
+}
+
+/// expect `group_id` valid
+/// # Returns
+/// distinct `file_id`s that is sorted in ascending order
+/// # Errors
+/// database error
+pub async fn get_checked_files_by_group_id(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    group_id: i64,
+) -> anyhow::Result<Vec<i64>> {
+    sqlx::query_scalar(include_str!(
+        "./sqls/get_checked_files_by_group_id.sql"
+    ))
+    .bind(group_id)
+    .fetch_all(&mut **trans)
+    .await
+    .context("get_checked_files_by_group_id")
 }
