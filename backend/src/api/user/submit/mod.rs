@@ -152,21 +152,23 @@ async fn check_file(
     let (can_use, can_use_src) = if status == file::Status::Pending {
         (file::is_uploaded_by(trans, id, source).await?, "pending")
     } else if let file::Status::Used(used) = status {
-        // expect a file may be used in many submit, but only one pre submit
-        let file_user =
-            used.iter().find(|it| it.0 == file::Stage::PreSubmit);
-        let Some(file_user) = file_user else {
+        // expect a file only be used once
+        // and is a passed pre submit
+        if !matches!(&*used, [(file::Stage::PreSubmit, _)]) {
             api_bail_status!(
                 "invalid file",
-                format!("f{id} not used by pre-submit")
+                format!(
+                    "f{id} invalid previous usage of a file for submit: {used:?}"
+                )
             );
-        };
-        if file_user.1 != passed_pre_submit_id {
+        }
+
+        if used[0].1 != passed_pre_submit_id {
             api_bail_status!(
                 "invalid file",
                 format!(
                     "f{id} used by invalid pre-submit, expect {}, but {}",
-                    passed_pre_submit_id, file_user.1
+                    passed_pre_submit_id, used[0].1
                 )
             );
         }
