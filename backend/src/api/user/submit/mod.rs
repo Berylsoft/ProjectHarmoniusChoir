@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Context as _;
 use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
@@ -11,6 +13,7 @@ use crate::{
         user::UserToken,
     },
     api_bail_not_found, api_bail_status, api_begin_transaction,
+    api_param_assert,
     database::Database,
     extractors::Token,
 };
@@ -93,6 +96,13 @@ async fn do_submit(
         .fetch_one(&mut *trans)
         .await
         .context("get_last_pre_submit_by_puid")?;
+
+        let distinct_len =
+            req.files.iter().copied().collect::<HashSet<_>>().len();
+        api_param_assert!(
+            req.files.len() == distinct_len,
+            "invalid files"
+        );
 
         for &file_id in &req.files {
             check_file(
