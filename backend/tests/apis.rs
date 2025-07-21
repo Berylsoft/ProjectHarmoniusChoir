@@ -1406,8 +1406,7 @@ async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
         .req_builder(Method::POST, 0)
         .api("/manager/pre_submit_info")
         .send_cbor(cbor!({"data" => {
-            "pid" => 1,
-            "uid" => 1,
+            "puid" => 1,
         }})?)
         .await?;
 
@@ -1636,8 +1635,7 @@ async fn manager_submit_info(mut app: TestApp) -> anyhow::Result<()> {
         .req_builder(Method::POST, 0)
         .api("/manager/submit_info")
         .send_cbor(cbor!({"data" => {
-            "pid" => 1,
-            "uid" => 1,
+            "puid" => 1,
         }})?)
         .await?;
 

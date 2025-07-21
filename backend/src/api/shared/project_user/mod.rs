@@ -215,17 +215,13 @@ impl NdaStatus {
 
 /// # Errors
 /// database errors
-pub async fn get_id_by_pid_uid(
+pub async fn get_pid_uid_by_id(
     trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    uid: i64,
-    pid: i64,
-) -> anyhow::Result<Option<i64>> {
-    sqlx::query_scalar(include_str!(
-        "./sqls/get_project_user_id_by_uid_pid.sql"
-    ))
-    .bind(uid)
-    .bind(pid)
-    .fetch_optional(&mut **trans)
-    .await
-    .context("get_project_user_id_by_uid_pid")
+    id: i64,
+) -> anyhow::Result<Option<(i64, i64)>> {
+    sqlx::query_as(include_str!("./sqls/get_pid_uid_by_id.sql"))
+        .bind(id)
+        .fetch_optional(&mut **trans)
+        .await
+        .context("get_pid_uid_by_id")
 }

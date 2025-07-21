@@ -7,7 +7,7 @@ use sqlx::prelude::FromRow;
 use crate::{
     ServerState,
     api::{
-        self, ApiError, ApiResult, ToCbor,
+        self, ApiResult, ToCbor,
         manager::ManagerToken,
         shared::{
             file, project_user,
@@ -15,15 +15,14 @@ use crate::{
         },
         spawn_await,
     },
-    api_begin_transaction,
+    api_bail_not_found, api_begin_transaction,
     database::Database,
     extractors::{Cbor, Token},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubmitInfoReq {
-    pid: i64,
-    uid: i64,
+    puid: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,28 +74,23 @@ async fn do_submit_info(
         }
 
         token.verify(&mut trans).await?;
-        token.verify_can_access_project(&mut trans, req.pid).await?;
 
-        // pid verified verify_can_access_project
-        let puid =
-            project_user::get_id_by_pid_uid(&mut trans, req.uid, req.pid)
-                .await?;
+        let pid_uid =
+            project_user::get_pid_uid_by_id(&mut trans, req.puid).await?;
 
-        let Some(puid) = puid else {
-            return Err(ApiError::BadParam {
-                msg: "invalid uid/pid".into(),
-                detail: format!(
-                    "can't found project user by uid({}), pid({})",
-                    req.uid, req.pid
-                )
-                .into_boxed_str(),
-            });
+        let Some((pid, _)) = pid_uid else {
+            api_bail_not_found!(
+                "project user not found",
+                format!("can't find project user by puid: {}", req.puid)
+            )
         };
+
+        token.verify_can_access_project(&mut trans, pid).await?;
 
         let infos: Vec<SubmitInfoRow> = sqlx::query_as(include_str!(
             "./sqls/get_submit_info_by_puid.sql"
         ))
-        .bind(puid)
+        .bind(req.puid)
         .fetch_all(&mut *trans)
         .await
         .context("get_submit_info_by_puid")?;
