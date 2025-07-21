@@ -12,7 +12,7 @@ use crate::{
         },
         user::UserToken,
     },
-    api_begin_transaction, api_param_assert,
+    api_bail, api_begin_transaction, api_param_assert,
     database::Database,
     extractors::Token,
 };
@@ -118,18 +118,6 @@ async fn do_upload_file_start(
         let project_uid =
             token.verify_joined_project(&mut trans, pid).await?;
 
-        let info = project::Info::get_by_id(&mut trans, pid)
-            .await
-            .context("project::Info::get_by_id")?
-            .context("pid verified by verify_joined_project")?;
-        // expect client implementation check this before sending request
-        api_param_assert!(
-            (info.pre_submit_file_size_min
-                ..=info.pre_submit_file_size_max)
-                .contains(&size),
-            "bad file size"
-        );
-
         let (status, _) =
             project_user::Status::get_by_puid(&mut trans, project_uid)
                 .await
@@ -144,6 +132,28 @@ async fn do_upload_file_start(
         } else {
             return Ok(UploadFileRes::InvalidStage);
         };
+
+        let info = project::Info::get_by_id(&mut trans, pid)
+            .await
+            .context("project::Info::get_by_id")?
+            .context("pid verified by verify_joined_project")?;
+        // expect client implementation check this before sending request
+        if stage.is_pre_submit() {
+            api_param_assert!(
+                (info.pre_submit_file_size_min
+                    ..=info.pre_submit_file_size_max)
+                    .contains(&size),
+                "bad file size"
+            );
+        } else if stage.is_submit() {
+            api_param_assert!(
+                (info.submit_file_size_min..=info.submit_file_size_max)
+                    .contains(&size),
+                "bad file size"
+            );
+        } else {
+            api_bail!("unreachable");
+        }
 
         let source = file::Source::new(pid, token.uid, None, stage);
 
