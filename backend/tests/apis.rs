@@ -1837,6 +1837,35 @@ async fn manager_upload_file_finish(
     }
     "#);
 
+    next!(app; manager_master);
+
+    Ok(())
+}
+
+async fn manager_master(mut app: TestApp) -> anyhow::Result<()> {
+    let file_id = *app.get::<i64>("test_file::master::file_id");
+
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/master")
+        .send_cbor(cbor!({"data" => {
+            "puid" => 1,
+            "file_id" => file_id,
+            "comment" => "some comment for master, or maybe empty",
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 5
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
+
     Ok(())
 }
 

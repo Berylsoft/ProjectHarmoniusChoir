@@ -573,6 +573,13 @@ pub async fn get_file_users_by_id(
     Ok(result.into_boxed_slice())
 }
 
+/// check if the file is uploaded by the user
+/// for the project and stage
+///
+/// or
+///
+/// check if the file is uploaded by the manager
+/// for the user and project and stage
 /// # Errors
 /// database error
 pub async fn is_uploaded_by(
@@ -580,17 +587,19 @@ pub async fn is_uploaded_by(
     id: i64,
     source: Source,
 ) -> anyhow::Result<bool> {
-    sqlx::query_scalar::<_, i64>(include_str!("./sqls/can_use_file.sql"))
-        .bind(id)
-        .bind(source.project_id)
-        .bind(source.user_id)
-        .bind(source.manager_id)
-        .bind(source.manager_id)
-        .bind(source.stage.into_str())
-        .fetch_one(&mut **trans)
-        .await
-        .context("can_use_file")
-        .map(|it| it > 0)
+    sqlx::query_scalar::<_, i64>(include_str!(
+        "./sqls/is_uploaded_by.sql"
+    ))
+    .bind(id)
+    .bind(source.project_id)
+    .bind(source.user_id)
+    .bind(source.manager_id)
+    .bind(source.manager_id)
+    .bind(source.stage.into_str())
+    .fetch_one(&mut **trans)
+    .await
+    .context("is_uploaded_by")
+    .map(|it| it > 0)
 }
 
 /// expect valid `id`, and checked by `can_use_file`
