@@ -1866,6 +1866,38 @@ async fn manager_master(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_master_info);
+
+    Ok(())
+}
+
+async fn manager_master_info(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/master_info")
+        .send_cbor(cbor!({"data" => {
+            "puid" => 1,
+        }})?)
+        .await?;
+
+    let mut body = res.body_to_cbor()?;
+    let created_at = cbor_remove(&mut body, &["Ok", "created_at"]);
+    let _: DateTime<Utc> = created_at.into_text().unwrap().parse()?;
+
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
+    HTTP/1.1 200 OK
+    content-length: 99
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "mid": 0,
+        "comment": "some comment for master, or maybe empty"
+      }
+    }
+    "#);
+
     Ok(())
 }
 

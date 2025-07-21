@@ -28,6 +28,7 @@ pub mod list_project_users;
 pub mod list_projects;
 pub mod login;
 pub mod master;
+pub mod master_info;
 pub mod pre_submit_info;
 pub mod pre_submit_review;
 pub mod project_manager_edit;

@@ -201,6 +201,10 @@ where
             routing::post(manager::master::router),
         )
         .route(
+            "/api/manager/master_info",
+            routing::post(manager::master_info::router),
+        )
+        .route(
             "/api/manager/root/create_project",
             routing::post(create_project::router),
         )
