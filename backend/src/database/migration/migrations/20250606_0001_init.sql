@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS "status_mixed" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"project_user_id" INTEGER NOT NULL,
 	"manager_id" INTEGER NOT NULL,
+	"job_id" INTEGER NOT NULL,
 	"created_at" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
@@ -176,6 +177,31 @@ CREATE TABLE IF NOT EXISTS "checked_files" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"group_id" INTEGER NOT NULL,
 	"file_id" INTEGER NOT NULL,
+	PRIMARY KEY("id")
+);
+
+CREATE TABLE IF NOT EXISTS "bundle_jobs" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"project_id" INTEGER NOT NULL,
+	-- submitter
+	"manager_id" INTEGER NOT NULL,
+	"created_at" TEXT NOT NULL,
+	PRIMARY KEY("id")
+);
+
+CREATE TABLE IF NOT EXISTS "bundle_job_files" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"job_id" INTEGER NOT NULL,
+	"project_user_id" INTEGER NOT NULL,
+	"file_id" INTEGER NOT NULL,
+	PRIMARY KEY("id")
+);
+
+CREATE TABLE IF NOT EXISTS "bundle_jobs_finished" (
+	"id" INTEGER NOT NULL UNIQUE,
+	"job_id" INTEGER NOT NULL,
+	"finished_at" TEXT NOT NULL,
+	"s3_key" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
 

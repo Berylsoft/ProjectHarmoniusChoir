@@ -1898,6 +1898,129 @@ async fn manager_master_info(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_bundle_job_submit);
+
+    Ok(())
+}
+
+async fn manager_bundle_job_submit(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/bundle_job")
+        .send_cbor(cbor!({"data" => {
+            "Submit" => {
+                "pid" => 1,
+                "puids" => [1],
+            }
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 12
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": "Success"
+    }
+    "#);
+
+    next!(app; manager_bundle_job_list);
+
+    Ok(())
+}
+
+async fn manager_bundle_job_list(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/bundle_job")
+        .send_cbor(cbor!({"data" => {
+            "List" => {
+                "pid" => 1,
+            }
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 32
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "Jobs": {
+          "jobs": [
+            {
+              "id": 1,
+              "finished": false
+            }
+          ]
+        }
+      }
+    }
+    "#);
+
+    next!(app; manager_bundle_job_download);
+
+    Ok(())
+}
+
+async fn manager_bundle_job_download(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let mut jobs = app.state.pending_jobs.lock().await;
+    let job = jobs.get_mut(&1).unwrap().wait.take().unwrap();
+    drop(jobs);
+    let _ = job.await;
+
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/bundle_job")
+        .send_cbor(cbor!({"data" => {
+            "Download" => {
+                "job_id" => 1,
+            }
+        }})?)
+        .await?;
+
+    let mut body = res.body_to_cbor()?;
+    let presigned_req =
+        cbor_get(&mut body, &["Ok", "Download", "presigned_req"]);
+    let uri = cbor_remove(presigned_req, &["uri"]).into_text().unwrap();
+    let method = cbor_get(presigned_req, &["method"]).as_text().unwrap();
+    tracing::info!("download uri: {uri}");
+
+    assert_eq!(method, "GET");
+
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
+    HTTP/1.1 200 OK
+    content-length: 375
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "Download": {
+          "presigned_req": {
+            "method": "GET",
+            "headers": []
+          }
+        }
+      }
+    }
+    "#);
+
+    let res = reqwest::Client::new().get(uri).send().await?;
+    insta::assert_snapshot!(res.status(), @"200 OK");
+
+    let data = res.bytes().await?.to_vec();
+    let file_data = app.get::<Box<[u8]>>("test_file::data");
+    assert!(data.len() > file_data.len());
+
     Ok(())
 }
 

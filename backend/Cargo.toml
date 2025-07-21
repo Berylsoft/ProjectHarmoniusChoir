@@ -34,6 +34,8 @@ sqlx = { version = "0.8.6", features = [
     "chrono",
 ] }
 strum = { version = "0.27.1", features = ["derive"] }
+tar = "0.4.44"
+tempfile = "3.20.0"
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
 totp-rs = { version = "5.7.0", features = ["otpauth"] }
@@ -57,4 +59,3 @@ tower = { version = "0.5.2", features = ["util"] }
 
 [profile.dev.package]
 insta.opt-level = 3
-similar.opt-level = 3

@@ -4,6 +4,7 @@
 #![allow(clippy::default_trait_access)]
 
 use std::{
+    collections::HashMap,
     env::{self, VarError},
     ffi::OsStr,
     fmt::Debug,
@@ -24,7 +25,10 @@ use ed25519_dalek::{
 };
 use mimalloc::MiMalloc;
 use redis::aio::MultiplexedConnection;
-use tokio::net::TcpListener;
+use tokio::{
+    net::TcpListener,
+    sync::{Mutex, oneshot},
+};
 use tower_http::{
     request_id::{
         MakeRequestId, PropagateRequestIdLayer, RequestId,
@@ -94,26 +98,42 @@ impl S3 {
 
 impl_deref!(ref S3 => aws_sdk_s3::Client = .client);
 
+#[derive(Debug)]
+pub struct PendingJob {
+    pub cancel: Option<oneshot::Sender<()>>,
+    pub wait: Option<oneshot::Receiver<()>>,
+}
+
+pub type PendingJobs = Arc<Mutex<HashMap<i64, PendingJob>>>;
+
 #[derive(Debug, Clone)]
 pub struct ServerState {
     pub key: SigningKey,
     pub db: Database,
     pub cache: MultiplexedConnection,
     pub s3: S3,
+    pub pending_jobs: PendingJobs,
 }
 
 impl ServerState {
     #[must_use]
-    pub const fn new(
+    pub fn new(
         key: SigningKey,
         db: Database,
         cache: MultiplexedConnection,
         s3: S3,
     ) -> Self {
-        Self { key, db, cache, s3 }
+        Self {
+            key,
+            db,
+            cache,
+            s3,
+            pending_jobs: Default::default(),
+        }
     }
 }
 
+#[expect(clippy::too_many_lines)]
 pub fn router<MakeReqId>(
     state: ServerState,
     make_req_id: MakeReqId,
@@ -203,6 +223,10 @@ where
         .route(
             "/api/manager/master_info",
             routing::post(manager::master_info::router),
+        )
+        .route(
+            "/api/manager/bundle_job",
+            routing::post(manager::bundle_job::router),
         )
         .route(
             "/api/manager/root/create_project",
@@ -389,7 +413,13 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
 
     let s3 = init_s3().await.context("init s3")?;
 
-    let state = ServerState { key, db, cache, s3 };
+    let state = ServerState {
+        key,
+        db,
+        cache,
+        s3,
+        pending_jobs: Default::default(),
+    };
 
     let default_password = init_root_if_not_exists(&state)
         .await
@@ -399,6 +429,28 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
     }
 
     Ok(state)
+}
+
+async fn cancel_jobs(jobs: &PendingJobs) {
+    // expect the job remove the entry before send to wait
+    loop {
+        let mut jobs = jobs.lock().await;
+        let Some((id, job)) = jobs.iter_mut().next() else {
+            break;
+        };
+        info!("canceling job {id}");
+
+        if let Some(cancel) = job.cancel.take() {
+            let _ = cancel.send(());
+        }
+
+        let Some(wait) = job.wait.take() else {
+            continue;
+        };
+        drop(jobs);
+
+        let _ = wait.await;
+    }
 }
 
 /// # Errors
@@ -421,10 +473,12 @@ pub async fn run() -> anyhow::Result<()> {
 
     info!("listening on {host}");
 
-    axum::serve(listener, router(state, ServerMakeRequestId))
+    axum::serve(listener, router(state.clone(), ServerMakeRequestId))
         .with_graceful_shutdown(shutdown_signal())
         .await
         .context("failed to serve")?;
+
+    cancel_jobs(&state.pending_jobs).await;
 
     Ok(())
 }
