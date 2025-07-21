@@ -89,6 +89,16 @@ impl Stage {
     }
 
     #[must_use]
+    pub const fn is_pre_submit(&self) -> bool {
+        matches!(self, Self::PreSubmit)
+    }
+
+    #[must_use]
+    pub const fn is_submit(&self) -> bool {
+        matches!(self, Self::Submit)
+    }
+
+    #[must_use]
     pub const fn is_master(&self) -> bool {
         matches!(self, Self::Master)
     }
@@ -286,8 +296,8 @@ pub(crate) async fn upload_finish(
         "./sqls/get_file_s3_key_by_id_uid_mid.sql"
     ))
     .bind(file_id)
-    .bind(user_id)
     .bind(manager_id)
+    .bind(user_id)
     .bind(manager_id)
     .fetch_optional(&mut **trans)
     .await

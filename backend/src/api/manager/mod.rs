@@ -33,6 +33,7 @@ pub mod project_manager_edit;
 pub mod submit_info;
 pub mod submit_review;
 pub mod template;
+pub mod upload_file;
 
 const ROOT_MID: i64 = 0;
 const DEFAULT_PASSWORD_LEN: usize = 32;

@@ -1701,6 +1701,142 @@ async fn manager_submit_review(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_upload_file_start);
+
+    Ok(())
+}
+
+async fn manager_upload_file_start(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let test_file = app.get::<Box<[u8]>>("test_file::data").clone();
+
+    let md5_hex = format!("{:x}", md5::compute(&test_file));
+    let mut head = Box::new([0_u8; 12]);
+    let copy_len = test_file.len().min(12);
+    head[..copy_len].copy_from_slice(&test_file[..copy_len]);
+
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/upload_file")
+        .send_cbor(cbor!({"data" => {
+            "Start" => {
+                "puid" => 1,
+                "name" => "test.aac",
+                "size" => test_file.len(),
+                "md5" => md5_hex,
+                "head" => head.encode_hex::<String>(),
+            }
+        }})?)
+        .await?;
+
+    let mut body = res.body_to_cbor()?;
+
+    let file_id: i128 = cbor_get(&mut body, &["Ok", "File", "id"])
+        .as_integer()
+        .unwrap()
+        .into();
+    let file_id = file_id as i64;
+    app.set::<i64>("test_file::master::file_id", file_id);
+
+    let presigned_req =
+        cbor_get(&mut body, &["Ok", "File", "presigned_req"]);
+    let uri = cbor_remove(presigned_req, &["uri"])
+        .as_text()
+        .unwrap()
+        .to_string();
+
+    #[derive(Deserialize)]
+    struct PresignedReq {
+        method: String,
+        headers: Vec<(String, String)>,
+    }
+    let presigned_req: PresignedReq = presigned_req.deserialized()?;
+    assert_eq!(presigned_req.method, "PUT");
+
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
+    HTTP/1.1 200 OK
+    content-length: 533
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "File": {
+          "id": 2,
+          "presigned_req": {
+            "method": "PUT",
+            "headers": [
+              [
+                "content-length",
+                "100"
+              ],
+              [
+                "content-md5",
+                "XXP6UYU9zlv6g+RDAH4LkA=="
+              ],
+              [
+                "content-type",
+                "audio/aac"
+              ]
+            ]
+          }
+        }
+      }
+    }
+    "#);
+
+    let headers = {
+        use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+        let mut headers = HeaderMap::new();
+        for (k, v) in presigned_req.headers {
+            headers.insert(
+                HeaderName::from_str(&k)?,
+                HeaderValue::from_str(&v)?,
+            );
+        }
+        headers
+    };
+
+    let res = reqwest::Client::new()
+        .put(uri)
+        .headers(headers)
+        .body(test_file.to_vec())
+        .send()
+        .await?;
+    insta::assert_snapshot!(res.status(), @"200 OK");
+
+    next!(app; manager_upload_file_finish);
+
+    Ok(())
+}
+
+async fn manager_upload_file_finish(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let file_id = *app.get::<i64>("test_file::master::file_id");
+
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/upload_file")
+        .send_cbor(cbor!({"data" => {
+            "Finish" => {
+                "file_id" => file_id,
+            }
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 12
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": "Success"
+    }
+    "#);
+
     Ok(())
 }
 

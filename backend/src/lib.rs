@@ -193,6 +193,10 @@ where
             routing::post(manager::submit_review::router),
         )
         .route(
+            "/api/manager/upload_file",
+            routing::post(manager::upload_file::router),
+        )
+        .route(
             "/api/manager/root/create_project",
             routing::post(create_project::router),
         )
