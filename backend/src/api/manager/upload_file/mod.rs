@@ -97,6 +97,10 @@ async fn do_upload_file_start(
         tracing::debug!("unknown file type");
         return Ok(UploadFileRes::InvalidFileType);
     };
+    if file_type != file::Type::Wav {
+        tracing::debug!("not wav");
+        return Ok(UploadFileRes::InvalidFileType);
+    }
     if !file_type.is_same_as_ext(&*req.name) {
         tracing::debug!("file type not equal to extension");
         return Ok(UploadFileRes::InvalidFileType);
