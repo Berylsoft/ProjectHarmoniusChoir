@@ -667,3 +667,23 @@ pub async fn get_checked_files_by_group_id(
     .await
     .context("get_checked_files_by_group_id")
 }
+
+pub fn is_valid_filename(name: &str) -> bool {
+    if !sanitize_filename::is_sanitized_with_options(
+        name,
+        sanitize_filename::OptionsForCheck {
+            windows: true,
+            truncate: false,
+        },
+    ) {
+        tracing::debug!("file name contains invalid characters");
+        return false;
+    }
+
+    if name.chars().count() > 128 {
+        tracing::debug!("file name too long");
+        return false;
+    }
+
+    true
+}

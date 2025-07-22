@@ -90,6 +90,8 @@ async fn do_upload_file_start(
     token: ManagerToken,
     req: UploadFileStart,
 ) -> ApiResult<UploadFileRes, ToCbor> {
+    api_param_assert!(file::is_valid_filename(&req.name));
+
     let file_type = file::Type::detect(&req.head);
     let Some(file_type) = file_type else {
         tracing::debug!("unknown file type");

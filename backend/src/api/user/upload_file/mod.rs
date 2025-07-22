@@ -47,6 +47,7 @@ pub enum UploadFileRes {
     InvalidStage,
     CountReached,
     CapacityReached,
+    InvalidFileName,
     InvalidFileType,
     InvalidFile,
     UploadNotFinish,
@@ -101,6 +102,8 @@ async fn do_upload_file_start(
     md5: Box<[u8; 16]>,
     head: Box<[u8; 12]>,
 ) -> ApiResult<UploadFileRes, ToJson> {
+    api_param_assert!(file::is_valid_filename(&name));
+
     let file_type = file::Type::detect(&head);
     let Some(file_type) = file_type else {
         tracing::debug!("unknown file type");

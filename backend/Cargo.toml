@@ -24,6 +24,7 @@ num_enum = "0.7.4"
 rand = "0.9.1"
 rand_core = "0.6.4"
 redis = { version = "0.32.0", features = ["tokio-comp"] }
+sanitize-filename = "0.6.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_bytes = "0.11.17"
 sha2 = "0.10.9"
