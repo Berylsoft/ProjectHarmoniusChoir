@@ -270,22 +270,10 @@ async fn do_job_download(
             api_bail_status!("job not finish");
         };
 
-        let req = s3
-            .get_object()
-            .bucket(s3.bucket())
-            .key(s3_key)
-            .presigned(
-                PresigningConfig::builder()
-                    .expires_in(Duration::from_secs(15 * 60))
-                    .build()
-                    .context("expect vaild expires_in")?,
-            )
-            .await
-            .context("presigning download request")?;
+        let presigned_req =
+            file::pre_signed_get_simple(&s3, s3_key).await?;
 
-        ApiResult::Ok(BundleJobRes::Download {
-            presigned_req: req.into(),
-        })
+        ApiResult::Ok(BundleJobRes::Download { presigned_req })
     }
     .await;
 

@@ -14,6 +14,7 @@ use std::{
 };
 
 use anyhow::Context;
+use aws_sdk_s3::primitives::{ByteStream, SdkBody};
 use axum::{
     Router,
     body::Body,
@@ -367,6 +368,8 @@ impl TestApp {
 }
 
 impl TestApp {
+    const ATTACHMENT: &[u8] = &[0x11, 0x12, 0xef, 0xff];
+
     fn new_db_tmp_file() -> anyhow::Result<NamedTempFile> {
         tempfile::Builder::new()
             .prefix("backend-sqlite")
@@ -404,6 +407,7 @@ impl TestApp {
             s3.put_object()
                 .bucket(s3.bucket())
                 .key("test")
+                .body(ByteStream::from_static(Self::ATTACHMENT))
                 .send()
                 .await
                 .context("create attachment test file")?;
@@ -1653,6 +1657,53 @@ async fn user_agree_nda(mut app: TestApp) -> anyhow::Result<()> {
       "Ok": null
     }
     "#);
+
+    next!(app; user_get_attachment);
+
+    Ok(())
+}
+
+async fn user_get_attachment(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/get_attachment")
+        .send_json(json!({"data": {
+            "pid": 1,
+        }}))
+        .await?;
+
+    let mut body = res.body_to_json()?;
+    let presigned_req = json_get(&mut body, &["Ok", "presigned_req"]);
+    let uri = json_remove(presigned_req, &["uri"])
+        .as_str()
+        .unwrap()
+        .to_string();
+    let method = json_get(presigned_req, &["method"]).as_str().unwrap();
+    tracing::info!("download uri: {uri}");
+
+    assert_eq!(method, "GET");
+
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
+    HTTP/1.1 200 OK
+    content-length: 363
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "presigned_req": {
+          "headers": [],
+          "method": "GET"
+        }
+      }
+    }
+    "#);
+
+    let res = reqwest::Client::new().get(uri).send().await?;
+    insta::assert_snapshot!(res.status(), @"200 OK");
+
+    let data = res.bytes().await?.to_vec();
+    assert_eq!(TestApp::ATTACHMENT, data);
 
     next!(app; user_submit);
 

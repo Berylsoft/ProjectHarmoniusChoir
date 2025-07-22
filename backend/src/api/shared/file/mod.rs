@@ -687,3 +687,23 @@ pub fn is_valid_filename(name: &str) -> bool {
 
     true
 }
+
+/// # Errors
+/// pre-sign failed
+pub async fn pre_signed_get_simple(
+    s3: &S3,
+    key: impl Into<String>,
+) -> anyhow::Result<PresignedReq> {
+    s3.get_object()
+        .bucket(s3.bucket())
+        .key(key)
+        .presigned(
+            PresigningConfig::builder()
+                .expires_in(Duration::from_secs(15 * 60))
+                .build()
+                .context("expect vaild expires_in")?,
+        )
+        .await
+        .context("presigning download request")
+        .map(Into::into)
+}
