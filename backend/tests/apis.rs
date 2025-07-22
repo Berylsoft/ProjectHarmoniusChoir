@@ -1209,7 +1209,7 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 287
+    content-length: 333
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1224,7 +1224,9 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
           "submit_file_size_min": 1000000
         },
         "nda_info": null,
-        "status": "Entered"
+        "pre_submit_detail": null,
+        "status": "Entered",
+        "submit_detail": null
       }
     }
     "#);
@@ -1595,7 +1597,7 @@ async fn user_project_info_after_pre_submit_passed(
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 312
+    content-length: 407
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1612,7 +1614,15 @@ async fn user_project_info_after_pre_submit_passed(
         "nda_info": {
           "Pending": "the nda"
         },
-        "status": "PreSubmitPassed"
+        "pre_submit_detail": {
+          "Passed": {
+            "choir": true,
+            "harmony": true,
+            "lead": false
+          }
+        },
+        "status": "PreSubmitPassed",
+        "submit_detail": null
       }
     }
     "#);

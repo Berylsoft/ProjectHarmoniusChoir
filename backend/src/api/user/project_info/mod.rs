@@ -6,7 +6,7 @@ use crate::{
     ServerState,
     api::{
         self, ApiResult, ToJson,
-        shared::{project, project_user},
+        shared::{project, project_user, submit},
         user::UserToken,
     },
     api_begin_transaction, api_param_assert,
@@ -23,8 +23,12 @@ pub struct ProjectInfoReq {
 pub struct ProjectInfoRes {
     info: project::Info,
     status: project_user::Status,
+    /// if passed/rejected
+    pre_submit_detail: Option<submit::PreSubmitStatus>,
     /// None for not applicable
     nda_info: Option<project_user::NdaStatus>,
+    /// if rejected
+    submit_detail: Option<submit::SubmitStatus>,
 }
 
 pub(crate) async fn router(
@@ -70,13 +74,36 @@ async fn do_project_info(
             status
         };
 
+        let pre_submit_detail = if status
+            > project_user::Status::PreSubmitted
+        {
+            Some(
+                submit::PreSubmitStatus::get_by_puid(&mut trans, puid)
+                    .await?,
+            )
+        } else {
+            None
+        };
+
         if status < project_user::Status::PreSubmitPassed {
             return Ok(ProjectInfoRes {
                 info,
                 status,
+                pre_submit_detail,
                 nda_info: None,
+                submit_detail: None,
             });
         }
+
+        let submit_detail =
+            if status == project_user::Status::SubmitRejected {
+                Some(
+                    submit::SubmitStatus::get_by_puid(&mut trans, puid)
+                        .await?,
+                )
+            } else {
+                None
+            };
 
         // pid/puid is verified in token.verify_joined_project
         let nda_status = project_user::NdaStatus::get_by_pid_puid(
@@ -88,7 +115,9 @@ async fn do_project_info(
         ApiResult::Ok(ProjectInfoRes {
             info,
             status,
+            pre_submit_detail,
             nda_info: Some(nda_status),
+            submit_detail,
         })
     }
     .await;

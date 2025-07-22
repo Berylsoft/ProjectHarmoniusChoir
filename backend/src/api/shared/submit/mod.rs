@@ -25,6 +25,27 @@ pub enum PreSubmitStatus {
     Passed(GroupInfo),
 }
 
+impl PreSubmitStatus {
+    /// expect project user by `puid` exists and pre-submit is exists and not pending
+    /// # Errors
+    /// database errors
+    pub async fn get_by_puid(
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        puid: i64,
+    ) -> anyhow::Result<Self> {
+        let row: PreSubmitReviewRow = sqlx::query_as(include_str!(
+            "./sqls/get_pre_submit_status_by_puid.sql"
+        ))
+        .bind(puid)
+        .fetch_one(&mut **trans)
+        .await
+        .context("get_pre_submit_status_by_puid")?;
+
+        row.try_into()
+            .context("PreSubmitReviewRow try_into PreSubmitStatus")
+    }
+}
+
 impl TryFrom<PreSubmitReviewRow> for PreSubmitStatus {
     type Error = anyhow::Error;
 
@@ -87,8 +108,6 @@ impl GroupInfo {
     }
 
     /// expect project user by `puid` exists and passed pre-submit
-    /// # Returns
-    /// None if project user not exists
     /// # Errors
     /// database errors
     pub async fn get_by_puid(
@@ -129,6 +148,27 @@ pub enum SubmitStatus {
         detail: Option<Box<str>>,
     },
     Passed,
+}
+
+impl SubmitStatus {
+    /// expect project user by `puid` exists and submit is exists and not pending
+    /// # Errors
+    /// database errors
+    pub async fn get_by_puid(
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        puid: i64,
+    ) -> anyhow::Result<Self> {
+        let row: SubmitReviewRow = sqlx::query_as(include_str!(
+            "./sqls/get_submit_status_by_puid.sql"
+        ))
+        .bind(puid)
+        .fetch_one(&mut **trans)
+        .await
+        .context("get_submit_status_by_puid")?;
+
+        row.try_into()
+            .context("SubmitReviewRow try_into SubmitStatus")
+    }
 }
 
 impl TryFrom<SubmitReviewRow> for SubmitStatus {
