@@ -9,7 +9,7 @@ use crate::{
     ServerState,
     api::{
         self, ApiResult, ToJson,
-        shared::{file, project_user},
+        shared::{file, project_user, submit},
         user::UserToken,
     },
     api_bail_not_found, api_bail_status, api_begin_transaction,
@@ -89,13 +89,21 @@ async fn do_submit(
 
         // expect passed pre_submit is the latest one
         // and current state is after pre submit passed
-        let passed_pre_submit_id: i64 = sqlx::query_scalar(include_str!(
-            "./sqls/get_last_pre_submit_by_puid.sql"
-        ))
-        .bind(puid)
-        .fetch_one(&mut *trans)
-        .await
-        .context("get_last_pre_submit_by_puid")?;
+        let group_info =
+            submit::GroupInfo::get_by_puid(&mut trans, puid).await?;
+        let passed_pre_submit_id: Option<i64> = if group_info.choir {
+            Some(
+                sqlx::query_scalar(include_str!(
+                    "./sqls/get_last_pre_submit_by_puid.sql"
+                ))
+                .bind(puid)
+                .fetch_one(&mut *trans)
+                .await
+                .context("get_last_pre_submit_by_puid")?,
+            )
+        } else {
+            None
+        };
 
         let distinct_len =
             req.files.iter().copied().collect::<HashSet<_>>().len();
@@ -140,7 +148,7 @@ async fn check_file(
     id: i64,
     source: file::Source,
     source_pre_submit: file::Source,
-    passed_pre_submit_id: i64,
+    passed_pre_submit_id: Option<i64>,
 ) -> Result<(), api::ApiError<ToJson>> {
     let status = file::Status::get_by_id(trans, id)
         .await
@@ -151,7 +159,9 @@ async fn check_file(
 
     let (can_use, can_use_src) = if status == file::Status::Pending {
         (file::is_uploaded_by(trans, id, source).await?, "pending")
-    } else if let file::Status::Used(used) = status {
+    } else if let Some(passed_pre_submit_id) = passed_pre_submit_id
+        && let file::Status::Used(used) = status
+    {
         // expect a file only be used once
         // and is a passed pre submit
         if !matches!(&*used, [(file::Stage::PreSubmit, _)]) {
@@ -180,7 +190,11 @@ async fn check_file(
     } else {
         api_bail_status!(
             "invalid file",
-            format!("f{id} in invalid status for submit: {status:?}")
+            format!(
+                "f{id} in invalid status for submit: {status:?}, \
+in choir: {}",
+                passed_pre_submit_id.is_some()
+            )
         );
     };
 

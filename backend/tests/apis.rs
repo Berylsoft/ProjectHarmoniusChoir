@@ -1509,8 +1509,8 @@ async fn manager_pre_submit_review(
             "sid" => 1,
             "status" => {
                 "Passed" => {
-                    "lead" => true,
-                    "choir" => false,
+                    "lead" => false,
+                    "choir" => true,
                     "harmony" => true,
                 }
             }
@@ -1560,8 +1560,8 @@ async fn manager_list_project_users_after_pre_submit_passed(
             "status": "PreSubmitPassed",
             "name": "TheName",
             "group_info": {
-              "lead": true,
-              "choir": false,
+              "lead": false,
+              "choir": true,
               "harmony": true
             }
           }
