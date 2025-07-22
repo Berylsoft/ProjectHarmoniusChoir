@@ -345,7 +345,6 @@ async fn run_job(
     }
 
     let temp_file = NamedTempFile::new().context("tempfile")?;
-    let mut tar_header = tar::Header::new_gnu();
     let mut tar_builder = tar::Builder::new(temp_file);
     let base_path = PathBuf::from(job.id.to_string());
 
@@ -380,6 +379,12 @@ async fn run_job(
             },
         );
 
+        let mut tar_header = tar::Header::new_gnu();
+        tar_header.set_size(
+            body.len().try_into().context("file size too big")?,
+        );
+        tar_header.set_mode(0o644);
+        tar_header.set_entry_type(tar::EntryType::file());
         tar_builder
             .append_data(
                 &mut tar_header,
