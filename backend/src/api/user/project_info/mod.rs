@@ -27,6 +27,8 @@ pub struct ProjectInfoRes {
     pre_submit_detail: Option<submit::PreSubmitStatus>,
     /// None for not applicable
     nda_info: Option<project_user::NdaStatus>,
+    /// after pre-submit passed and nda agreed
+    have_attachment: Option<bool>,
     /// if rejected
     submit_detail: Option<submit::SubmitStatus>,
 }
@@ -91,6 +93,7 @@ async fn do_project_info(
                 status,
                 pre_submit_detail,
                 nda_info: None,
+                have_attachment: None,
                 submit_detail: None,
             });
         }
@@ -112,11 +115,23 @@ async fn do_project_info(
         .await
         .context("project_user::NdaStatus::get_by_pid_puid")?;
 
+        let have_attachment = if nda_status.is_agreed_or_no_nda() {
+            // pid verified by verify_joined_project
+            Some(
+                project::get_attachment_key_by_id(&mut trans, req.pid)
+                    .await?
+                    .is_some(),
+            )
+        } else {
+            None
+        };
+
         ApiResult::Ok(ProjectInfoRes {
             info,
             status,
             pre_submit_detail,
             nda_info: Some(nda_status),
+            have_attachment,
             submit_detail,
         })
     }

@@ -211,6 +211,10 @@ impl NdaStatus {
 
         Ok(ret)
     }
+
+    pub fn is_agreed_or_no_nda(&self) -> bool {
+        !matches!(self, Self::Pending(_))
+    }
 }
 
 /// # Errors

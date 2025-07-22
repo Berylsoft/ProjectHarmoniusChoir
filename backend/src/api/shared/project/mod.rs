@@ -71,3 +71,21 @@ struct InfoRow {
     submit_file_size_max: i64,
     end_time: String,
 }
+
+/// expect project `id` exists
+/// # Errors
+/// database errors
+pub async fn get_attachment_key_by_id(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+) -> anyhow::Result<Option<Box<str>>> {
+    let key: Option<String> = sqlx::query_scalar(include_str!(
+        "./sqls/get_attachment_key_by_id.sql"
+    ))
+    .bind(id)
+    .fetch_optional(&mut **trans)
+    .await
+    .context("get_attachment_key_by_id")?;
+
+    Ok(key.map(String::into_boxed_str))
+}

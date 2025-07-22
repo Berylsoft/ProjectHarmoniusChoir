@@ -1209,12 +1209,13 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 333
+    content-length: 356
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
+        "have_attachment": null,
         "info": {
           "name": "Test Project",
           "pre_submit_file_size_max": 500000000,
@@ -1597,12 +1598,13 @@ async fn user_project_info_after_pre_submit_passed(
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 407
+    content-length: 430
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
+        "have_attachment": null,
         "info": {
           "name": "Test Project",
           "pre_submit_file_size_max": 500000000,
