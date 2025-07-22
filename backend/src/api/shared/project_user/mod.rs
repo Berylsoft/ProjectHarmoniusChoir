@@ -230,3 +230,20 @@ pub async fn get_pid_uid_by_id(
         .await
         .context("get_pid_uid_by_id")
 }
+
+/// expect the user passed pre-submit
+/// # Errors
+/// database errors
+pub async fn get_name_by_id(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+) -> anyhow::Result<Box<str>> {
+    sqlx::query_scalar(include_str!(
+        "./sqls/get_project_user_name_by_id.sql"
+    ))
+    .bind(id)
+    .fetch_one(&mut **trans)
+    .await
+    .context("get_project_user_name_by_id")
+    .map(String::into_boxed_str)
+}

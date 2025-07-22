@@ -16,7 +16,7 @@ use crate::{
         self, ApiResult, ToCbor,
         manager::ManagerToken,
         shared::{
-            file::{self, DownloadInfo, PresignedReq, download_info},
+            file::{self, PresignedReq, download_info},
             project_user,
         },
         spawn_await,
@@ -114,7 +114,7 @@ async fn do_job_submit(
 
         let mut pu_to_files: HashMap<i64, i64> =
             HashMap::with_capacity(puids.len());
-        let mut files: HashMap<i64, file::DownloadInfo> =
+        let mut files: HashMap<i64, (Box<str>, file::DownloadInfo)> =
             HashMap::with_capacity(puids.len());
 
         for puid in puids {
@@ -156,13 +156,17 @@ async fn do_job_submit(
                 )
             }
 
+            // expect pre-submit passed
+            let name =
+                project_user::get_name_by_id(&mut trans, puid).await?;
+
             let download_info =
                 file::download_info(&mut trans, file_id, pid)
                     .await?
                     .context("expect file_id, pid valid")?;
 
             pu_to_files.insert(puid, file_id);
-            files.insert(puid, download_info);
+            files.insert(puid, (name, download_info));
         }
 
         // ==================== write boundary ====================
@@ -284,8 +288,8 @@ struct Job {
     id: i64,
     pid: i64,
     mid: i64,
-    /// (`puid`, `_`)
-    files: HashMap<i64, file::DownloadInfo>,
+    /// (`puid`, (`name`, `_`))
+    files: HashMap<i64, (Box<str>, file::DownloadInfo)>,
 }
 
 fn spawn_job(pending_jobs: PendingJobs, db: Database, s3: S3, job: Job) {
@@ -345,7 +349,7 @@ async fn run_job(
     let mut tar_builder = tar::Builder::new(temp_file);
     let base_path = PathBuf::from(job.id.to_string());
 
-    for (&puid, info) in &job.files {
+    for (&puid, (uname, info)) in &job.files {
         check_cancel!(cancel);
 
         tracing::debug!("donwloading {}", info.s3_key);
@@ -360,10 +364,26 @@ async fn run_job(
         let body =
             file.body.collect().await.context("body.collect")?.to_vec();
 
+        let file_name = format!("{}_{}_{}", puid, uname, info.name);
+        // expect:
+        // puid <= 20 digit
+        // uname <= 20 character
+        // file name <= 128
+        // so 20 + 1 + 20 + 1 + 128 = 170
+        // no truncate needed
+        let file_name = sanitize_filename::sanitize_with_options(
+            file_name,
+            sanitize_filename::Options {
+                windows: true,
+                truncate: false,
+                replacement: "_",
+            },
+        );
+
         tar_builder
             .append_data(
                 &mut tar_header,
-                base_path.join(format!("{}_{}", puid, info.name)),
+                base_path.join(file_name),
                 body.as_slice(),
             )
             .context("tar_builder.append_data")?;
@@ -458,16 +478,22 @@ pub async fn resume_jobs(state: ServerState) -> anyhow::Result<()> {
             .await
             .context("get_files_by_job_id")?;
 
-            let mut pu_files: HashMap<i64, DownloadInfo> =
-                HashMap::with_capacity(files.len());
+            let mut pu_files: HashMap<
+                i64,
+                (Box<str>, file::DownloadInfo),
+            > = HashMap::with_capacity(files.len());
 
             for (puid, file_id) in files {
+                // expect pre-submit passed checked when submit job
+                let name = project_user::get_name_by_id(&mut trans, puid)
+                    .await?;
+
                 let download_info =
                     download_info(&mut trans, file_id, job.project_id)
                         .await?
                         .context("expect valid file id in jobs")?;
 
-                pu_files.insert(puid, download_info);
+                pu_files.insert(puid, (name, download_info));
             }
 
             let state = state.clone();

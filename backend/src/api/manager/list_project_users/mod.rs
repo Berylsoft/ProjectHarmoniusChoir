@@ -92,16 +92,11 @@ async fn do_list_project_user(
                     .await
                     .context("project_user::Status::get_by_puid")?;
 
-            let name_group_info: Option<(String, GroupInfo)> =
+            let name_group_info: Option<(Box<str>, GroupInfo)> =
                 if status >= project_user::Status::PreSubmitPassed {
                     Some((
-                        sqlx::query_scalar(include_str!(
-                            "./sqls/get_project_user_name_by_puid.sql"
-                        ))
-                        .bind(puid)
-                        .fetch_one(&mut *trans)
-                        .await
-                        .context("get_project_user_name_by_puid")?,
+                        project_user::get_name_by_id(&mut trans, puid)
+                            .await?,
                         submit::GroupInfo::get_by_puid(&mut trans, puid)
                             .await?,
                     ))
@@ -111,13 +106,7 @@ async fn do_list_project_user(
 
             let (name, group_info) = name_group_info.unzip();
 
-            result.push((
-                puid,
-                name.map(String::into_boxed_str),
-                status,
-                status_at,
-                group_info,
-            ));
+            result.push((puid, name, status, status_at, group_info));
         }
 
         match req.sort_by {
