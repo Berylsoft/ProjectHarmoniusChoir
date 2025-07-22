@@ -1101,7 +1101,6 @@ async fn user_join_project(mut app: TestApp) -> anyhow::Result<()> {
             "Join": {
                 "pid": 1,
                 "answer": "The Answer",
-                "name": "TheName",
             }
         }}))
         .await?;
@@ -1169,7 +1168,7 @@ async fn manager_list_project_users(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 53
+    content-length: 46
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1178,7 +1177,7 @@ async fn manager_list_project_users(
         "project_users": [
           {
             "id": 1,
-            "name": "TheName",
+            "name": null,
             "status": "Entered"
           }
         ]
@@ -1379,6 +1378,7 @@ async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
         .api("/user/pre_submit")
         .send_json(json!({"data": {
             "pid": 1,
+            "name": "TheName",
             "harmony_group_intention": true,
             "comment": "The Comment",
             "file_id": file_id,
@@ -1420,7 +1420,7 @@ async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 145
+    content-length: 158
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1429,6 +1429,7 @@ async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
         "pre_submits": [
           {
             "id": 1,
+            "name": "TheName",
             "harmony_group_intention": true,
             "comment": "The Comment",
             "file_info": {

@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS "users" (
 	"id" INTEGER NOT NULL,
 	"revision" INTEGER NOT NULL,
 	"is_deleted" BOOLEAN NOT NULL,
-	"name" TEXT NOT NULL,
 	-- only for token revoke
 	"token_id" INTEGER NOT NULL,
 	"wechat_openid" TEXT,
@@ -61,7 +60,6 @@ CREATE TABLE IF NOT EXISTS "project_users" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"user_id" INTEGER NOT NULL,
 	"project_id" INTEGER NOT NULL,
-	"name" TEXT NOT NULL,
 	"joined_at" TEXT NOT NULL,
 	PRIMARY KEY("id")
 );
@@ -116,6 +114,7 @@ CREATE TABLE IF NOT EXISTS "status_pre_submits" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"project_user_id" INTEGER NOT NULL,
 	"created_at" TEXT NOT NULL,
+	"name" TEXT NOT NULL,
 	"harmony_group_intention" BOOLEAN,
 	"comment" TEXT NOT NULL,
 	PRIMARY KEY("id")

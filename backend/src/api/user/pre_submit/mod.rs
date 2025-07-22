@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ServerState,
     api::{
-        self, ApiResult, ToJson,
+        self, ApiResult, ToJson, is_valid_name,
         shared::{file, project, project_user},
         user::UserToken,
     },
-    api_begin_transaction,
+    api_begin_transaction, api_param_assert,
     database::Database,
     extractors::Token,
 };
@@ -18,6 +18,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreSubmitReq {
     pid: i64,
+    name: Box<str>,
     harmony_group_intention: Option<bool>,
     comment: Box<str>,
 
@@ -55,10 +56,13 @@ async fn do_submit(
 ) -> ApiResult<PreSubmitRes, ToJson> {
     let PreSubmitReq {
         pid,
+        name,
         harmony_group_intention: hgi,
         comment,
         file_id,
     } = req;
+
+    api_param_assert!(is_valid_name(&name));
 
     api_begin_transaction!(db, conn, trans, Immediate);
 
@@ -117,6 +121,7 @@ async fn do_submit(
         ))
         .bind(project_uid)
         .bind(Utc::now().to_rfc3339())
+        .bind(&*name)
         .bind(hgi)
         .bind(&*comment)
         .fetch_one(&mut *trans)

@@ -79,7 +79,6 @@ async fn do_register_or_login(
             let ins_result =
                 sqlx::query(include_str!("./sqls/ins_new_user.sql"))
                     .bind(uid)
-                    .bind(format!("未命名用户{uid}"))
                     .bind(wechat_openid)
                     .execute(&mut *trans)
                     .await

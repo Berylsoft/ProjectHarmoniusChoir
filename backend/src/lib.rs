@@ -47,8 +47,7 @@ use crate::api::{
         init_root_if_not_exists, login, project_manager_edit,
     },
     user::{
-        self, join_project, revoke_all_tokens, update_name,
-        wechat_login_or_register,
+        self, join_project, revoke_all_tokens, wechat_login_or_register,
     },
 };
 
@@ -145,10 +144,6 @@ where
         .route(
             "/api/user/wechat_login_or_register",
             routing::post(wechat_login_or_register::router),
-        )
-        .route(
-            "/api/user/update_name",
-            routing::post(update_name::router),
         )
         .route(
             "/api/user/revoke_all_tokens",

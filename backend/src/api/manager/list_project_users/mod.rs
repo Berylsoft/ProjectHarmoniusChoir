@@ -38,7 +38,7 @@ pub struct ListProjectUsersRes {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectUser {
     id: i64,
-    name: Box<str>,
+    name: Option<Box<str>>,
     status: project_user::Status,
 }
 
@@ -70,9 +70,9 @@ async fn do_list_project_user(
         token.verify(&mut trans).await?;
         token.verify_can_access_project(&mut trans, req.pid).await?;
 
-        let project_users = sqlx::query_as::<_, (i64, String)>(
-            include_str!("./sqls/get_project_users_by_pid.sql"),
-        )
+        let project_users: Vec<i64> = sqlx::query_scalar(include_str!(
+            "./sqls/get_project_users_by_pid.sql"
+        ))
         .bind(req.pid)
         .fetch_all(&mut *trans)
         .await
@@ -80,13 +80,28 @@ async fn do_list_project_user(
 
         let mut result = Vec::with_capacity(project_users.len());
 
-        for (puid, name) in project_users {
+        for puid in project_users {
             let (status, status_at) =
                 project_user::Status::get_by_puid(&mut trans, puid)
                     .await
                     .context("project_user::Status::get_by_puid")?;
 
-            result.push((puid, name.into_boxed_str(), status, status_at));
+            let name = if status >= project_user::Status::PreSubmitPassed
+            {
+                Some(
+                    sqlx::query_scalar(include_str!(
+                        "./sqls/get_project_user_name_by_puid.sql"
+                    ))
+                    .bind(puid)
+                    .fetch_one(&mut *trans)
+                    .await
+                    .context("get_project_user_name_by_puid")?,
+                )
+            } else {
+                None
+            };
+
+            result.push((puid, name, status, status_at));
         }
 
         match req.sort_by {

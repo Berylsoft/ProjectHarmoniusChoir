@@ -1,6 +1,7 @@
 SELECT
     s.id as id,
     s.created_at as created_at,
+    s.name as name,
     s.harmony_group_intention as harmony_group_intention, -- null-able
     s.comment as comment,
     f.id as f_id,

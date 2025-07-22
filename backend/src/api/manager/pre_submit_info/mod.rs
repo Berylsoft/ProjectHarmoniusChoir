@@ -34,6 +34,7 @@ pub struct PreSubmitInfoRes {
 pub struct PreSubmitInfo {
     id: i64,
     created_at: DateTime<Utc>,
+    name: Box<str>,
     harmony_group_intention: Option<bool>,
     comment: Box<str>,
     file_info: file::Info,
@@ -67,6 +68,7 @@ async fn do_pre_submit_info(
         struct PreSubmitInfoRow {
             id: i64,
             created_at: String,
+            name: String,
             harmony_group_intention: Option<bool>,
             comment: String,
             f_id: i64,
@@ -125,6 +127,7 @@ async fn do_pre_submit_info(
                     .created_at
                     .parse()
                     .context("info.created_at.parse()")?,
+                name: i.name.into_boxed_str(),
                 harmony_group_intention: i.harmony_group_intention,
                 comment: i.comment.into_boxed_str(),
                 file_info: file::Info {

@@ -297,6 +297,44 @@ async fn verify_nonce<S>(
     }
 }
 
+#[must_use]
+pub fn is_valid_name(name: &str) -> bool {
+    const MAX_LENGTH: usize = 20;
+
+    if name.is_empty() {
+        return false;
+    }
+
+    if name.len() > MAX_LENGTH * 4 {
+        return false;
+    }
+
+    let mut cnt = 0;
+    for ch in name.chars() {
+        cnt += 1;
+        if cnt > MAX_LENGTH {
+            return false;
+        }
+
+        // check for Cc,Cs,Co
+        // Cs is not allowed in UTF-8, so checked by rust
+        // Cc:
+        if ch.is_control() {
+            return false;
+        }
+        // Co:
+        if matches!(ch, '\u{E000}'..='\u{F8FF}')
+            | matches!(ch, '\u{F_0000}'..='\u{F_FFFD}')
+            | matches!(ch, '\u{10_0000}'..='\u{10_FFFD}')
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// failed assert indicate a client fault
 #[macro_export]
 macro_rules! api_param_assert {
     ($expr:expr, $msg:literal) => {
@@ -312,6 +350,7 @@ macro_rules! api_param_assert {
     };
 }
 
+/// failed assert indicate a server fault
 #[macro_export]
 macro_rules! api_assert {
     ($expr:expr, $msg:literal) => {
@@ -326,6 +365,7 @@ macro_rules! api_assert {
     };
 }
 
+/// indicate a server fault
 #[macro_export]
 macro_rules! api_bail {
     ($($tt:tt)*) => {
@@ -335,6 +375,7 @@ macro_rules! api_bail {
     };
 }
 
+/// indicate a client fault
 #[macro_export]
 macro_rules! api_bail_not_found {
     ($msg:expr, $detail:expr) => {
@@ -348,6 +389,7 @@ macro_rules! api_bail_not_found {
     };
 }
 
+/// indicate a client fault
 #[macro_export]
 macro_rules! api_bail_status {
     ($msg:expr, $detail:expr) => {

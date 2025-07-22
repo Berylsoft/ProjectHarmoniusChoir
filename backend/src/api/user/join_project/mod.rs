@@ -16,11 +16,7 @@ pub enum JoinProjectReq {
     /// query the entry question
     Start { pid: i64 },
     /// actual join
-    Join {
-        pid: i64,
-        answer: Box<str>,
-        name: Box<str>,
-    },
+    Join { pid: i64, answer: Box<str> },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,12 +41,10 @@ pub(crate) async fn router(
             api::spawn_await(do_query_entry_question(db, token.0, pid))
                 .await??
         }
-        JoinProjectReq::Join { pid, answer, name } => {
+        JoinProjectReq::Join { pid, answer } => {
             api_param_assert!(pid >= 0);
-            api::spawn_await(do_join_project(
-                db, token.0, pid, answer, name,
-            ))
-            .await??
+            api::spawn_await(do_join_project(db, token.0, pid, answer))
+                .await??
         }
     };
 
@@ -96,7 +90,6 @@ async fn do_join_project(
     token: UserToken,
     pid: i64,
     answer: Box<str>,
-    name: Box<str>,
 ) -> ApiResult<JoinProjectRes, ToJson> {
     api_begin_transaction!(db, conn, trans, Immediate);
 
@@ -139,7 +132,6 @@ async fn do_join_project(
             sqlx::query(include_str!("./sqls/ins_project_user.sql"))
                 .bind(token.uid)
                 .bind(pid)
-                .bind(&*name)
                 .bind(Utc::now().to_rfc3339())
                 .execute(&mut *trans)
                 .await
