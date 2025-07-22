@@ -64,7 +64,11 @@ async fn do_project_info(
             .context("project::Info::get_by_id")?
             .context("pid verified by verify_joined_project")?;
 
-        // TODO: limit status to submit passed
+        let status = if status > project_user::Status::SubmitPassed {
+            project_user::Status::SubmitPassed
+        } else {
+            status
+        };
 
         if status < project_user::Status::PreSubmitPassed {
             return Ok(ProjectInfoRes {
