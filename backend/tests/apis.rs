@@ -1168,7 +1168,7 @@ async fn manager_list_project_users(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 46
+    content-length: 58
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1177,8 +1177,9 @@ async fn manager_list_project_users(
         "project_users": [
           {
             "id": 1,
+            "status": "Entered",
             "name": null,
-            "status": "Entered"
+            "group_info": null
           }
         ]
       }
@@ -1509,7 +1510,7 @@ async fn manager_pre_submit_review(
             "status" => {
                 "Passed" => {
                     "lead" => true,
-                    "choir" => true,
+                    "choir" => false,
                     "harmony" => true,
                 }
             }
@@ -1524,6 +1525,48 @@ async fn manager_pre_submit_review(
 
     {
       "Ok": "Success"
+    }
+    "#);
+
+    next!(app; manager_list_project_users_after_pre_submit_passed);
+
+    Ok(())
+}
+
+async fn manager_list_project_users_after_pre_submit_passed(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/list_project_users")
+        .send_cbor(cbor!({"data" => {
+            "pid" => 1,
+            "sort_by" => "Status",
+            "reverse" => false,
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 95
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "project_users": [
+          {
+            "id": 1,
+            "status": "PreSubmitPassed",
+            "name": "TheName",
+            "group_info": {
+              "lead": true,
+              "choir": false,
+              "harmony": true
+            }
+          }
+        ]
+      }
     }
     "#);
 

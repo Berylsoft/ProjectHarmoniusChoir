@@ -6,8 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ServerState,
     api::{
-        self, ApiResult, ToCbor, manager::ManagerToken,
-        shared::project_user, spawn_await,
+        self, ApiResult, ToCbor,
+        manager::ManagerToken,
+        shared::{
+            project_user,
+            submit::{self, GroupInfo},
+        },
+        spawn_await,
     },
     api_begin_transaction, api_param_assert,
     database::Database,
@@ -38,8 +43,9 @@ pub struct ListProjectUsersRes {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectUser {
     id: i64,
-    name: Option<Box<str>>,
     status: project_user::Status,
+    name: Option<Box<str>>,
+    group_info: Option<submit::GroupInfo>,
 }
 
 pub(crate) async fn router(
@@ -86,28 +92,38 @@ async fn do_list_project_user(
                     .await
                     .context("project_user::Status::get_by_puid")?;
 
-            let name = if status >= project_user::Status::PreSubmitPassed
-            {
-                Some(
-                    sqlx::query_scalar(include_str!(
-                        "./sqls/get_project_user_name_by_puid.sql"
+            let name_group_info: Option<(String, GroupInfo)> =
+                if status >= project_user::Status::PreSubmitPassed {
+                    Some((
+                        sqlx::query_scalar(include_str!(
+                            "./sqls/get_project_user_name_by_puid.sql"
+                        ))
+                        .bind(puid)
+                        .fetch_one(&mut *trans)
+                        .await
+                        .context("get_project_user_name_by_puid")?,
+                        submit::GroupInfo::get_by_puid(&mut trans, puid)
+                            .await?,
                     ))
-                    .bind(puid)
-                    .fetch_one(&mut *trans)
-                    .await
-                    .context("get_project_user_name_by_puid")?,
-                )
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
-            result.push((puid, name, status, status_at));
+            let (name, group_info) = name_group_info.unzip();
+
+            result.push((
+                puid,
+                name.map(String::into_boxed_str),
+                status,
+                status_at,
+                group_info,
+            ));
         }
 
         match req.sort_by {
             SortMethod::JoinedAt => {}
             SortMethod::Status => {
-                result.sort_by_key(|(_, _, status, status_at)| {
+                result.sort_by_key(|(_, _, status, status_at, _)| {
                     (*status, *status_at)
                 });
             }
@@ -118,7 +134,12 @@ async fn do_list_project_user(
 
         let result = result
             .into_iter()
-            .map(|(id, name, status, _)| ProjectUser { id, name, status })
+            .map(|(id, name, status, _, group_info)| ProjectUser {
+                id,
+                status,
+                name,
+                group_info,
+            })
             .collect_vec();
 
         ApiResult::Ok(result)

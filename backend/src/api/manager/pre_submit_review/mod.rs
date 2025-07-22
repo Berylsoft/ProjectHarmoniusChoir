@@ -85,11 +85,11 @@ async fn do_review(
                     reason: Some(reason.to_string()),
                 }
             }
-            submit::PreSubmitStatus::Passed {
+            submit::PreSubmitStatus::Passed(submit::GroupInfo {
                 lead,
                 choir,
                 harmony,
-            } => PreSubmitReviewRow {
+            }) => PreSubmitReviewRow {
                 status: submit::Status::Passed.to_string(),
                 lead: Some(lead),
                 choir: Some(choir),

@@ -21,14 +21,8 @@ pub enum Status {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PreSubmitStatus {
-    Rejected {
-        reason: PreSubmitRejectReason,
-    },
-    Passed {
-        lead: bool,
-        choir: bool,
-        harmony: bool,
-    },
+    Rejected { reason: PreSubmitRejectReason },
+    Passed(GroupInfo),
 }
 
 impl TryFrom<PreSubmitReviewRow> for PreSubmitStatus {
@@ -54,11 +48,11 @@ impl TryFrom<PreSubmitReviewRow> for PreSubmitStatus {
                 else {
                     anyhow::bail!("get group info when passed");
                 };
-                Self::Passed {
+                Self::Passed(GroupInfo {
                     lead,
                     choir,
                     harmony,
-                }
+                })
             }
         })
     }
@@ -71,6 +65,42 @@ pub struct PreSubmitReviewRow {
     pub choir: Option<bool>,
     pub harmony: Option<bool>,
     pub reason: Option<String>,
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, FromRow,
+)]
+pub struct GroupInfo {
+    pub lead: bool,
+    pub choir: bool,
+    pub harmony: bool,
+}
+
+impl GroupInfo {
+    #[must_use]
+    pub const fn new(lead: bool, choir: bool, harmony: bool) -> Self {
+        Self {
+            lead,
+            choir,
+            harmony,
+        }
+    }
+
+    /// expect project user by `puid` exists and passed pre-submit
+    /// # Returns
+    /// None if project user not exists
+    /// # Errors
+    /// database errors
+    pub async fn get_by_puid(
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        puid: i64,
+    ) -> anyhow::Result<Self> {
+        sqlx::query_as(include_str!("./sqls/get_group_info_by_puid.sql"))
+            .bind(puid)
+            .fetch_one(&mut **trans)
+            .await
+            .context("get_group_info_by_puid")
+    }
 }
 
 #[derive(
