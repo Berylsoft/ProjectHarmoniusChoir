@@ -1242,7 +1242,7 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
 }
 
 async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
-    let test_file = include_bytes!("./apis/test.aac")
+    let test_file = include_bytes!("./apis/test.wav")
         .iter()
         .copied()
         .pad_using(100, |_| 0)
@@ -1261,7 +1261,7 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
         .send_json(json!({"data": {
             "Start": {
                 "pid": 1,
-                "name": "test.aac",
+                "name": "test.wav",
                 "size": test_file.len(),
                 "md5": md5_hex,
                 "head": head.encode_hex::<String>(),
@@ -1310,11 +1310,11 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
               ],
               [
                 "content-md5",
-                "XXP6UYU9zlv6g+RDAH4LkA=="
+                "hHaV2RFSqeKo/Qb+I/xvEQ=="
               ],
               [
                 "content-type",
-                "audio/aac"
+                "audio/wav"
               ]
             ],
             "method": "PUT"
@@ -1442,7 +1442,7 @@ async fn manager_pre_submit_info(mut app: TestApp) -> anyhow::Result<()> {
             "comment": "The Comment",
             "file_info": {
               "id": 1,
-              "name": "test.aac"
+              "name": "test.wav"
             },
             "status": null
           }
@@ -1769,7 +1769,7 @@ async fn manager_submit_info(mut app: TestApp) -> anyhow::Result<()> {
             "files": [
               {
                 "id": 1,
-                "name": "test.aac"
+                "name": "test.wav"
               }
             ],
             "status": null
@@ -1829,7 +1829,7 @@ async fn manager_upload_file_start(
         .send_cbor(cbor!({"data" => {
             "Start" => {
                 "puid" => 1,
-                "name" => "test.aac",
+                "name" => "test.wav",
                 "size" => test_file.len(),
                 "md5" => md5_hex,
                 "head" => head.encode_hex::<String>(),
@@ -1880,11 +1880,11 @@ async fn manager_upload_file_start(
               ],
               [
                 "content-md5",
-                "XXP6UYU9zlv6g+RDAH4LkA=="
+                "hHaV2RFSqeKo/Qb+I/xvEQ=="
               ],
               [
                 "content-type",
-                "audio/aac"
+                "audio/wav"
               ]
             ]
           }
