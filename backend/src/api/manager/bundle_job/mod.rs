@@ -1,7 +1,7 @@
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Context as _;
-use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream};
+use aws_sdk_s3::primitives::ByteStream;
 use axum::{extract::State, response::IntoResponse};
 use chrono::Utc;
 use itertools::Itertools;

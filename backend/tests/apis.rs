@@ -14,7 +14,7 @@ use std::{
 };
 
 use anyhow::Context;
-use aws_sdk_s3::primitives::{ByteStream, SdkBody};
+use aws_sdk_s3::primitives::ByteStream;
 use axum::{
     Router,
     body::Body,
