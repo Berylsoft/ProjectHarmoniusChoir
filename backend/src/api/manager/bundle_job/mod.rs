@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use anyhow::Context as _;
 use aws_sdk_s3::primitives::ByteStream;
