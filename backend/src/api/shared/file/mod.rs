@@ -8,6 +8,7 @@ use aws_sdk_s3::{
 use base64::{Engine, prelude::BASE64_STANDARD};
 use itertools::Itertools as _;
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use strum::{EnumString, IntoStaticStr};
 
 use crate::{S3, api::shared::project_user};
@@ -260,10 +261,22 @@ pub(crate) async fn upload_start(
     md5: Box<[u8; 16]>,
     file_type: Type,
 ) -> anyhow::Result<(i64, PresignedReq)> {
-    let (key, req) =
-        presigned_upload_req(s3, source, size, &md5, file_type)
-            .await
-            .context("presigned_upload_req")?;
+    let key = format!(
+        "/uploads/{project}/{user}/{stage}/{md5}",
+        project = source.project_id,
+        user = source.user_id,
+        stage = source.stage.into_str(),
+        md5 = hex::encode(md5.as_slice()),
+    )
+    .into_boxed_str();
+    let req = presigned_upload_req(
+        s3,
+        &*key,
+        size,
+        &md5,
+        file_type.to_mime_str(),
+    )
+    .await?;
 
     let id =
         sqlx::query_scalar::<_, i64>(include_str!("./sqls/ins_file.sql"))
@@ -281,6 +294,65 @@ pub(crate) async fn upload_start(
             .context("ins_file")?;
 
     Ok((id, req))
+}
+
+/// expect `uid` and `mid` is valid
+pub(crate) async fn upload_list_uploading(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    uid: i64,
+    mid: Option<i64>,
+) -> anyhow::Result<Vec<i64>> {
+    sqlx::query_scalar(include_str!("./sqls/get_uploading_files.sql"))
+        .bind(mid)
+        .bind(uid)
+        .bind(mid)
+        .fetch_all(&mut **trans)
+        .await
+        .context("get_uploading_files")
+}
+
+/// # Returns
+/// None when `file_id` not exists
+/// or the file not created by the user or manager
+pub(crate) async fn upload_continue(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    s3: &S3,
+    id: i64,
+    uid: i64,
+    mid: Option<i64>,
+) -> anyhow::Result<Option<PresignedReq>> {
+    #[derive(Debug, FromRow)]
+    struct UploadInfoRow {
+        s3_key: String,
+        size: i64,
+        md5: Vec<u8>,
+        content_type: String,
+    }
+
+    let info: Option<UploadInfoRow> =
+        sqlx::query_as(include_str!("./sqls/get_upload_info.sql"))
+            .bind(id)
+            .bind(mid)
+            .bind(uid)
+            .bind(mid)
+            .fetch_optional(&mut **trans)
+            .await
+            .context("get_upload_info")?;
+
+    let Some(info) = info else { return Ok(None) };
+
+    presigned_upload_req(
+        s3,
+        info.s3_key,
+        info.size,
+        info.md5
+            .as_slice()
+            .try_into()
+            .context("expect size match")?,
+        info.content_type,
+    )
+    .await
+    .map(Some)
 }
 
 /// # Returns
@@ -333,38 +405,30 @@ pub(crate) async fn upload_finish(
 /// `key` and the pre-signed s3 upload request
 async fn presigned_upload_req(
     s3: &S3,
-    source: Source,
+    key: impl Into<String>,
     size: i64,
     md5: &[u8; 16],
-    file_type: Type,
-) -> anyhow::Result<(Box<str>, PresignedReq)> {
-    let key = format!(
-        "/uploads/{project}/{user}/{stage}/{md5}",
-        project = source.project_id,
-        user = source.user_id,
-        stage = source.stage.into_str(),
-        md5 = hex::encode(md5.as_slice()),
-    )
-    .into_boxed_str();
+    file_type: impl Into<String>,
+) -> anyhow::Result<PresignedReq> {
     let md5 = BASE64_STANDARD.encode(md5.as_slice());
 
     let req = s3
         .put_object()
         .bucket(&*s3.bucket)
-        .key(&*key)
+        .key(key)
         .content_md5(md5)
         .content_length(size)
-        .content_type(file_type.to_mime_str())
+        .content_type(file_type)
         .presigned(
             PresigningConfig::builder()
                 .expires_in(Duration::from_secs(30))
                 .build()
-                .expect("valid expires_in"),
+                .context("valid expires_in")?,
         )
         .await
         .context("presigning put_object for upload")?;
 
-    Ok((key, req.into()))
+    Ok(req.into())
 }
 
 pub(crate) async fn is_s3_file_exists(

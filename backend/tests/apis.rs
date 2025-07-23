@@ -1344,6 +1344,37 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
         .await?;
     insta::assert_snapshot!(res.status(), @"200 OK");
 
+    next!(app; user_upload_file_list);
+
+    Ok(())
+}
+
+async fn user_upload_file_list(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/upload_file")
+        .send_json(json!({"data": "List"}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 32
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "List": {
+          "file_ids": [
+            1
+          ]
+        }
+      }
+    }
+    "#);
+
+    // TODO: continue
+
     next!(app; user_upload_file_finish);
 
     Ok(())
