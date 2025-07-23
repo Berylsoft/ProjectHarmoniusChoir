@@ -1,4 +1,4 @@
-SELECT id
+SELECT id, name
     FROM files
     WHERE (
             (? IS NULL AND manager_id IS NULL AND user_id = ?)

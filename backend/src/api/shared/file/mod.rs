@@ -301,14 +301,23 @@ pub(crate) async fn upload_list_uploading(
     trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     uid: i64,
     mid: Option<i64>,
-) -> anyhow::Result<Vec<i64>> {
-    sqlx::query_scalar(include_str!("./sqls/get_uploading_files.sql"))
-        .bind(mid)
-        .bind(uid)
-        .bind(mid)
-        .fetch_all(&mut **trans)
-        .await
-        .context("get_uploading_files")
+) -> anyhow::Result<Vec<Info>> {
+    let infos: Vec<(i64, String)> =
+        sqlx::query_as(include_str!("./sqls/get_uploading_files.sql"))
+            .bind(mid)
+            .bind(uid)
+            .bind(mid)
+            .fetch_all(&mut **trans)
+            .await
+            .context("get_uploading_files")?;
+
+    Ok(infos
+        .into_iter()
+        .map(|(id, name)| Info {
+            id,
+            name: name.into_boxed_str(),
+        })
+        .collect_vec())
 }
 
 /// # Returns

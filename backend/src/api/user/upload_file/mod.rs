@@ -46,7 +46,7 @@ pub enum UploadFileRes {
         presigned_req: PresignedReq,
     },
     List {
-        file_ids: Vec<i64>,
+        files: Vec<file::Info>,
     },
     Continue {
         presigned_req: PresignedReq,
@@ -217,11 +217,11 @@ async fn do_upload_file_list(
     let result = async {
         token.verify(&mut trans).await?;
 
-        let file_ids =
+        let files =
             file::upload_list_uploading(&mut trans, token.uid, None)
                 .await?;
 
-        ApiResult::Ok(UploadFileRes::List { file_ids })
+        ApiResult::Ok(UploadFileRes::List { files })
     }
     .await;
 
