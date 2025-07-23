@@ -346,7 +346,7 @@ async fn run_job(
 
     let temp_file = NamedTempFile::new().context("tempfile")?;
     let mut tar_builder = tar::Builder::new(temp_file);
-    let base_path = PathBuf::from(job.id.to_string());
+    let base_path = job.id.to_string();
 
     for (&puid, (uname, info)) in &job.files {
         check_cancel!(cancel);
@@ -388,7 +388,7 @@ async fn run_job(
         tar_builder
             .append_data(
                 &mut tar_header,
-                base_path.join(file_name),
+                format!("{base_path}/{file_name}"),
                 body.as_slice(),
             )
             .context("tar_builder.append_data")?;
