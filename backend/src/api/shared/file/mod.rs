@@ -47,7 +47,7 @@ impl Info {
         trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         sid: i64,
     ) -> anyhow::Result<Vec<Self>> {
-        let files: Vec<(i64, String)> = sqlx::query_as(include_str!(
+        let files: Vec<InfoRow> = sqlx::query_as(include_str!(
             "./sqls/get_file_infos_of_submit_by_sid.sql"
         ))
         .bind(sid)
@@ -55,14 +55,61 @@ impl Info {
         .await
         .context("get_file_infos_of_submit_by_sid")?;
 
-        Ok(files
-            .into_iter()
-            .map(|(id, name)| Self {
-                id,
-                name: name.into_boxed_str(),
-            })
-            .collect_vec())
+        Ok(files.into_iter().map(Into::into).collect_vec())
     }
+
+    /// expect `puid` exists and is passed pre-submit
+    /// # Errors
+    /// database error
+    pub async fn get_of_latest_pre_submit_by_puid(
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        puid: i64,
+    ) -> anyhow::Result<Self> {
+        let file: InfoRow = sqlx::query_as(include_str!(
+            "./sqls/get_file_infos_of_latest_pre_submit_by_puid.sql"
+        ))
+        .bind(puid)
+        .fetch_one(&mut **trans)
+        .await
+        .context("get_file_infos_of_latest_pre_submit_by_puid")?;
+
+        Ok(file.into())
+    }
+
+    /// expect `uid` and `mid` is valid
+    /// # Errors
+    /// database error
+    pub async fn get_pending_by_uid_mid(
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        uid: i64,
+        mid: Option<i64>,
+    ) -> anyhow::Result<Vec<Self>> {
+        let files: Vec<InfoRow> =
+            sqlx::query_as(include_str!("./sqls/get_pending_files.sql"))
+                .bind(mid)
+                .bind(uid)
+                .bind(mid)
+                .fetch_all(&mut **trans)
+                .await
+                .context("get_pending_files")?;
+
+        Ok(files.into_iter().map(Into::into).collect_vec())
+    }
+}
+
+impl From<InfoRow> for Info {
+    fn from(value: InfoRow) -> Self {
+        Self {
+            id: value.id,
+            name: value.name.into_boxed_str(),
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+struct InfoRow {
+    id: i64,
+    name: String,
 }
 
 #[derive(
@@ -302,7 +349,7 @@ pub(crate) async fn upload_list_uploading(
     uid: i64,
     mid: Option<i64>,
 ) -> anyhow::Result<Vec<Info>> {
-    let infos: Vec<(i64, String)> =
+    let infos: Vec<InfoRow> =
         sqlx::query_as(include_str!("./sqls/get_uploading_files.sql"))
             .bind(mid)
             .bind(uid)
@@ -311,13 +358,7 @@ pub(crate) async fn upload_list_uploading(
             .await
             .context("get_uploading_files")?;
 
-    Ok(infos
-        .into_iter()
-        .map(|(id, name)| Info {
-            id,
-            name: name.into_boxed_str(),
-        })
-        .collect_vec())
+    Ok(infos.into_iter().map(Into::into).collect_vec())
 }
 
 /// # Returns

@@ -8,6 +8,7 @@ use crate::api::{ApiError, ApiResult};
 pub mod agree_nda;
 pub mod get_attachment;
 pub mod join_project;
+pub mod list_pending_files;
 pub mod list_projects;
 pub mod pre_submit;
 pub mod project_info;

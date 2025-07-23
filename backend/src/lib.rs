@@ -166,6 +166,10 @@ where
             routing::post(user::upload_file::router),
         )
         .route(
+            "/api/user/list_pending_files",
+            routing::post(user::list_pending_files::router),
+        )
+        .route(
             "/api/user/pre_submit",
             routing::post(user::pre_submit::router),
         )

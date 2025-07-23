@@ -1407,6 +1407,38 @@ async fn user_upload_file_finish(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; user_list_pending_files);
+
+    Ok(())
+}
+
+async fn user_list_pending_files(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/list_pending_files")
+        .send_json(json!({"data": {
+            "pid": 1,
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 45
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "files": [
+          {
+            "id": 1,
+            "name": "test.wav"
+          }
+        ]
+      }
+    }
+    "#);
+
     next!(app; user_pre_submit);
 
     Ok(())
