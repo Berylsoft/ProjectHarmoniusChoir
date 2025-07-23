@@ -1358,15 +1358,18 @@ async fn user_upload_file_list(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 32
+    content-length: 54
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
         "List": {
-          "file_ids": [
-            1
+          "files": [
+            {
+              "id": 1,
+              "name": "test.wav"
+            }
           ]
         }
       }
