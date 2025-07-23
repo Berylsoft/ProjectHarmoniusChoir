@@ -170,6 +170,10 @@ where
             routing::post(user::list_pending_files::router),
         )
         .route(
+            "/api/user/delete_file",
+            routing::post(user::delete_file::router),
+        )
+        .route(
             "/api/user/pre_submit",
             routing::post(user::pre_submit::router),
         )

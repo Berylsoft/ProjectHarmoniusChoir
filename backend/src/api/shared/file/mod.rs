@@ -11,7 +11,11 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use strum::{EnumString, IntoStaticStr};
 
-use crate::{S3, api::shared::project_user};
+use crate::{
+    S3,
+    api::{ApiResult, shared::project_user},
+    api_assert, api_bail_status, api_param_assert,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresignedReq {
@@ -716,6 +720,32 @@ pub async fn is_uploaded_by(
     .map(|it| it > 0)
 }
 
+/// check if the file is uploaded by the user
+///
+/// or
+///
+/// check if the file is uploaded by the manager
+/// # Errors
+/// database error
+pub async fn is_uploaded_by_simple(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+    uid: i64,
+    mid: Option<i64>,
+) -> anyhow::Result<bool> {
+    sqlx::query_scalar::<_, i64>(include_str!(
+        "./sqls/is_uploaded_by_simple.sql"
+    ))
+    .bind(id)
+    .bind(mid)
+    .bind(uid)
+    .bind(mid)
+    .fetch_one(&mut **trans)
+    .await
+    .context("is_uploaded_by_simple")
+    .map(|it| it > 0)
+}
+
 /// expect valid `id`, and checked by `can_use_file`
 /// # Errors
 /// database error
@@ -820,4 +850,42 @@ pub async fn pre_signed_get_simple(
         .await
         .context("presigning download request")
         .map(Into::into)
+}
+
+/// expect `uid` and `mid` is valid
+pub(crate) async fn delete<S>(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+    uid: i64,
+    mid: Option<i64>,
+) -> ApiResult<(), S> {
+    let is_uploaded_by =
+        is_uploaded_by_simple(trans, id, uid, mid).await?;
+
+    api_param_assert!(is_uploaded_by);
+
+    let status = Status::get_by_id(trans, id)
+        .await
+        .context("file::Status::get_by_id")?
+        .context("expect exists when is_uploaded_by pass")?;
+
+    // delete deleted file is no-op
+    if status == Status::Deleted {
+        return Ok(());
+    }
+
+    if matches!(status, Status::Used(_)) {
+        api_bail_status!("invalid file", "file is used");
+    }
+
+    let ins_result =
+        sqlx::query(include_str!("./sqls/ins_deleted_file.sql"))
+            .bind(id)
+            .execute(&mut **trans)
+            .await
+            .context("ins_deleted_file")?;
+
+    api_assert!(ins_result.rows_affected() == 1);
+
+    Ok(())
 }

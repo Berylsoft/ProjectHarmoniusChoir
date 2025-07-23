@@ -6,6 +6,7 @@ use sqlx::Transaction;
 use crate::api::{ApiError, ApiResult};
 
 pub mod agree_nda;
+pub mod delete_file;
 pub mod get_attachment;
 pub mod join_project;
 pub mod list_pending_files;

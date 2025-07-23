@@ -1376,7 +1376,7 @@ async fn user_upload_file_list(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
-    // TODO: continue
+    // TODO: continue, delete file
 
     next!(app; user_upload_file_finish);
 
