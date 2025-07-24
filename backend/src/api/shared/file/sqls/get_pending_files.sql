@@ -1,7 +1,9 @@
 SELECT id, name
     FROM files
-    WHERE (
-            (? IS NULL AND manager_id IS NULL AND user_id = ?)
+    WHERE project_id = ?
+        AND user_id = ?
+        AND (
+            (? IS NULL AND manager_id IS NULL)
             OR (manager_id = ?)
         )
         AND EXISTS (

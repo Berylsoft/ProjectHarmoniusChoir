@@ -80,19 +80,25 @@ impl Info {
         Ok(file.into())
     }
 
-    /// expect `uid` and `mid` is valid
+    /// get pending files of the project for the user
+    ///
+    /// or
+    ///
+    /// get pending files of the project and user for the manager
+    ///
+    /// expect `source` is valid
     /// # Errors
     /// database error
-    pub async fn get_pending_by_uid_mid(
+    pub async fn get_pending(
         trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-        uid: i64,
-        mid: Option<i64>,
+        source: Source,
     ) -> anyhow::Result<Vec<Self>> {
         let files: Vec<InfoRow> =
             sqlx::query_as(include_str!("./sqls/get_pending_files.sql"))
-                .bind(mid)
-                .bind(uid)
-                .bind(mid)
+                .bind(source.project_id)
+                .bind(source.user_id)
+                .bind(source.manager_id)
+                .bind(source.manager_id)
                 .fetch_all(&mut **trans)
                 .await
                 .context("get_pending_files")?;

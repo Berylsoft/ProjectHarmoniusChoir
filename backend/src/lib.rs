@@ -224,6 +224,10 @@ where
             routing::post(manager::upload_file::router),
         )
         .route(
+            "/api/manager/list_pending_files",
+            routing::post(manager::list_pending_files::router),
+        )
+        .route(
             "/api/manager/master",
             routing::post(manager::master::router),
         )

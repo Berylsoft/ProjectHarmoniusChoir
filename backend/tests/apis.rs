@@ -2080,6 +2080,40 @@ async fn manager_upload_file_finish(
     }
     "#);
 
+    next!(app; manager_list_pending_files);
+
+    Ok(())
+}
+
+async fn manager_list_pending_files(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/list_pending_files")
+        .send_cbor(cbor!({"data" => {
+            "puid" => 1,
+        }})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 31
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "files": [
+          {
+            "id": 2,
+            "name": "test.wav"
+          }
+        ]
+      }
+    }
+    "#);
+
     next!(app; manager_master);
 
     Ok(())

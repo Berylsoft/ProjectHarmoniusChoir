@@ -51,10 +51,15 @@ async fn do_list_pending_files(
         let puid =
             token.verify_joined_project(&mut trans, req.pid).await?;
 
-        let mut files = file::Info::get_pending_by_uid_mid(
-            &mut trans, token.uid, None,
-        )
-        .await?;
+        let source = file::Source::new(
+            req.pid,
+            token.uid,
+            None,
+            file::Stage::PreSubmit,
+        );
+
+        let mut files =
+            file::Info::get_pending(&mut trans, source).await?;
 
         let (status, _) =
             project_user::Status::get_by_puid(&mut trans, puid)
