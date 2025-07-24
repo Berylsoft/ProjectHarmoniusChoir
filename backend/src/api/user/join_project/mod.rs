@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ServerState,
-    api::{self, ApiError, ApiResult, ToJson, user::UserToken},
+    api::{
+        self, ApiError, ApiResult, ToJson, shared::project,
+        user::UserToken,
+    },
     api_assert, api_begin_transaction, api_param_assert,
     database::Database,
     extractors::Token,
@@ -95,6 +98,7 @@ async fn do_join_project(
 
     let res = async {
         token.verify(&mut trans).await?;
+        project::verify_not_ended(&mut trans, pid).await?;
 
         let project_user_id = sqlx::query_scalar::<_, i64>(include_str!(
             "./sqls/get_project_user_by_uid_pid.sql"

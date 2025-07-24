@@ -74,7 +74,9 @@ async fn do_list_project_user(
 
     let result = async {
         token.verify(&mut trans).await?;
-        token.verify_can_access_project(&mut trans, req.pid).await?;
+        token
+            .verify_can_access_project(&mut trans, req.pid, true)
+            .await?;
 
         let project_users: Vec<i64> = sqlx::query_scalar(include_str!(
             "./sqls/get_project_users_by_pid.sql"

@@ -43,8 +43,9 @@ async fn do_agree_nda(
 
     let result = async {
         token.verify(&mut trans).await?;
-        let puid =
-            token.verify_joined_project(&mut trans, req.pid).await?;
+        let puid = token
+            .verify_joined_project(&mut trans, req.pid, false)
+            .await?;
 
         let nda_status =
             NdaStatus::get_by_pid_puid(&mut trans, req.pid, puid)

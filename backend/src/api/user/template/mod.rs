@@ -45,7 +45,8 @@ async fn do_(
         token.verify(&mut trans).await?;
         // NOTE: pid
         #[expect(unused, reason = "template")]
-        let puid = token.verify_joined_project(&mut trans, 0).await?;
+        let puid =
+            token.verify_joined_project(&mut trans, 0, true).await?;
 
         std::hint::black_box(req);
 

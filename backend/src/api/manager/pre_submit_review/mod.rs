@@ -52,7 +52,9 @@ async fn do_review(
 
     let result = async {
         token.verify(&mut trans).await?;
-        token.verify_can_access_project(&mut trans, req.pid).await?;
+        token
+            .verify_can_access_project(&mut trans, req.pid, false)
+            .await?;
 
         let submit_pid_rid: Option<(Option<i64>, Option<i64>)> =
             sqlx::query_as(include_str!("./sqls/get_pid_rid_by_sid.sql"))

@@ -39,6 +39,8 @@ async fn do_delete_file(
 
     let result = async {
         token.verify(&mut trans).await?;
+        file::verify_project_not_ended_by_id(&mut trans, req.file_id)
+            .await?;
 
         file::delete(&mut trans, req.file_id, 0, Some(token.mid)).await?;
 

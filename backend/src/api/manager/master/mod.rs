@@ -57,7 +57,9 @@ async fn do_master(
             )
         };
 
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, false)
+            .await?;
 
         let mastered: i64 = sqlx::query_scalar(include_str!(
             "./sqls/is_mastered_by_puid.sql"

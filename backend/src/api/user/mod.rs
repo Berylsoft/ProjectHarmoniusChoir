@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 
-use crate::api::{ApiError, ApiResult};
+use crate::api::{ApiError, ApiResult, shared::project};
 
 pub mod agree_nda;
 pub mod delete_file;
@@ -61,6 +61,7 @@ impl UserToken {
         &self,
         trans: &mut Transaction<'_, sqlx::Sqlite>,
         pid: i64,
+        read_only_to_project: bool,
     ) -> ApiResult<i64, S> {
         let project_user_id: Option<i64> = sqlx::query_scalar(
             include_str!("./sqls/get_puid_by_pid_uid.sql"),
@@ -76,6 +77,10 @@ impl UserToken {
                 "have not joined this project",
             ));
         };
+
+        if !read_only_to_project {
+            project::verify_not_ended(trans, pid).await?;
+        }
 
         Ok(project_user_id)
     }

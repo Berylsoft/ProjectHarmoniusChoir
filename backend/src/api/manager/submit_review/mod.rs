@@ -59,7 +59,9 @@ async fn do_submit_review(
 
     let result = async {
         token.verify(&mut trans).await?;
-        token.verify_can_access_project(&mut trans, req.pid).await?;
+        token
+            .verify_can_access_project(&mut trans, req.pid, false)
+            .await?;
 
         // broken invariant if puid or pid is null
         let puid_pid_rid: Option<(i64, i64, Option<i64>)> =

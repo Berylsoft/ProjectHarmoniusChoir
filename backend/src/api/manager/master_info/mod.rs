@@ -69,7 +69,9 @@ async fn do_master_info(
             )
         };
 
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, true)
+            .await?;
 
         let info: Option<MasterInfoRow> = sqlx::query_as(include_str!(
             "./sqls/get_master_info_by_puid.sql"

@@ -97,7 +97,9 @@ async fn do_job_submit(
 
     let result = async {
         token.verify_sudo(&mut trans, false).await?;
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, false)
+            .await?;
 
         for &puid in &puids {
             let pid_uid =
@@ -221,7 +223,9 @@ async fn do_job_list(
 
     let result = async {
         token.verify(&mut trans).await?;
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, true)
+            .await?;
 
         let jobs: Vec<(i64, i64)> = sqlx::query_as(include_str!(
             "./sqls/get_all_jobs_by_pid.sql"
@@ -268,7 +272,9 @@ async fn do_job_download(
             api_bail_not_found!("job not found");
         };
 
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, true)
+            .await?;
 
         let Some(s3_key) = s3_key else {
             api_bail_status!("job not finish");

@@ -85,7 +85,9 @@ async fn do_submit_info(
             )
         };
 
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, true)
+            .await?;
 
         let infos: Vec<SubmitInfoRow> = sqlx::query_as(include_str!(
             "./sqls/get_submit_info_by_puid.sql"

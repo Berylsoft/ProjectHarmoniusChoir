@@ -62,7 +62,9 @@ async fn do_get_file(
 
     let result = async {
         token.verify(&mut trans).await?;
-        token.verify_can_access_project(&mut trans, req.pid).await?;
+        token
+            .verify_can_access_project(&mut trans, req.pid, true)
+            .await?;
 
         // pid verified by verify_can_access_project
         let download_info =

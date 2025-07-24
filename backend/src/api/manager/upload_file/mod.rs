@@ -130,7 +130,9 @@ async fn do_upload_file_start(
             )
         };
 
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, false)
+            .await?;
 
         // expect pid valid by get_pid_uid_by_id
         let max_size: i64 = sqlx::query_scalar(include_str!(
@@ -219,9 +221,14 @@ async fn do_upload_file_continue(
 
     let result = async {
         token.verify(&mut trans).await?;
+        file::verify_project_not_ended_by_id(&mut trans, file_id).await?;
 
         let presigned_req = file::upload_continue(
-            &mut trans, &s3, file_id, 0, Some(token.mid),
+            &mut trans,
+            &s3,
+            file_id,
+            0,
+            Some(token.mid),
         )
         .await
         .context("file::upload_continue")?;
@@ -230,7 +237,8 @@ async fn do_upload_file_continue(
             api_bail_not_found!(
                 "file not found",
                 format!(
-                    "file {file_id} not exists or not upload by manager {}",
+                    "file {file_id} not exists \
+or not upload by manager {}",
                     token.mid
                 )
             );
@@ -253,6 +261,7 @@ async fn do_upload_file_finish(
 
     let result = async {
         token.verify(&mut trans).await?;
+        file::verify_project_not_ended_by_id(&mut trans, file_id).await?;
 
         let res = file::upload_finish(
             &mut trans,

@@ -15,7 +15,7 @@ use totp_rs::TOTP;
 
 use crate::{
     ServerState,
-    api::{ApiError, ApiResult},
+    api::{ApiError, ApiResult, shared::project},
     api_begin_transaction,
     database::try_end_transaction,
 };
@@ -138,6 +138,7 @@ impl ManagerToken {
         &self,
         trans: &mut Transaction<'_, sqlx::Sqlite>,
         pid: i64,
+        read_only_to_project: bool,
     ) -> ApiResult<(), S> {
         if self.is_root() {
             return Ok(());
@@ -156,6 +157,10 @@ impl ManagerToken {
             return Err(ApiError::InsufficientPermission(
                 "not a manager of this project",
             ));
+        }
+
+        if !read_only_to_project {
+            project::verify_not_ended(trans, pid).await?;
         }
 
         Ok(())

@@ -58,7 +58,9 @@ async fn do_pending_files(
             )
         };
 
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, true)
+            .await?;
 
         let source = file::Source::new(
             pid,

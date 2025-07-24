@@ -69,7 +69,7 @@ async fn do_submit(
     let result = async {
         token.verify(&mut trans).await?;
         let project_uid =
-            token.verify_joined_project(&mut trans, pid).await?;
+            token.verify_joined_project(&mut trans, pid, false).await?;
 
         // pid checked by verify_joined_project
         let info = project::Info::get_by_id(&mut trans, pid)

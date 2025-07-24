@@ -133,7 +133,7 @@ async fn do_upload_file_start(
     let result = async {
         token.verify(&mut trans).await?;
         let project_uid =
-            token.verify_joined_project(&mut trans, pid).await?;
+            token.verify_joined_project(&mut trans, pid, false).await?;
 
         let (status, _) =
             project_user::Status::get_by_puid(&mut trans, project_uid)
@@ -238,6 +238,7 @@ async fn do_upload_file_continue(
 
     let result = async {
         token.verify(&mut trans).await?;
+        file::verify_project_not_ended_by_id(&mut trans, file_id).await?;
 
         let presigned_req = file::upload_continue(
             &mut trans, &s3, file_id, token.uid, None,
@@ -272,6 +273,7 @@ async fn do_upload_file_finish(
 
     let result = async {
         token.verify(&mut trans).await?;
+        file::verify_project_not_ended_by_id(&mut trans, file_id).await?;
 
         let res = file::upload_finish(
             &mut trans, &s3, file_id, token.uid, None,

@@ -51,8 +51,9 @@ async fn do_get_attachment(
 
     let result = async {
         token.verify(&mut trans).await?;
-        let puid =
-            token.verify_joined_project(&mut trans, req.pid).await?;
+        let puid = token
+            .verify_joined_project(&mut trans, req.pid, true)
+            .await?;
 
         let (status, _) =
             project_user::Status::get_by_puid(&mut trans, puid)

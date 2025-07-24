@@ -6,6 +6,7 @@ use aws_sdk_s3::{
     presigning::{PresignedRequest, PresigningConfig},
 };
 use base64::{Engine, prelude::BASE64_STANDARD};
+use chrono::{DateTime, Utc};
 use itertools::Itertools as _;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -14,7 +15,7 @@ use strum::{EnumString, IntoStaticStr};
 use crate::{
     S3,
     api::{ApiResult, shared::project_user},
-    api_assert, api_bail_status, api_param_assert,
+    api_assert, api_bail_not_found, api_bail_status, api_param_assert,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -892,6 +893,35 @@ pub(crate) async fn delete<S>(
             .context("ins_deleted_file")?;
 
     api_assert!(ins_result.rows_affected() == 1);
+
+    Ok(())
+}
+
+pub(crate) async fn verify_project_not_ended_by_id<S>(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+) -> ApiResult<(), S> {
+    let end_time: Option<String> = sqlx::query_scalar(include_str!(
+        "./sqls/get_end_time_of_project_of_file_by_id.sql"
+    ))
+    .bind(id)
+    .fetch_optional(&mut **trans)
+    .await
+    .context("get_end_time_of_project_of_file_by_id")?;
+
+    let Some(end_time) = end_time else {
+        api_bail_not_found!(
+            "file not found",
+            format!("file {id} not found")
+        );
+    };
+
+    let end_time: DateTime<Utc> =
+        end_time.parse().context("expect valid rfc3339")?;
+
+    if end_time < Utc::now() {
+        api_bail_status!("project ended");
+    }
 
     Ok(())
 }

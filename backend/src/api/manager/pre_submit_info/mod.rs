@@ -92,7 +92,9 @@ async fn do_pre_submit_info(
             )
         };
 
-        token.verify_can_access_project(&mut trans, pid).await?;
+        token
+            .verify_can_access_project(&mut trans, pid, true)
+            .await?;
 
         let infos: Vec<PreSubmitInfoRow> = sqlx::query_as(include_str!(
             "./sqls/get_pre_submit_info_by_puid.sql"
