@@ -2013,6 +2013,42 @@ async fn manager_upload_file_start(
         .await?;
     insta::assert_snapshot!(res.status(), @"200 OK");
 
+    next!(app; manager_upload_file_list);
+
+    Ok(())
+}
+
+async fn manager_upload_file_list(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/upload_file")
+        .send_cbor(cbor!({"data" => "List"})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 37
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "List": {
+          "files": [
+            {
+              "id": 2,
+              "name": "test.wav"
+            }
+          ]
+        }
+      }
+    }
+    "#);
+
+    // TODO: continue
+
     next!(app; manager_upload_file_finish);
 
     Ok(())

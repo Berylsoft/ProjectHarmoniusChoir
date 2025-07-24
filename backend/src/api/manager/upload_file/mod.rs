@@ -22,7 +22,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 pub enum UploadFileReq {
     Start(UploadFileStart),
-    ListUploading,
+    List,
     Continue { file_id: i64 },
     Finish { file_id: i64 },
 }
@@ -44,6 +44,12 @@ pub enum UploadFileRes {
         id: i64,
         presigned_req: PresignedReq,
     },
+    List {
+        files: Vec<file::Info>,
+    },
+    Continue {
+        presigned_req: PresignedReq,
+    },
     Success,
     InvalidFileType,
     CapacityReached,
@@ -60,7 +66,6 @@ pub(crate) async fn router(
     } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    // NOTE: api_param_assert
     let response = match req {
         UploadFileReq::Start(upload_file_start) => {
             spawn_await(do_upload_file_start(
@@ -71,10 +76,13 @@ pub(crate) async fn router(
             ))
             .await??
         }
-        // TODO:
-        UploadFileReq::ListUploading => todo!(),
-        // TODO:
-        UploadFileReq::Continue { file_id: _ } => todo!(),
+        UploadFileReq::List => {
+            spawn_await(do_upload_file_list(db, token.0)).await??
+        }
+        UploadFileReq::Continue { file_id } => {
+            spawn_await(do_upload_file_continue(db, s3, token.0, file_id))
+                .await??
+        }
         UploadFileReq::Finish { file_id } => {
             spawn_await(do_upload_file_finish(db, s3, token.0, file_id))
                 .await??
@@ -175,6 +183,60 @@ async fn do_upload_file_start(
             id: file_id,
             presigned_req,
         })
+    }
+    .await;
+
+    api::end_transaction(result, trans).await
+}
+
+async fn do_upload_file_list(
+    db: Database,
+    token: ManagerToken,
+) -> ApiResult<UploadFileRes, ToCbor> {
+    api_begin_transaction!(db, conn, trans, Deferred);
+
+    let result = async {
+        token.verify(&mut trans).await?;
+
+        let files =
+            file::upload_list_uploading(&mut trans, 0, Some(token.mid))
+                .await?;
+
+        ApiResult::Ok(UploadFileRes::List { files })
+    }
+    .await;
+
+    api::end_transaction(result, trans).await
+}
+
+async fn do_upload_file_continue(
+    db: Database,
+    s3: S3,
+    token: ManagerToken,
+    file_id: i64,
+) -> ApiResult<UploadFileRes, ToCbor> {
+    api_begin_transaction!(db, conn, trans, Deferred);
+
+    let result = async {
+        token.verify(&mut trans).await?;
+
+        let presigned_req = file::upload_continue(
+            &mut trans, &s3, file_id, 0, Some(token.mid),
+        )
+        .await
+        .context("file::upload_continue")?;
+
+        let Some(presigned_req) = presigned_req else {
+            api_bail_not_found!(
+                "file not found",
+                format!(
+                    "file {file_id} not exists or not upload by manager {}",
+                    token.mid
+                )
+            );
+        };
+
+        ApiResult::Ok(UploadFileRes::Continue { presigned_req })
     }
     .await;
 
