@@ -24,6 +24,7 @@ pub mod acquire_sudo;
 pub mod bundle_job;
 pub mod create_manager;
 pub mod create_project;
+pub mod delete_file;
 pub mod get_file;
 pub mod list_pending_files;
 pub mod list_project_users;

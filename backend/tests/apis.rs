@@ -2047,7 +2047,7 @@ async fn manager_upload_file_list(
     }
     "#);
 
-    // TODO: continue
+    // TODO: continue, delete file
 
     next!(app; manager_upload_file_finish);
 

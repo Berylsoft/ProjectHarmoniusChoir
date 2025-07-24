@@ -228,6 +228,10 @@ where
             routing::post(manager::list_pending_files::router),
         )
         .route(
+            "/api/manager/delete_file",
+            routing::post(manager::delete_file::router),
+        )
+        .route(
             "/api/manager/master",
             routing::post(manager::master::router),
         )
