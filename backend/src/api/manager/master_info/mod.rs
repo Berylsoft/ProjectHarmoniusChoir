@@ -9,7 +9,7 @@ use crate::{
     api::{
         self, ApiResult, ToCbor,
         manager::{self, ManagerToken},
-        shared::project_user,
+        shared::{file, project_user},
         spawn_await,
     },
     api_bail_not_found, api_bail_status, api_begin_transaction,
@@ -28,6 +28,8 @@ pub struct MasterInfoRes {
     mname: Box<str>,
     created_at: DateTime<Utc>,
     comment: Box<str>,
+
+    file: file::Info,
 }
 
 pub(crate) async fn router(
@@ -57,6 +59,8 @@ async fn do_master_info(
             manager_id: i64,
             created_at: Box<str>,
             comment: Box<str>,
+            f_id: i64,
+            f_name: Box<str>,
         }
 
         token.verify(&mut trans).await?;
@@ -102,6 +106,11 @@ async fn do_master_info(
                 .parse()
                 .context("parse created_at into DateTime")?,
             comment: info.comment,
+
+            file: file::Info {
+                id: info.f_id,
+                name: info.f_name,
+            },
         })
     }
     .await;
