@@ -150,6 +150,10 @@ where
             routing::post(revoke_all_tokens::router),
         )
         .route(
+            "/api/user/get_info",
+            routing::post(user::get_info::router),
+        )
+        .route(
             "/api/user/list_projects",
             routing::post(user::list_projects::router),
         )

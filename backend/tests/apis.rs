@@ -1010,9 +1010,7 @@ async fn user_login(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
-    // TODO: update name and read name
-
-    next!(app; user_revoke_all_tokens, user_list_projects);
+    next!(app; user_revoke_all_tokens, user_get_info);
 
     Ok(())
 }
@@ -1034,6 +1032,31 @@ async fn user_revoke_all_tokens(mut app: TestApp) -> anyhow::Result<()> {
       "Ok": null
     }
     "#);
+
+    Ok(())
+}
+
+async fn user_get_info(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/get_info")
+        .send_json(json!({"data": null}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 15
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "id": 1
+      }
+    }
+    "#);
+
+    next!(app; user_list_projects);
 
     Ok(())
 }
