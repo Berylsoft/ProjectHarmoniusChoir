@@ -2,6 +2,7 @@ use anyhow::Context as _;
 use axum::{Json, extract::State, response::IntoResponse};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
 use crate::{
     ServerState,
@@ -20,6 +21,7 @@ pub struct ListProjectsRes {
 pub struct Project {
     id: i64,
     name: Box<str>,
+    joined: bool,
 }
 
 pub(crate) async fn router(
@@ -43,20 +45,27 @@ async fn do_list_projects(
     api_begin_transaction!(db, conn, trans, Deferred);
 
     let res = async {
+        #[derive(Debug, FromRow)]
+        struct ProjectRow {
+            id: i64,
+            name: Box<str>,
+            joined: i64,
+        }
+
         token.verify(&mut trans).await?;
 
-        let projects = sqlx::query_as::<_, (i64, String)>(include_str!(
-            "./sqls/list_projects.sql"
-        ))
-        .fetch_all(&mut *trans)
-        .await
-        .context("list_projects")?;
+        let projects: Vec<ProjectRow> =
+            sqlx::query_as(include_str!("./sqls/list_projects.sql"))
+                .fetch_all(&mut *trans)
+                .await
+                .context("list_projects")?;
 
         let projects = projects
             .into_iter()
-            .map(|(id, name)| Project {
-                id,
-                name: name.into(),
+            .map(|it| Project {
+                id: it.id,
+                name: it.name,
+                joined: it.joined > 0,
             })
             .collect_vec();
 

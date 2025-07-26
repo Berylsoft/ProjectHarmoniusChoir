@@ -1070,7 +1070,7 @@ async fn user_list_projects(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 52
+    content-length: 67
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1079,6 +1079,7 @@ async fn user_list_projects(mut app: TestApp) -> anyhow::Result<()> {
         "projects": [
           {
             "id": 1,
+            "joined": false,
             "name": "Test Project"
           }
         ]
