@@ -8,10 +8,10 @@ use crate::{
     ServerState,
     api::{
         self, ApiResult, ToCbor,
-        manager::ManagerToken,
+        manager::{self, ManagerToken},
         shared::{
             file, project_user,
-            submit::{PreSubmitReviewRow, PreSubmitStatus},
+            submit::{self, PreSubmitReviewRow, PreSubmitStatus},
         },
         spawn_await,
     },
@@ -38,7 +38,7 @@ pub struct PreSubmitInfo {
     harmony_group_intention: Option<bool>,
     comment: Box<str>,
     file_info: file::Info,
-    status: Option<PreSubmitStatus>,
+    status: Option<submit::Detail<PreSubmitStatus>>,
 }
 
 pub(crate) async fn router(
@@ -73,6 +73,7 @@ async fn do_pre_submit_info(
             comment: String,
             f_id: i64,
             f_name: String,
+            r_manager_id: i64,
             r_status: Option<String>,
             r_lead: Option<bool>,
             r_choir: Option<bool>,
@@ -118,7 +119,15 @@ async fn do_pre_submit_info(
                 .try_into()
                 .context("PreSubmitReviewRow try_into PreSubmitStatus")?;
 
-                Some(status)
+                let mname =
+                    manager::get_name_by_id(&mut trans, i.r_manager_id)
+                        .await?;
+
+                Some(submit::Detail {
+                    mid: i.r_manager_id,
+                    mname,
+                    status,
+                })
             } else {
                 None
             };

@@ -20,6 +20,13 @@ pub enum Status {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Detail<S> {
+    pub mid: i64,
+    pub mname: Box<str>,
+    pub status: S,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PreSubmitStatus {
     Rejected { reason: PreSubmitRejectReason },
     Passed(GroupInfo),

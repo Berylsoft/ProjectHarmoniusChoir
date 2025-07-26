@@ -912,7 +912,9 @@ async fn manager_create_manager(mut app: TestApp) -> anyhow::Result<()> {
     let res = app
         .req_builder(Method::POST, 0)
         .api("/manager/root/create_manager")
-        .send_cbor(cbor!({"data" => null})?)
+        .send_cbor(cbor!({"data" => {
+            "name" => "Mgr1",
+        }})?)
         .await?;
 
     let mut body = res.body_to_cbor()?;
@@ -2163,13 +2165,14 @@ async fn manager_master_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 99
+    content-length: 110
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
         "mid": 0,
+        "mname": "root",
         "comment": "some comment for master, or maybe empty"
       }
     }

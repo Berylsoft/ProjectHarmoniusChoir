@@ -6,6 +6,7 @@ SELECT
     s.comment as comment,
     f.id as f_id,
     f.name as f_name,
+    r.manager_id as r_manager_id,
     r.status as r_status, -- null-able, when not reviewed yet
     r.lead as r_lead, -- null-able
     r.choir as r_choir, -- null-able

@@ -323,3 +323,17 @@ async fn verify_totp<S>(
 
     Ok(())
 }
+
+/// expect manager exists
+async fn get_name_by_id<S>(
+    trans: &mut Transaction<'_, sqlx::Sqlite>,
+    id: i64,
+) -> ApiResult<Box<str>, S> {
+    let name =
+        sqlx::query_scalar(include_str!("./sqls/get_name_by_id.sql"))
+            .bind(id)
+            .fetch_one(&mut **trans)
+            .await
+            .context("get_name_by_id")?;
+    Ok(name)
+}

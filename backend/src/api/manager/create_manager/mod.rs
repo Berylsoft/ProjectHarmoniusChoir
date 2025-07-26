@@ -16,6 +16,11 @@ use crate::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct CreateManagerReq {
+    name: Box<str>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateManagerRes {
     mid: i64,
     password: Box<str>,
@@ -24,17 +29,18 @@ pub struct CreateManagerRes {
 pub(crate) async fn router(
     state: State<ServerState>,
     token: Token<ManagerToken>,
-    req: Cbor<api::Request<()>>,
+    req: Cbor<api::Request<CreateManagerReq>>,
 ) -> api::ApiResult<impl IntoResponse, ToCbor> {
     let ServerState { mut cache, db, .. } = state.0;
-    req.0.verified(&mut cache).await?;
+    let req = req.0.verified(&mut cache).await?;
 
     let (password, password_hash) = generate_default_password()
         .await
         .context("generate_default_password")?;
 
-    let mid = spawn_await(do_create_manager(db, token.0, password_hash))
-        .await??;
+    let mid =
+        spawn_await(do_create_manager(db, token.0, req, password_hash))
+            .await??;
 
     Ok(Cbor(api::Response::Ok(CreateManagerRes { mid, password })))
 }
@@ -42,6 +48,7 @@ pub(crate) async fn router(
 async fn do_create_manager(
     db: Database,
     token: ManagerToken,
+    req: CreateManagerReq,
     password: PasswordHashString,
 ) -> ApiResult<i64, ToCbor> {
     api_begin_transaction!(db, conn, trans, Immediate);
@@ -64,6 +71,7 @@ async fn do_create_manager(
             sqlx::query(include_str!("./sqls/ins_manager.sql"))
                 .bind(mid)
                 .bind(password.as_str())
+                .bind(&*req.name)
                 .execute(&mut *trans)
                 .await
                 .context("ins_manager")?;

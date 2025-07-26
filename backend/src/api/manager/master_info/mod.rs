@@ -7,8 +7,10 @@ use sqlx::prelude::FromRow;
 use crate::{
     ServerState,
     api::{
-        self, ApiResult, ToCbor, manager::ManagerToken,
-        shared::project_user, spawn_await,
+        self, ApiResult, ToCbor,
+        manager::{self, ManagerToken},
+        shared::project_user,
+        spawn_await,
     },
     api_bail_not_found, api_bail_status, api_begin_transaction,
     database::Database,
@@ -23,6 +25,7 @@ pub struct MasterInfoReq {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MasterInfoRes {
     mid: i64,
+    mname: Box<str>,
     created_at: DateTime<Utc>,
     comment: Box<str>,
 }
@@ -52,8 +55,8 @@ async fn do_master_info(
         #[derive(Debug, FromRow)]
         struct MasterInfoRow {
             manager_id: i64,
-            created_at: String,
-            comment: String,
+            created_at: Box<str>,
+            comment: Box<str>,
         }
 
         token.verify(&mut trans).await?;
@@ -88,13 +91,17 @@ async fn do_master_info(
             );
         };
 
+        let mname =
+            manager::get_name_by_id(&mut trans, info.manager_id).await?;
+
         ApiResult::Ok(MasterInfoRes {
             mid: info.manager_id,
+            mname,
             created_at: info
                 .created_at
                 .parse()
                 .context("parse created_at into DateTime")?,
-            comment: info.comment.into_boxed_str(),
+            comment: info.comment,
         })
     }
     .await;

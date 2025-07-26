@@ -2,6 +2,7 @@ SELECT
     s.id as id,
     s.created_at as created_at,
     s.comment as comment,
+    r.manager_id as r_manager_id,
     r.status as r_status, -- null-able, when not reviewed yet
     r.reason as r_reason, -- null-able
     r.reason_detail as r_reason_detail, -- null-able

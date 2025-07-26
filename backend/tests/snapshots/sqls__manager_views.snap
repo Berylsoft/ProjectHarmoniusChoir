@@ -9,43 +9,44 @@ INSERT INTO managers (
     password,
     totp_secret,
     token_id,
-    file_capacity
+    file_capacity,
+    name
 )
 VALUES
-(0, 1, "$argon2id$v=19$m=16384,t=2,p=1$qVCwm62QuWspang5MhiGyQ$Dahon8dFYEQztNSqgPCB/kwr/jvR4UXXHyAjHocC/+WFzV8lI4Sc0nYmqYP/wcOCymUWVeX5hfgQyFaDd0xUNA", X'31313131', 1, null),
-(0, 2, "$argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2nlEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv4qBSnmy45TsSMW8bQ5vg", X'31313131', 1, 2000000000),
-(0, 3, "$argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2nlEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv4qBSnmy45TsSMW8bQ5vg", X'31313132', 1, 2000000000),
+(0, 1, "$argon2id$v=19$m=16384,t=2,p=1$qVCwm62QuWspang5MhiGyQ$Dahon8dFYEQztNSqgPCB/kwr/jvR4UXXHyAjHocC/+WFzV8lI4Sc0nYmqYP/wcOCymUWVeX5hfgQyFaDd0xUNA", X'31313131', 1, null, "mgr"),
+(0, 2, "$argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2nlEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv4qBSnmy45TsSMW8bQ5vg", X'31313131', 1, 2000000000, "mgr"),
+(0, 3, "$argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2nlEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv4qBSnmy45TsSMW8bQ5vg", X'31313132', 1, 2000000000, "mgr"),
 
-(1, 1, "$argon2id$v=19$m=16384,t=2,p=1$OxX3WVG8ofcnSQaI2M64bw$QxS0lA5CiKCDk4AUIjtfi9/96vKPX2yXKwls8fLWV3UbhUzC7EFFYPDHtgFeyd+kA/FkGRvCdbUC0Vtw2qu2GA", X'36373839', 1, null);
+(1, 1, "$argon2id$v=19$m=16384,t=2,p=1$OxX3WVG8ofcnSQaI2M64bw$QxS0lA5CiKCDk4AUIjtfi9/96vKPX2yXKwls8fLWV3UbhUzC7EFFYPDHtgFeyd+kA/FkGRvCdbUC0Vtw2qu2GA", X'36373839', 1, null, "mgr2");
 
 SELECT * FROM managers_latest;
-_id  id  revision  password                                                      totp_secret  token_id  file_capacity
----  --  --------  ------------------------------------------------------------  -----------  --------  -------------
-3    0   3         $argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2n  1112         1         2000000000   
-                   lEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv                                      
-                   4qBSnmy45TsSMW8bQ5vg                                                                              
+_id  id  revision  password                                                      totp_secret  token_id  file_capacity  name
+---  --  --------  ------------------------------------------------------------  -----------  --------  -------------  ----
+3    0   3         $argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2n  1112         1         2000000000     mgr 
+                   lEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv                                            
+                   4qBSnmy45TsSMW8bQ5vg                                                                                    
 
-4    1   1         $argon2id$v=19$m=16384,t=2,p=1$OxX3WVG8ofcnSQaI2M64bw$QxS0lA  6789         1                      
-                   5CiKCDk4AUIjtfi9/96vKPX2yXKwls8fLWV3UbhUzC7EFFYPDHtgFeyd+kA/                                      
-                   FkGRvCdbUC0Vtw2qu2GA                                                                              
+4    1   1         $argon2id$v=19$m=16384,t=2,p=1$OxX3WVG8ofcnSQaI2M64bw$QxS0lA  6789         1                        mgr2
+                   5CiKCDk4AUIjtfi9/96vKPX2yXKwls8fLWV3UbhUzC7EFFYPDHtgFeyd+kA/                                            
+                   FkGRvCdbUC0Vtw2qu2GA                                                                                    
 SELECT * FROM managers;
-_id  id  revision  password                                                      totp_secret  token_id  file_capacity
----  --  --------  ------------------------------------------------------------  -----------  --------  -------------
-1    0   1         $argon2id$v=19$m=16384,t=2,p=1$qVCwm62QuWspang5MhiGyQ$Dahon8  1111         1                      
-                   dFYEQztNSqgPCB/kwr/jvR4UXXHyAjHocC/+WFzV8lI4Sc0nYmqYP/wcOCym                                      
-                   UWVeX5hfgQyFaDd0xUNA                                                                              
+_id  id  revision  password                                                      totp_secret  token_id  file_capacity  name
+---  --  --------  ------------------------------------------------------------  -----------  --------  -------------  ----
+1    0   1         $argon2id$v=19$m=16384,t=2,p=1$qVCwm62QuWspang5MhiGyQ$Dahon8  1111         1                        mgr 
+                   dFYEQztNSqgPCB/kwr/jvR4UXXHyAjHocC/+WFzV8lI4Sc0nYmqYP/wcOCym                                            
+                   UWVeX5hfgQyFaDd0xUNA                                                                                    
 
-2    0   2         $argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2n  1111         1         2000000000   
-                   lEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv                                      
-                   4qBSnmy45TsSMW8bQ5vg                                                                              
+2    0   2         $argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2n  1111         1         2000000000     mgr 
+                   lEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv                                            
+                   4qBSnmy45TsSMW8bQ5vg                                                                                    
 
-3    0   3         $argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2n  1112         1         2000000000   
-                   lEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv                                      
-                   4qBSnmy45TsSMW8bQ5vg                                                                              
+3    0   3         $argon2id$v=19$m=16384,t=2,p=1$It6mOT1+lI6GwQxp/M4vTw$9kWA2n  1112         1         2000000000     mgr 
+                   lEqjMO9r6U+VLvg5dp54mtgTDWome01vKwxi8HgenvBrhUfJZgDgBZarIcHv                                            
+                   4qBSnmy45TsSMW8bQ5vg                                                                                    
 
-4    1   1         $argon2id$v=19$m=16384,t=2,p=1$OxX3WVG8ofcnSQaI2M64bw$QxS0lA  6789         1                      
-                   5CiKCDk4AUIjtfi9/96vKPX2yXKwls8fLWV3UbhUzC7EFFYPDHtgFeyd+kA/                                      
-                   FkGRvCdbUC0Vtw2qu2GA                                                                              
+4    1   1         $argon2id$v=19$m=16384,t=2,p=1$OxX3WVG8ofcnSQaI2M64bw$QxS0lA  6789         1                        mgr2
+                   5CiKCDk4AUIjtfi9/96vKPX2yXKwls8fLWV3UbhUzC7EFFYPDHtgFeyd+kA/                                            
+                   FkGRvCdbUC0Vtw2qu2GA                                                                                    
 ROLLBACK;
 
 .quit

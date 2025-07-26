@@ -8,10 +8,10 @@ use crate::{
     ServerState,
     api::{
         self, ApiResult, ToCbor,
-        manager::ManagerToken,
+        manager::{self, ManagerToken},
         shared::{
             file, project_user,
-            submit::{SubmitReviewRow, SubmitStatus},
+            submit::{self, SubmitReviewRow, SubmitStatus},
         },
         spawn_await,
     },
@@ -37,7 +37,7 @@ pub struct SubmitInfo {
     created_at: DateTime<Utc>,
     comment: Box<str>,
     files: Vec<file::Info>,
-    status: Option<SubmitStatus>,
+    status: Option<submit::Detail<SubmitStatus>>,
 }
 
 pub(crate) async fn router(
@@ -67,6 +67,7 @@ async fn do_submit_info(
             id: i64,
             created_at: String,
             comment: String,
+            r_manager_id: i64,
             r_status: Option<String>,
             r_reason: Option<String>,
             r_reason_detail: Option<String>,
@@ -110,7 +111,15 @@ async fn do_submit_info(
                 .try_into()
                 .context("SubmitReviewRow try_into PreSubmitStatus")?;
 
-                Some(status)
+                let mname =
+                    manager::get_name_by_id(&mut trans, i.r_manager_id)
+                        .await?;
+
+                Some(submit::Detail {
+                    mid: i.r_manager_id,
+                    mname,
+                    status,
+                })
             } else {
                 None
             };

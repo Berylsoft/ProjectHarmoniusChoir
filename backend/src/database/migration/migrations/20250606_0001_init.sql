@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS "managers" (
 	"token_id" INTEGER NOT NULL,
 	-- capacity of unused files in bytes, null for global default, root is unlimited
 	"file_capacity" INTEGER,
+	"name" TEXT NOT NULL,
 	PRIMARY KEY("_id")
 );
 
