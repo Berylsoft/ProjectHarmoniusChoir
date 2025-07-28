@@ -151,7 +151,7 @@ pub enum PreSubmitRejectReason {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SubmitStatus {
     Rejected {
-        reason: PreSubmitRejectReason,
+        reason: SubmitRejectReason,
         detail: Option<Box<str>>,
     },
     Passed,
