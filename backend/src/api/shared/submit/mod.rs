@@ -88,11 +88,11 @@ impl TryFrom<PreSubmitReviewRow> for PreSubmitStatus {
 
 #[derive(Debug, FromRow)]
 pub struct PreSubmitReviewRow {
-    pub status: String,
+    pub status: Box<str>,
     pub lead: Option<bool>,
     pub choir: Option<bool>,
     pub harmony: Option<bool>,
-    pub reason: Option<String>,
+    pub reason: Option<Box<str>>,
 }
 
 #[derive(
@@ -194,7 +194,7 @@ impl TryFrom<SubmitReviewRow> for SubmitStatus {
                     .context("get reason when rejected")?
                     .parse()
                     .context("parse reason from db result")?,
-                detail: value.reason_detail.map(String::into_boxed_str),
+                detail: value.reason_detail,
             },
             Status::Passed => Self::Passed,
         })
@@ -203,9 +203,9 @@ impl TryFrom<SubmitReviewRow> for SubmitStatus {
 
 #[derive(Debug, FromRow)]
 pub struct SubmitReviewRow {
-    pub status: String,
-    pub reason: Option<String>,
-    pub reason_detail: Option<String>,
+    pub status: Box<str>,
+    pub reason: Option<Box<str>>,
+    pub reason_detail: Option<Box<str>>,
 }
 
 #[derive(

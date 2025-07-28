@@ -80,11 +80,11 @@ async fn do_review(
         let row = match req.status {
             submit::PreSubmitStatus::Rejected { reason } => {
                 PreSubmitReviewRow {
-                    status: submit::Status::Rejected.to_string(),
+                    status: submit::Status::Rejected.to_string().into(),
                     lead: None,
                     choir: None,
                     harmony: None,
-                    reason: Some(reason.to_string()),
+                    reason: Some(reason.to_string().into()),
                 }
             }
             submit::PreSubmitStatus::Passed(submit::GroupInfo {
@@ -92,7 +92,7 @@ async fn do_review(
                 choir,
                 harmony,
             }) => PreSubmitReviewRow {
-                status: submit::Status::Passed.to_string(),
+                status: submit::Status::Passed.to_string().into(),
                 lead: Some(lead),
                 choir: Some(choir),
                 harmony: Some(harmony),

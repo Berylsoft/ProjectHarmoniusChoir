@@ -70,12 +70,13 @@ async fn do_list_pending_files(
         if file::Stage::try_from(status) == Ok(file::Stage::Submit) {
             let group_info =
                 submit::GroupInfo::get_by_puid(&mut trans, puid).await?;
-            if group_info.choir {
-                let file_info =
+            if group_info.choir
+                && let Some(file_info) =
                     file::Info::get_of_latest_pre_submit_by_puid(
                         &mut trans, puid,
                     )
-                    .await?;
+                    .await?
+            {
                 let file_status =
                     file::Status::get_by_id(&mut trans, file_info.id)
                         .await

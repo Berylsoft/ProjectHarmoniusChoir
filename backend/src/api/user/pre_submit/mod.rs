@@ -22,14 +22,21 @@ pub struct PreSubmitReq {
     harmony_group_intention: Option<bool>,
     comment: Box<str>,
 
-    file_id: i64,
+    file: PreSubmitFile,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum PreSubmitFile {
+    File(i64),
+    Skip(Box<str>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PreSubmitRes {
     Success,
-    InvalidStatus,
+    InvalidSkipPassword,
     // TODO: use bad param
+    InvalidStatus,
     InvalidHgi,
     InvalidFile,
 }
@@ -59,7 +66,7 @@ async fn do_submit(
         name,
         harmony_group_intention: hgi,
         comment,
-        file_id,
+        file,
     } = req;
 
     api_param_assert!(is_valid_name(&name));
@@ -87,21 +94,41 @@ async fn do_submit(
         let stage = file::Stage::PreSubmit;
         let source = file::Source::new(pid, token.uid, None, stage);
 
-        let status = file::Status::get_by_id(&mut trans, file_id)
-            .await
-            .context("file::Status::get_by_id")?;
-        if !matches!(status, Some(file::Status::Pending)) {
-            tracing::debug!(
-                "invalid file status for pre-submit: {status:?}"
-            );
-            return Ok(PreSubmitRes::InvalidFile);
-        }
+        match &file {
+            PreSubmitFile::File(file_id) => {
+                let status =
+                    file::Status::get_by_id(&mut trans, *file_id)
+                        .await
+                        .context("file::Status::get_by_id")?;
+                if !matches!(status, Some(file::Status::Pending)) {
+                    tracing::debug!(
+                        "invalid file status for pre-submit: {status:?}"
+                    );
+                    return Ok(PreSubmitRes::InvalidFile);
+                }
 
-        let is_uploaded_by =
-            file::is_uploaded_by(&mut trans, file_id, source).await?;
-        if !is_uploaded_by {
-            tracing::debug!("the user can't use this file");
-            return Ok(PreSubmitRes::InvalidFile);
+                let is_uploaded_by =
+                    file::is_uploaded_by(&mut trans, *file_id, source)
+                        .await?;
+                if !is_uploaded_by {
+                    tracing::debug!("the user can't use this file");
+                    return Ok(PreSubmitRes::InvalidFile);
+                }
+            }
+            PreSubmitFile::Skip(skip_pswd) => {
+                // expect pid verified by verify_joined_project
+                let p_skip_pswd: Box<str> =
+                    sqlx::query_scalar(include_str!(
+                        "./sqls/get_pre_submit_skip_password_by_pid.sql"
+                    ))
+                    .bind(pid)
+                    .fetch_one(&mut *trans)
+                    .await
+                    .context("get_pre_submit_skip_password_by_pid")?;
+                if skip_pswd != &p_skip_pswd {
+                    return Ok(PreSubmitRes::InvalidSkipPassword);
+                }
+            }
         }
 
         let (status, _) =
@@ -116,6 +143,8 @@ async fn do_submit(
             return Ok(PreSubmitRes::InvalidStatus);
         }
 
+        // ==================== write boundary ====================
+
         let pre_submit_id = sqlx::query_scalar::<_, i64>(include_str!(
             "./sqls/ins_pre_submit.sql"
         ))
@@ -128,7 +157,10 @@ async fn do_submit(
         .await
         .context("ins_pre_submit")?;
 
-        file::use_file(&mut trans, file_id, stage, pre_submit_id).await?;
+        if let PreSubmitFile::File(file_id) = file {
+            file::use_file(&mut trans, file_id, stage, pre_submit_id)
+                .await?;
+        }
 
         ApiResult::Ok(PreSubmitRes::Success)
     }

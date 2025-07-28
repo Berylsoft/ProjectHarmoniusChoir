@@ -65,12 +65,12 @@ async fn do_submit_info(
         #[derive(Debug, FromRow)]
         struct SubmitInfoRow {
             id: i64,
-            created_at: String,
-            comment: String,
+            created_at: Box<str>,
+            comment: Box<str>,
             r_manager_id: i64,
-            r_status: Option<String>,
-            r_reason: Option<String>,
-            r_reason_detail: Option<String>,
+            r_status: Option<Box<str>>,
+            r_reason: Option<Box<str>>,
+            r_reason_detail: Option<Box<str>>,
             r_checked_file_group_id: Option<i64>,
         }
 
@@ -134,7 +134,7 @@ async fn do_submit_info(
                     .created_at
                     .parse()
                     .context("parse created_at into DateTime")?,
-                comment: i.comment.into_boxed_str(),
+                comment: i.comment,
                 files,
                 status,
             });

@@ -37,7 +37,7 @@ pub struct PreSubmitInfo {
     name: Box<str>,
     harmony_group_intention: Option<bool>,
     comment: Box<str>,
-    file_info: file::Info,
+    file_info: Option<file::Info>,
     status: Option<submit::Detail<PreSubmitStatus>>,
 }
 
@@ -67,18 +67,18 @@ async fn do_pre_submit_info(
         #[derive(Debug, FromRow)]
         struct PreSubmitInfoRow {
             id: i64,
-            created_at: String,
-            name: String,
+            created_at: Box<str>,
+            name: Box<str>,
             harmony_group_intention: Option<bool>,
-            comment: String,
-            f_id: i64,
-            f_name: String,
+            comment: Box<str>,
+            f_id: Option<i64>,
+            f_name: Option<Box<str>>,
             r_manager_id: i64,
-            r_status: Option<String>,
+            r_status: Option<Box<str>>,
             r_lead: Option<bool>,
             r_choir: Option<bool>,
             r_harmony: Option<bool>,
-            r_reason: Option<String>,
+            r_reason: Option<Box<str>>,
         }
 
         token.verify(&mut trans).await?;
@@ -138,13 +138,15 @@ async fn do_pre_submit_info(
                     .created_at
                     .parse()
                     .context("info.created_at.parse()")?,
-                name: i.name.into_boxed_str(),
+                name: i.name,
                 harmony_group_intention: i.harmony_group_intention,
-                comment: i.comment.into_boxed_str(),
-                file_info: file::Info {
-                    id: i.f_id,
-                    name: i.f_name.into_boxed_str(),
-                },
+                comment: i.comment,
+                file_info: file::Info::try_from_pre_submit_row_optional(
+                    (i.f_id, i.f_name),
+                )
+                .context(
+                    "file::Info::try_from_pre_submit_row_optional",
+                )?,
                 status,
             });
         }

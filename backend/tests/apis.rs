@@ -1262,7 +1262,40 @@ async fn user_project_info(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
-    next!(app; user_upload_file_start);
+    next!(app; user_upload_file_start, user_pre_submit_skip_file);
+
+    Ok(())
+}
+
+async fn user_pre_submit_skip_file(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/pre_submit")
+        .send_json(json!({"data": {
+            "pid": 1,
+            "name": "TheName",
+            "harmony_group_intention": true,
+            "comment": "The Comment",
+            "file": {
+                "Skip": "thepswd",
+            }
+        }}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 16
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": "Success"
+    }
+    "#);
+
+    // TODO: following ops
 
     Ok(())
 }
@@ -1481,7 +1514,9 @@ async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
             "name": "TheName",
             "harmony_group_intention": true,
             "comment": "The Comment",
-            "file_id": file_id,
+            "file": {
+                "File": file_id,
+            }
         }}))
         .await?;
 

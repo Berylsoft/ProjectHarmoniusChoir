@@ -141,13 +141,13 @@ async fn do_submit_review(
         let row = match req.status {
             submit::SubmitStatus::Rejected { reason, detail } => {
                 SubmitReviewRow {
-                    status: submit::Status::Rejected.to_string(),
-                    reason: Some(reason.to_string()),
-                    reason_detail: detail.map(|it| it.to_string()),
+                    status: submit::Status::Rejected.to_string().into(),
+                    reason: Some(reason.to_string().into()),
+                    reason_detail: detail.map(|it| it.to_string().into()),
                 }
             }
             submit::SubmitStatus::Passed => SubmitReviewRow {
-                status: submit::Status::Passed.to_string(),
+                status: submit::Status::Passed.to_string().into(),
                 reason: None,
                 reason_detail: None,
             },

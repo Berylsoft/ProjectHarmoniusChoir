@@ -38,7 +38,7 @@ impl From<PresignedRequest> for PresignedReq {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Info {
     pub id: i64,
     pub name: Box<str>,
@@ -52,25 +52,31 @@ impl Info {
         trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         sid: i64,
     ) -> anyhow::Result<Vec<Self>> {
-        let files: Vec<InfoRow> = sqlx::query_as(include_str!(
+        sqlx::query_as(include_str!(
             "./sqls/get_file_infos_of_submit_by_sid.sql"
         ))
         .bind(sid)
         .fetch_all(&mut **trans)
         .await
-        .context("get_file_infos_of_submit_by_sid")?;
-
-        Ok(files.into_iter().map(Into::into).collect_vec())
+        .context("get_file_infos_of_submit_by_sid")
     }
 
     /// expect `puid` exists and is passed pre-submit
+    /// # Returns
+    /// None if the pre-submit's file is skipped by skip password
     /// # Errors
     /// database error
     pub async fn get_of_latest_pre_submit_by_puid(
         trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         puid: i64,
-    ) -> anyhow::Result<Self> {
-        let file: InfoRow = sqlx::query_as(include_str!(
+    ) -> anyhow::Result<Option<Self>> {
+        #[derive(Debug, FromRow)]
+        pub struct InfoMaybeRow {
+            id: Option<i64>,
+            name: Option<Box<str>>,
+        }
+
+        let info: InfoMaybeRow = sqlx::query_as(include_str!(
             "./sqls/get_file_infos_of_latest_pre_submit_by_puid.sql"
         ))
         .bind(puid)
@@ -78,7 +84,21 @@ impl Info {
         .await
         .context("get_file_infos_of_latest_pre_submit_by_puid")?;
 
-        Ok(file.into())
+        Self::try_from_pre_submit_row_optional((info.id, info.name))
+    }
+
+    /// # Errors
+    /// broken invariant
+    pub fn try_from_pre_submit_row_optional(
+        v: (Option<i64>, Option<Box<str>>),
+    ) -> anyhow::Result<Option<Self>> {
+        match v {
+            (Some(id), Some(name)) => Ok(Some(Self { id, name })),
+            (Some(_), None) | (None, Some(_)) => {
+                anyhow::bail!("broken invariant");
+            }
+            (None, None) => Ok(None),
+        }
     }
 
     /// get pending files of the project for the user
@@ -94,33 +114,15 @@ impl Info {
         trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         source: Source,
     ) -> anyhow::Result<Vec<Self>> {
-        let files: Vec<InfoRow> =
-            sqlx::query_as(include_str!("./sqls/get_pending_files.sql"))
-                .bind(source.project_id)
-                .bind(source.user_id)
-                .bind(source.manager_id)
-                .bind(source.manager_id)
-                .fetch_all(&mut **trans)
-                .await
-                .context("get_pending_files")?;
-
-        Ok(files.into_iter().map(Into::into).collect_vec())
+        sqlx::query_as(include_str!("./sqls/get_pending_files.sql"))
+            .bind(source.project_id)
+            .bind(source.user_id)
+            .bind(source.manager_id)
+            .bind(source.manager_id)
+            .fetch_all(&mut **trans)
+            .await
+            .context("get_pending_files")
     }
-}
-
-impl From<InfoRow> for Info {
-    fn from(value: InfoRow) -> Self {
-        Self {
-            id: value.id,
-            name: value.name.into_boxed_str(),
-        }
-    }
-}
-
-#[derive(Debug, FromRow)]
-struct InfoRow {
-    id: i64,
-    name: String,
 }
 
 #[derive(
@@ -360,16 +362,13 @@ pub(crate) async fn upload_list_uploading(
     uid: i64,
     mid: Option<i64>,
 ) -> anyhow::Result<Vec<Info>> {
-    let infos: Vec<InfoRow> =
-        sqlx::query_as(include_str!("./sqls/get_uploading_files.sql"))
-            .bind(mid)
-            .bind(uid)
-            .bind(mid)
-            .fetch_all(&mut **trans)
-            .await
-            .context("get_uploading_files")?;
-
-    Ok(infos.into_iter().map(Into::into).collect_vec())
+    sqlx::query_as(include_str!("./sqls/get_uploading_files.sql"))
+        .bind(mid)
+        .bind(uid)
+        .bind(mid)
+        .fetch_all(&mut **trans)
+        .await
+        .context("get_uploading_files")
 }
 
 /// # Returns
