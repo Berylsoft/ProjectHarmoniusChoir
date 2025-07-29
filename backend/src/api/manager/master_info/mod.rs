@@ -29,7 +29,7 @@ pub struct MasterInfoRes {
     created_at: DateTime<Utc>,
     comment: Box<str>,
 
-    file: file::Info,
+    files: Vec<file::Info>,
 }
 
 pub(crate) async fn router(
@@ -56,11 +56,10 @@ async fn do_master_info(
     let result = async {
         #[derive(Debug, FromRow)]
         struct MasterInfoRow {
+            id: i64,
             manager_id: i64,
             created_at: Box<str>,
             comment: Box<str>,
-            f_id: i64,
-            f_name: Box<str>,
         }
 
         token.verify(&mut trans).await?;
@@ -98,6 +97,11 @@ async fn do_master_info(
         let mname =
             manager::get_name_by_id(&mut trans, info.manager_id).await?;
 
+        let files = file::Info::get_all_of_master_by_master_id(
+            &mut trans, info.id,
+        )
+        .await?;
+
         ApiResult::Ok(MasterInfoRes {
             mid: info.manager_id,
             mname,
@@ -107,10 +111,7 @@ async fn do_master_info(
                 .context("parse created_at into DateTime")?,
             comment: info.comment,
 
-            file: file::Info {
-                id: info.f_id,
-                name: info.f_name,
-            },
+            files,
         })
     }
     .await;

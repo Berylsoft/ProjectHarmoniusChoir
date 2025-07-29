@@ -123,6 +123,22 @@ impl Info {
             .await
             .context("get_pending_files")
     }
+
+    /// expect `master_id` valid
+    /// # Errors
+    /// database error
+    pub async fn get_all_of_master_by_master_id(
+        trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        master_id: i64,
+    ) -> anyhow::Result<Vec<Self>> {
+        sqlx::query_as(include_str!(
+            "./sqls/get_file_infos_of_master_by_master_id.sql"
+        ))
+        .bind(master_id)
+        .fetch_all(&mut **trans)
+        .await
+        .context("get_file_infos_of_master_by_master_id")
+    }
 }
 
 #[derive(
@@ -275,8 +291,8 @@ pub(crate) async fn upload_check_pending_file_count(
     stage: Stage,
 ) -> anyhow::Result<bool> {
     let limit = match stage {
-        Stage::Submit => 1000,
-        Stage::Master | Stage::PreSubmit => 1,
+        Stage::PreSubmit => 1,
+        Stage::Submit | Stage::Master => 100,
     };
 
     let count = match (stage, source.manager_id) {

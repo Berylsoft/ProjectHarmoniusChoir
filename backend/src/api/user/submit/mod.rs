@@ -43,6 +43,11 @@ async fn do_submit(
     token: UserToken,
     req: SubmitReq,
 ) -> ApiResult<(), ToJson> {
+    let distinct_len =
+        req.files.iter().copied().collect::<HashSet<_>>().len();
+    api_param_assert!(req.files.len() == distinct_len, "invalid files");
+    api_param_assert!(!req.files.is_empty(), "invalid files");
+
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
@@ -105,13 +110,6 @@ async fn do_submit(
         } else {
             None
         };
-
-        let distinct_len =
-            req.files.iter().copied().collect::<HashSet<_>>().len();
-        api_param_assert!(
-            req.files.len() == distinct_len,
-            "invalid files"
-        );
 
         for &file_id in &req.files {
             check_file(

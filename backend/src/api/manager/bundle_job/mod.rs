@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 
 use anyhow::Context as _;
 use aws_sdk_s3::primitives::ByteStream;
@@ -16,13 +16,13 @@ use crate::{
         self, ApiResult, ToCbor,
         manager::ManagerToken,
         shared::{
-            file::{self, PresignedReq, download_info},
+            file::{self, PresignedReq},
             project_user,
         },
         spawn_await,
     },
     api_assert, api_bail_not_found, api_bail_status,
-    api_begin_transaction,
+    api_begin_transaction, api_param_assert,
     database::{Database, try_end_transaction},
     extractors::{Cbor, Token},
 };
@@ -93,6 +93,13 @@ async fn do_job_submit(
     pid: i64,
     puids: Vec<i64>,
 ) -> ApiResult<BundleJobRes, ToCbor> {
+    let distinct_len =
+        puids.iter().copied().collect::<HashSet<_>>().len();
+    api_param_assert!(
+        puids.len() == distinct_len,
+        "invalid project users"
+    );
+
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
@@ -114,61 +121,51 @@ async fn do_job_submit(
             };
         }
 
-        let mut pu_to_files: HashMap<i64, i64> =
-            HashMap::with_capacity(puids.len());
-        let mut files: HashMap<i64, (Box<str>, file::DownloadInfo)> =
-            HashMap::with_capacity(puids.len());
+        let mut job_users: Vec<JobUser> = Vec::with_capacity(puids.len());
 
-        for puid in puids {
-            let file_id_mixed_id: Option<(i64, Option<i64>)> =
-                sqlx::query_as(include_str!(
-                    "./sqls/get_master_file_id_mixed_id_by_puid.sql"
-                ))
-                .bind(puid)
-                .fetch_optional(&mut *trans)
-                .await
-                .context("get_master_file_id_mixed_id_by_puid")?;
-
-            let Some((file_id, mixed_id)) = file_id_mixed_id else {
-                api_bail_status!(
-                    "invalid project user status",
-                    format!("{puid} is not mastered")
-                );
-            };
-
-            if mixed_id.is_some() {
-                api_bail_status!(
-                    "invalid project user status",
-                    format!("{puid} is already mixed")
-                );
-            }
-
+        for &puid in &puids {
             let submitted: i64 = sqlx::query_scalar(include_str!(
-                "./sqls/is_submited_by_file_id.sql"
+                "./sqls/is_submited_by_puid.sql"
             ))
-            .bind(file_id)
+            .bind(puid)
             .fetch_one(&mut *trans)
             .await
-            .context("is_submited_by_file_id")?;
+            .context("is_submited_by_puid")?;
 
             if submitted > 0 {
                 api_bail_status!(
                     "invalid project user status",
-                    format!("file {file_id} already submitted")
+                    format!("{puid} already submitted")
                 )
             }
 
-            // expect pre-submit passed
+            let is_mastered: i64 = sqlx::query_scalar(include_str!(
+                "./sqls/is_mastered_by_puid.sql"
+            ))
+            .bind(puid)
+            .fetch_one(&mut *trans)
+            .await
+            .context("is_mastered_by_puid")?;
+
+            if is_mastered == 0 {
+                api_bail_status!(
+                    "invalid project user status",
+                    format!("{puid} is not mastered")
+                );
+            }
+
+            // expect pre-submit passed when mastered
             let name =
                 project_user::get_name_by_id(&mut trans, puid).await?;
 
-            let download_info =
-                file::download_info(&mut trans, file_id, pid)
-                    .await?
-                    .context("expect file_id, pid valid")?;
+            let files =
+                get_master_files_by_puid(&mut trans, puid).await?;
 
-            pu_to_files.insert(puid, file_id);
-            files.insert(puid, (name, download_info));
+            job_users.push(JobUser {
+                id: puid,
+                name,
+                files,
+            });
         }
 
         // ==================== write boundary ====================
@@ -182,15 +179,14 @@ async fn do_job_submit(
                 .await
                 .context("ins_job")?;
 
-        for (&puid, &fid) in &pu_to_files {
+        for puid in puids {
             let ins_result =
-                sqlx::query(include_str!("./sqls/ins_job_file.sql"))
+                sqlx::query(include_str!("./sqls/ins_job_include.sql"))
                     .bind(job_id)
                     .bind(puid)
-                    .bind(fid)
                     .execute(&mut *trans)
                     .await
-                    .context("ins_job_file")?;
+                    .context("ins_job_include")?;
 
             api_assert!(ins_result.rows_affected() == 1);
         }
@@ -203,7 +199,7 @@ async fn do_job_submit(
                 id: job_id,
                 pid,
                 mid: token.mid,
-                files,
+                users: job_users,
             },
         );
 
@@ -294,8 +290,20 @@ struct Job {
     id: i64,
     pid: i64,
     mid: i64,
-    /// (`puid`, (`name`, `_`))
-    files: HashMap<i64, (Box<str>, file::DownloadInfo)>,
+    users: Vec<JobUser>,
+}
+
+struct JobUser {
+    id: i64,
+    name: Box<str>,
+    files: Vec<JobUserFile>,
+}
+
+#[derive(Debug, FromRow)]
+struct JobUserFile {
+    id: i64,
+    name: Box<str>,
+    s3_key: Box<str>,
 }
 
 fn spawn_job(pending_jobs: PendingJobs, db: Database, s3: S3, job: Job) {
@@ -329,6 +337,7 @@ fn spawn_job(pending_jobs: PendingJobs, db: Database, s3: S3, job: Job) {
     });
 }
 
+#[expect(clippy::too_many_lines)]
 #[tracing::instrument(skip(db, s3, cancel, job), fields(job.id))]
 async fn run_job(
     db: Database,
@@ -354,50 +363,58 @@ async fn run_job(
     let mut tar_builder = tar::Builder::new(temp_file);
     let base_path = job.id.to_string();
 
-    for (&puid, (uname, info)) in &job.files {
-        check_cancel!(cancel);
+    for ju in &job.users {
+        for juf in &ju.files {
+            check_cancel!(cancel);
 
-        tracing::debug!("donwloading {}", info.s3_key);
-        let file = s3
-            .get_object()
-            .bucket(s3.bucket())
-            .key(&*info.s3_key)
-            .send()
-            .await
-            .with_context(|| format!("donwload {}", info.s3_key))?;
+            tracing::debug!("donwloading {}", juf.s3_key);
+            let file = s3
+                .get_object()
+                .bucket(s3.bucket())
+                .key(&*juf.s3_key)
+                .send()
+                .await
+                .with_context(|| format!("donwload {}", juf.s3_key))?;
 
-        let body =
-            file.body.collect().await.context("body.collect")?.to_vec();
+            let body = file
+                .body
+                .collect()
+                .await
+                .context("body.collect")?
+                .to_vec();
 
-        let file_name = format!("{}_{}_{}", puid, uname, info.name);
-        // expect:
-        // puid <= 20 digit
-        // uname <= 20 character
-        // file name <= 128
-        // so 20 + 1 + 20 + 1 + 128 = 170
-        // no truncate needed
-        let file_name = sanitize_filename::sanitize_with_options(
-            file_name,
-            sanitize_filename::Options {
-                windows: true,
-                truncate: false,
-                replacement: "_",
-            },
-        );
+            let file_name =
+                format!("{}_{}_{}_{}", ju.id, ju.name, juf.id, juf.name);
+            // expect:
+            // puid <= 20 digit
+            // uname <= 20 character
+            // file id <= 20 digit
+            // file name <= 128
+            // so 20 + 1 + 20 + 1 + 20 + 1 + 128 = 191
+            // so no truncate is needed for gnu header
+            let file_name = sanitize_filename::sanitize_with_options(
+                file_name,
+                sanitize_filename::Options {
+                    windows: true,
+                    truncate: false,
+                    replacement: "_",
+                },
+            );
 
-        let mut tar_header = tar::Header::new_gnu();
-        tar_header.set_size(
-            body.len().try_into().context("file size too big")?,
-        );
-        tar_header.set_mode(0o644);
-        tar_header.set_entry_type(tar::EntryType::file());
-        tar_builder
-            .append_data(
-                &mut tar_header,
-                format!("{base_path}/{file_name}"),
-                body.as_slice(),
-            )
-            .context("tar_builder.append_data")?;
+            let mut tar_header = tar::Header::new_gnu();
+            tar_header.set_size(
+                body.len().try_into().context("file size too big")?,
+            );
+            tar_header.set_mode(0o644);
+            tar_header.set_entry_type(tar::EntryType::file());
+            tar_builder
+                .append_data(
+                    &mut tar_header,
+                    format!("{base_path}/{file_name}"),
+                    body.as_slice(),
+                )
+                .context("tar_builder.append_data")?;
+        }
     }
 
     let temp_file =
@@ -425,10 +442,10 @@ async fn run_job(
 
     let result: anyhow::Result<()> = async {
         let time = Utc::now().to_rfc3339();
-        for (puid, _) in job.files {
+        for ju in job.users {
             let ins_result =
                 sqlx::query(include_str!("./sqls/ins_mixed.sql"))
-                    .bind(puid)
+                    .bind(ju.id)
                     .bind(job.mid)
                     .bind(job.id)
                     .bind(&time)
@@ -481,30 +498,29 @@ pub async fn resume_jobs(state: ServerState) -> anyhow::Result<()> {
                 .context("get_pending_jobs")?;
 
         for job in jobs {
-            let files: Vec<(i64, i64)> = sqlx::query_as(include_str!(
-                "./sqls/get_files_by_job_id.sql"
+            let puids: Vec<i64> = sqlx::query_scalar(include_str!(
+                "./sqls/get_included_puids_by_job_id.sql"
             ))
             .bind(job.id)
             .fetch_all(&mut *trans)
             .await
-            .context("get_files_by_job_id")?;
+            .context("get_included_puids_by_job_id")?;
 
-            let mut pu_files: HashMap<
-                i64,
-                (Box<str>, file::DownloadInfo),
-            > = HashMap::with_capacity(files.len());
+            let mut users = Vec::with_capacity(puids.len());
 
-            for (puid, file_id) in files {
+            for puid in puids {
                 // expect pre-submit passed checked when submit job
                 let name = project_user::get_name_by_id(&mut trans, puid)
                     .await?;
 
-                let download_info =
-                    download_info(&mut trans, file_id, job.project_id)
-                        .await?
-                        .context("expect valid file id in jobs")?;
+                let files =
+                    get_master_files_by_puid(&mut trans, puid).await?;
 
-                pu_files.insert(puid, (name, download_info));
+                users.push(JobUser {
+                    id: puid,
+                    name,
+                    files,
+                });
             }
 
             let state = state.clone();
@@ -516,7 +532,7 @@ pub async fn resume_jobs(state: ServerState) -> anyhow::Result<()> {
                     id: job.id,
                     pid: job.project_id,
                     mid: job.manager_id,
-                    files: pu_files,
+                    users,
                 },
             );
         }
@@ -528,4 +544,15 @@ pub async fn resume_jobs(state: ServerState) -> anyhow::Result<()> {
     try_end_transaction(result, trans)
         .await
         .context("end transaction")?
+}
+
+async fn get_master_files_by_puid(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    puid: i64,
+) -> Result<Vec<JobUserFile>, anyhow::Error> {
+    sqlx::query_as(include_str!("./sqls/get_master_files_by_puid.sql"))
+        .bind(puid)
+        .fetch_all(&mut **trans)
+        .await
+        .context("get_master_files_by_puid")
 }

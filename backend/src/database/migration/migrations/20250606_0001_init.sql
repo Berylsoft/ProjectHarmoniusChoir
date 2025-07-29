@@ -189,11 +189,10 @@ CREATE TABLE IF NOT EXISTS "bundle_jobs" (
 	PRIMARY KEY("id")
 );
 
-CREATE TABLE IF NOT EXISTS "bundle_job_files" (
+CREATE TABLE IF NOT EXISTS "bundle_job_includes" (
 	"id" INTEGER NOT NULL UNIQUE,
 	"job_id" INTEGER NOT NULL,
 	"project_user_id" INTEGER NOT NULL,
-	"file_id" INTEGER NOT NULL,
 	PRIMARY KEY("id")
 );
 

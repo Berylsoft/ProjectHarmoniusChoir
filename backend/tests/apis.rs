@@ -2188,7 +2188,7 @@ async fn manager_master(mut app: TestApp) -> anyhow::Result<()> {
         .api("/manager/master")
         .send_cbor(cbor!({"data" => {
             "puid" => 1,
-            "file_id" => file_id,
+            "files" => [ file_id ],
             "comment" => "some comment for master, or maybe empty",
         }})?)
         .await?;
@@ -2224,7 +2224,7 @@ async fn manager_master_info(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 134
+    content-length: 136
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -2233,10 +2233,12 @@ async fn manager_master_info(mut app: TestApp) -> anyhow::Result<()> {
         "mid": 0,
         "mname": "root",
         "comment": "some comment for master, or maybe empty",
-        "file": {
-          "id": 2,
-          "name": "test.wav"
-        }
+        "files": [
+          {
+            "id": 2,
+            "name": "test.wav"
+          }
+        ]
       }
     }
     "#);
