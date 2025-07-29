@@ -1,7 +1,9 @@
 use anyhow::Context as _;
 use axum::{extract::State, response::IntoResponse};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 
 use crate::{
     ServerState,
@@ -43,6 +45,7 @@ pub struct ListProjectUsersRes {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectUser {
     id: i64,
+    uid: i64,
     status: project_user::Status,
     name: Option<Box<str>>,
     group_info: Option<submit::GroupInfo>,
@@ -73,14 +76,30 @@ async fn do_list_project_user(
     api_begin_transaction!(db, conn, trans, Deferred);
 
     let result = async {
+        #[derive(Debug, FromRow)]
+        struct ProjectUserRow {
+            id: i64,
+            user_id: i64,
+        }
+
+        #[derive(Debug)]
+        struct ProjectUserSort {
+            id: i64,
+            user_id: i64,
+            status: project_user::Status,
+            status_at: DateTime<Utc>,
+            name: Option<Box<str>>,
+            group_info: Option<GroupInfo>,
+        }
+
         token.verify(&mut trans).await?;
         token
             .verify_can_access_project(&mut trans, req.pid, true)
             .await?;
 
-        let project_users: Vec<i64> = sqlx::query_scalar(include_str!(
-            "./sqls/get_project_users_by_pid.sql"
-        ))
+        let project_users: Vec<ProjectUserRow> = sqlx::query_as(
+            include_str!("./sqls/get_project_users_by_pid.sql"),
+        )
         .bind(req.pid)
         .fetch_all(&mut *trans)
         .await
@@ -88,18 +107,18 @@ async fn do_list_project_user(
 
         let mut result = Vec::with_capacity(project_users.len());
 
-        for puid in project_users {
+        for pu in project_users {
             let (status, status_at) =
-                project_user::Status::get_by_puid(&mut trans, puid)
+                project_user::Status::get_by_puid(&mut trans, pu.id)
                     .await
                     .context("project_user::Status::get_by_puid")?;
 
             let name_group_info: Option<(Box<str>, GroupInfo)> =
                 if status >= project_user::Status::PreSubmitPassed {
                     Some((
-                        project_user::get_name_by_id(&mut trans, puid)
+                        project_user::get_name_by_id(&mut trans, pu.id)
                             .await?,
-                        submit::GroupInfo::get_by_puid(&mut trans, puid)
+                        submit::GroupInfo::get_by_puid(&mut trans, pu.id)
                             .await?,
                     ))
                 } else {
@@ -108,15 +127,20 @@ async fn do_list_project_user(
 
             let (name, group_info) = name_group_info.unzip();
 
-            result.push((puid, name, status, status_at, group_info));
+            result.push(ProjectUserSort {
+                id: pu.id,
+                user_id: pu.user_id,
+                status,
+                status_at,
+                name,
+                group_info,
+            });
         }
 
         match req.sort_by {
             SortMethod::JoinedAt => {}
             SortMethod::Status => {
-                result.sort_by_key(|(_, _, status, status_at, _)| {
-                    (*status, *status_at)
-                });
+                result.sort_by_key(|pu| (pu.status, pu.status_at));
             }
         }
         if req.reverse {
@@ -125,11 +149,12 @@ async fn do_list_project_user(
 
         let result = result
             .into_iter()
-            .map(|(id, name, status, _, group_info)| ProjectUser {
-                id,
-                status,
-                name,
-                group_info,
+            .map(|pu| ProjectUser {
+                id: pu.id,
+                uid: pu.user_id,
+                status: pu.status,
+                name: pu.name,
+                group_info: pu.group_info,
             })
             .collect_vec();
 

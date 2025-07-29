@@ -1198,7 +1198,7 @@ async fn manager_list_project_users(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 58
+    content-length: 63
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1207,6 +1207,7 @@ async fn manager_list_project_users(
         "project_users": [
           {
             "id": 1,
+            "uid": 1,
             "status": "Entered",
             "name": null,
             "group_info": null
@@ -1682,7 +1683,7 @@ async fn manager_list_project_users_after_pre_submit_passed(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 95
+    content-length: 100
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1691,6 +1692,7 @@ async fn manager_list_project_users_after_pre_submit_passed(
         "project_users": [
           {
             "id": 1,
+            "uid": 1,
             "status": "PreSubmitPassed",
             "name": "TheName",
             "group_info": {
