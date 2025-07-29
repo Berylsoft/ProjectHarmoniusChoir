@@ -944,6 +944,40 @@ async fn manager_create_manager(mut app: TestApp) -> anyhow::Result<()> {
 
     // TODO: login using this manager
 
+    next!(app; manager_list_managers);
+
+    Ok(())
+}
+
+async fn manager_list_managers(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/root/list_managers")
+        .send_cbor(cbor!({"data" => null})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 45
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "managers": [
+          {
+            "id": 0,
+            "name": "root"
+          },
+          {
+            "id": 1,
+            "name": "Mgr1"
+          }
+        ]
+      }
+    }
+    "#);
+
     next!(app; manager_project_manager_edit);
 
     Ok(())
