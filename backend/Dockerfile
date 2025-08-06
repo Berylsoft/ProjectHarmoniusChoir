@@ -15,10 +15,15 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release
 
-FROM debian:bookworm-slim AS run
+FROM debian:bookworm-slim AS run-deps
+
+RUN apt-get update && apt-get install -y ca-certificates
+
+FROM run-deps AS run
 
 WORKDIR /app
 COPY --from=build /app/target/release/backend /usr/local/bin
+
 RUN mkdir data
 
 ENTRYPOINT ["/usr/local/bin/backend"]
