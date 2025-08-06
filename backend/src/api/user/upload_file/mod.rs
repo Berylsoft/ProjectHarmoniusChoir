@@ -12,7 +12,7 @@ use crate::{
         },
         user::UserToken,
     },
-    api_bail, api_bail_not_found, api_begin_transaction,
+    api_bail, api_bail_not_found, api_bail_status, api_begin_transaction,
     api_param_assert,
     database::Database,
     extractors::Token,
@@ -38,10 +38,9 @@ pub enum UploadFileReq {
     },
 }
 
-// TODO: convert some error cause by client implementation issue to bad_param or else
 #[derive(Debug, Serialize, Deserialize)]
 pub enum UploadFileRes {
-    UploadInfo {
+    File {
         file_id: i64,
         presigned_req: PresignedReq,
     },
@@ -52,12 +51,12 @@ pub enum UploadFileRes {
         presigned_req: PresignedReq,
     },
     Success,
-    InvalidStage,
+    // upload only
     CountReached,
     CapacityReached,
     InvalidFileName,
     InvalidFileType,
-    InvalidFile,
+    // finish only
     UploadNotFinish,
 }
 
@@ -71,7 +70,6 @@ pub(crate) async fn router(
     } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    // NOTE: api_param_assert
     let upload_file_res = match req {
         UploadFileReq::Start {
             pid,
@@ -116,7 +114,10 @@ async fn do_upload_file_start(
     md5: Box<[u8; 16]>,
     head: Box<[u8; 12]>,
 ) -> ApiResult<UploadFileRes, ToJson> {
-    api_param_assert!(file::is_valid_filename(&name));
+    if !file::is_valid_filename(&name) {
+        tracing::debug!("invalid file name");
+        return Ok(UploadFileRes::InvalidFileName);
+    }
 
     let file_type = file::Type::detect(&head);
     let Some(file_type) = file_type else {
@@ -147,7 +148,14 @@ async fn do_upload_file_start(
         {
             stage
         } else {
-            return Ok(UploadFileRes::InvalidStage);
+            // expect client don't show upload at this stage
+            api_bail_status!(
+                "invalid stage",
+                format!(
+                    "{} try to upload file when status: {status:?}",
+                    token.uid
+                )
+            );
         };
 
         let info = project::Info::get_by_id(&mut trans, pid)
@@ -192,13 +200,15 @@ async fn do_upload_file_start(
             return Ok(UploadFileRes::CapacityReached);
         }
 
+        // ==================== write boundary ====================
+
         let (file_id, presigned_req) = file::upload_start(
             &mut trans, &s3, source, name, size, md5, file_type,
         )
         .await
         .context("file::upload_start")?;
 
-        ApiResult::Ok(UploadFileRes::UploadInfo {
+        ApiResult::Ok(UploadFileRes::File {
             file_id,
             presigned_req,
         })
@@ -275,6 +285,8 @@ async fn do_upload_file_finish(
         token.verify(&mut trans).await?;
         file::verify_project_not_ended_by_id(&mut trans, file_id).await?;
 
+        // ==================== write boundary ====================
+
         let res = file::upload_finish(
             &mut trans, &s3, file_id, token.uid, None,
         )
@@ -282,9 +294,14 @@ async fn do_upload_file_finish(
         .context("upload_finish")?;
 
         let Some(finished) = res else {
-            return Ok(UploadFileRes::InvalidFile);
+            api_bail_not_found!(
+                "file not found",
+                format!("file {file_id} not found")
+            );
         };
 
+        // return `Ok` with non success after write boundary:
+        // `finished == false` only will be returned before write
         if !finished {
             return Ok(UploadFileRes::UploadNotFinish);
         }

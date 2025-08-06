@@ -9,7 +9,7 @@ use crate::{
         self, ApiError, ApiResult, ToJson, shared::project,
         user::UserToken,
     },
-    api_assert, api_begin_transaction, api_param_assert,
+    api_assert, api_bail_status, api_begin_transaction, api_param_assert,
     database::Database,
     extractors::Token,
 };
@@ -26,7 +26,6 @@ pub enum JoinProjectReq {
 pub enum JoinProjectRes {
     Start { question: Box<str> },
     WrongAnswer,
-    AlreadyJoined,
     Success,
 }
 
@@ -109,8 +108,14 @@ async fn do_join_project(
         .await
         .context("get_project_user_by_uid_pid")?;
 
-        if project_user_id.is_some() {
-            return Ok(JoinProjectRes::AlreadyJoined);
+        if let Some(project_user_id) = project_user_id {
+            // expect client don't show "join" button in project list
+            // when already joined
+            // (joined state should returned in project list)
+            api_bail_status!(
+                "already joined",
+                format!("{project_user_id} already joined {pid}")
+            );
         }
 
         let entry_answer = sqlx::query_scalar::<_, String>(include_str!(

@@ -466,6 +466,8 @@ pub(crate) async fn upload_finish(
         return Ok(Some(false));
     }
 
+    // ==================== write boundary ====================
+
     let ins_res = sqlx::query(include_str!("./sqls/ins_pending.sql"))
         .bind(file_id)
         .execute(&mut **trans)

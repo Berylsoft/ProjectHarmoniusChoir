@@ -1365,13 +1365,13 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
 
     let mut body = res.body_to_json()?;
 
-    let file_id = json_get(&mut body, &["Ok", "UploadInfo", "file_id"])
+    let file_id = json_get(&mut body, &["Ok", "File", "file_id"])
         .as_i64()
         .unwrap();
     app.set::<i64>("test_file::file_id", file_id);
 
     let presigned_req =
-        json_get(&mut body, &["Ok", "UploadInfo", "presigned_req"]);
+        json_get(&mut body, &["Ok", "File", "presigned_req"]);
     let uri = json_remove(presigned_req, &["uri"])
         .as_str()
         .unwrap()
@@ -1388,13 +1388,13 @@ async fn user_upload_file_start(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 582
+    content-length: 576
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
-        "UploadInfo": {
+        "File": {
           "file_id": 1,
           "presigned_req": {
             "headers": [

@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ServerState,
     api::{
-        self, ApiResult, ToJson, is_valid_name,
+        self, ApiError, ApiResult, ToJson, is_valid_name,
         shared::{file, project, project_user},
         user::UserToken,
     },
-    api_begin_transaction, api_param_assert,
+    api_bail_status, api_begin_transaction,
     database::Database,
     extractors::Token,
 };
@@ -34,11 +34,8 @@ pub enum PreSubmitFile {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PreSubmitRes {
     Success,
+    InvalidName,
     InvalidSkipPassword,
-    // TODO: use bad param
-    InvalidStatus,
-    InvalidHgi,
-    InvalidFile,
 }
 
 pub(crate) async fn router(
@@ -49,13 +46,13 @@ pub(crate) async fn router(
     let ServerState { mut cache, db, .. } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    // NOTE: api_param_assert
     let pre_submit_res =
         api::spawn_await(do_submit(db, token.0, req)).await??;
 
     Ok(Json(api::Response::Ok(pre_submit_res)))
 }
 
+#[expect(clippy::too_many_lines)]
 async fn do_submit(
     db: Database,
     token: UserToken,
@@ -69,7 +66,10 @@ async fn do_submit(
         file,
     } = req;
 
-    api_param_assert!(is_valid_name(&name));
+    if !is_valid_name(&name) {
+        tracing::debug!("invalid name");
+        return Ok(PreSubmitRes::InvalidName);
+    }
 
     api_begin_transaction!(db, conn, trans, Immediate);
 
@@ -84,11 +84,15 @@ async fn do_submit(
             .context("project::Info::get_by_id")?
             .context("pid verified by verify_joined_project")?;
         let require_hgi = info.require_harmony_group_intention;
+
         if hgi.is_some() != require_hgi {
-            tracing::debug!(
-                "invalid HGI param: {hgi:?}, require: {require_hgi}"
-            );
-            return Ok(PreSubmitRes::InvalidHgi);
+            return Err(ApiError::BadParam {
+                msg: "bad harmony_group_intention".into(),
+                detail: format!(
+                    "invalid HGI param: {hgi:?}, require: {require_hgi}"
+                )
+                .into(),
+            });
         }
 
         let stage = file::Stage::PreSubmit;
@@ -104,15 +108,26 @@ async fn do_submit(
                     tracing::debug!(
                         "invalid file status for pre-submit: {status:?}"
                     );
-                    return Ok(PreSubmitRes::InvalidFile);
+                    api_bail_status!(
+                        "invalid file",
+                        format!(
+                            "invalid file status \
+for pre-submit: {status:?}"
+                        )
+                    );
                 }
 
                 let is_uploaded_by =
                     file::is_uploaded_by(&mut trans, *file_id, source)
                         .await?;
                 if !is_uploaded_by {
-                    tracing::debug!("the user can't use this file");
-                    return Ok(PreSubmitRes::InvalidFile);
+                    api_bail_status!(
+                        "invalid file",
+                        format!(
+                            "the user {} can't use this file",
+                            token.uid
+                        )
+                    );
                 }
             }
             PreSubmitFile::Skip(skip_pswd) => {
@@ -139,8 +154,10 @@ async fn do_submit(
             file::Stage::try_from(status),
             Ok(file::Stage::PreSubmit)
         ) {
-            tracing::debug!("invalid status for pre-submit: {status:?}");
-            return Ok(PreSubmitRes::InvalidStatus);
+            api_bail_status!(
+                "invalid status",
+                format!("invalid status for pre-submit: {status:?}")
+            )
         }
 
         // ==================== write boundary ====================
