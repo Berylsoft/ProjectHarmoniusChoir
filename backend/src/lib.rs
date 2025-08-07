@@ -196,6 +196,10 @@ where
             routing::post(acquire_sudo::router),
         )
         .route(
+            "/api/manager/get_info",
+            routing::post(manager::get_info::router),
+        )
+        .route(
             "/api/manager/list_projects",
             routing::post(manager::list_projects::router),
         )

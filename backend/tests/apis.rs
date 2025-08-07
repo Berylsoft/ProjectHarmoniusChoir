@@ -1180,6 +1180,31 @@ async fn user_join_project(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; manager_get_info);
+
+    Ok(())
+}
+
+async fn manager_get_info(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/get_info")
+        .send_cbor(cbor!({"data" => null})?)
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 9
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "id": 0
+      }
+    }
+    "#);
+
     next!(app; manager_list_projects);
 
     Ok(())
