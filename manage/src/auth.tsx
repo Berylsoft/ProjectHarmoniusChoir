@@ -122,13 +122,17 @@ export function LoginStart(props: { continueLogin: (res: LoginRes) => void }) {
               max={Number.MAX_SAFE_INTEGER.toString()}
               autocomplete="username"
               required
-              on:change={(e) => {
-                const id = (e.target! as HTMLInputElement).valueAsNumber;
-                if (Number.isSafeInteger(id) && id >= 0) {
+              on:input={(e) => {
+                const input = e.target! as HTMLInputElement;
+                if (input.checkValidity()) {
+                  const id = input.valueAsNumber;
                   trace("mid %o", id);
                   mid.set(id);
                 } else {
-                  debug("invalid integer %o", id);
+                  debug("invalid mid %o", input.value);
+                  input.setCustomValidity("请输入正确的MID");
+                  input.reportValidity();
+                  input.setCustomValidity("");
                 }
               }}
             />
@@ -347,19 +351,17 @@ function TotpCodeInput(props: { totpCode: Signal<string> }) {
         maxLength={6}
         autocomplete="one-time-code"
         required
-        on:change={(e) => {
+        on:input={(e) => {
           const input = e.target! as HTMLInputElement;
-          const code = Number.parseInt(
-            input.value,
-          );
 
-          if (Number.isSafeInteger(code) && code >= 0 && code <= 999999) {
-            trace("code %o", code);
-            props.totpCode.set(code.toString().padStart(6, "0"));
-            input.setCustomValidity("");
+          if (input.checkValidity()) {
+            trace("code %o", input.value);
+            props.totpCode.set(input.value);
           } else {
-            debug("invalid code %o", code);
+            debug("invalid code %o", input.value);
             input.setCustomValidity("请输入正确的验证码");
+            console.log(input.reportValidity());
+            input.setCustomValidity("");
           }
         }}
       />
