@@ -128,11 +128,11 @@ impl ManagerToken {
         Ok(())
     }
 
-    async fn verify_totp<S>(
+    async fn verify_totp(
         &self,
         trans: &mut Transaction<'_, sqlx::Sqlite>,
         totp_code: u32,
-    ) -> ApiResult<(), S> {
+    ) -> anyhow::Result<bool> {
         verify_totp(trans, self.mid, totp_code).await
     }
 
@@ -211,10 +211,12 @@ pub async fn init_root_if_not_exists(
         .context("end_transaction")?
 }
 
+/// # Returns
+/// true if valid password
 async fn verify_password<S>(
     pswd_sha512: [u8; 64],
     stored_password: &PasswordHash<'_>,
-) -> ApiResult<(), S> {
+) -> ApiResult<bool, S> {
     let permit = ARGON2_PARALLEL_SEMAPHORE
         .acquire()
         .await
@@ -235,11 +237,11 @@ async fn verify_password<S>(
     .context("failed to wait password verify to return")?;
 
     if verify_res == Err(argon2::password_hash::Error::Password) {
-        return Err(ApiError::InvalidCredential("password"));
+        return Ok(false);
     }
 
     verify_res.context("verify password")?;
-    Ok(())
+    Ok(true)
 }
 
 async fn hash_password(
@@ -299,20 +301,20 @@ fn totp_new(secret: Vec<u8>, mid: impl Into<Option<i64>>) -> TOTP {
     .unwrap()
 }
 
-fn totp_check<S>(secret: Vec<u8>, totp_code: u32) -> ApiResult<(), S> {
+/// # Returns
+/// true if valid `totp_code`
+fn totp_check(secret: Vec<u8>, totp_code: u32) -> anyhow::Result<bool> {
     totp_new(secret, None)
         .check_current(&format!("{totp_code:0>6}"))
-        .context("failed to get system time")?
-        .then_some(())
-        .ok_or(ApiError::InvalidCredential("invalid totp_code"))
+        .context("failed to get system time")
 }
 
 /// expect mid exists
-async fn verify_totp<S>(
+async fn verify_totp(
     trans: &mut Transaction<'_, sqlx::Sqlite>,
     mid: i64,
     totp_code: u32,
-) -> ApiResult<(), S> {
+) -> anyhow::Result<bool> {
     let totp_secret = sqlx::query_scalar::<_, Vec<u8>>(include_str!(
         "./sqls/get_manager_totp_secret_by_mid.sql"
     ))
@@ -321,9 +323,7 @@ async fn verify_totp<S>(
     .await
     .context("get_manager_totp_secret_by_mid")?;
 
-    totp_check(totp_secret, totp_code)?;
-
-    Ok(())
+    totp_check(totp_secret, totp_code)
 }
 
 /// expect manager exists

@@ -855,12 +855,12 @@ async fn manager_acquire_sudo(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 5
+    content-length: 12
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
-      "Ok": null
+      "Ok": "Success"
     }
     "#);
 

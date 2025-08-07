@@ -77,8 +77,6 @@ pub enum ApiError<T> {
     InvalidToken(&'static str),
     #[error("used nonce")]
     UsedNonce,
-    #[error("invalid credential: {0}")]
-    InvalidCredential(&'static str),
     #[error("insufficient permission: {0}")]
     InsufficientPermission(&'static str),
     #[error("require sudo")]
@@ -94,7 +92,7 @@ pub enum ApiError<T> {
 }
 
 impl<T> ApiError<T> {
-    #[expect(clippy::cognitive_complexity, clippy::too_many_lines)]
+    #[expect(clippy::cognitive_complexity)]
     pub fn into_api_response(
         self,
     ) -> (StatusCode, Response<'static, ()>) {
@@ -133,17 +131,6 @@ impl<T> ApiError<T> {
                     Response::Err {
                         code: ErrCode::UsedNonce,
                         msg: "used nonce".into(),
-                    },
-                )
-            }
-            Self::InvalidCredential(msg) => {
-                tracing::info!("rejecting invalid credential: {msg}");
-
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Response::Err {
-                        code: ErrCode::InvalidCredential,
-                        msg: "invalid credential".into(),
                     },
                 )
             }

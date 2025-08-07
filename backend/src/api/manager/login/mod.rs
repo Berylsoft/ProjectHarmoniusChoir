@@ -54,6 +54,7 @@ pub enum LoginRes {
     TotpVerify {
         token: SignedData<LoginToken>,
     },
+    InvalidCredential,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -123,6 +124,7 @@ impl LoginToken {
     }
 }
 
+#[expect(clippy::cognitive_complexity)]
 pub(crate) async fn router(
     state: State<ServerState>,
     req: Cbor<api::Request<LoginReq>>,
@@ -146,7 +148,14 @@ pub(crate) async fn router(
                 .map_err(|_| ApiError::InvalidToken("signature"))?;
             token.login.pre_verify(&mut cache).await?;
 
-            totp_check(token.secret.to_vec(), totp_code)?;
+            let valid = totp_check(token.secret.to_vec(), totp_code)?;
+            if !valid {
+                tracing::debug!("invalid totp code");
+                return Ok(Cbor(api::Response::Ok(
+                    LoginRes::InvalidCredential,
+                ))
+                .into_response());
+            }
 
             let mid = token.login.mid;
             let token_id = spawn_await(end_setup(db, token)).await??;
@@ -161,10 +170,14 @@ pub(crate) async fn router(
             token.pre_verify(&mut cache).await?;
 
             let mid = token.mid;
-            let token_id =
+            let result =
                 spawn_await(end_login(db, token, totp_code)).await??;
-
-            login_finish_res(mid, token_id, &key)
+            match result {
+                Ok(token_id) => login_finish_res(mid, token_id, &key),
+                Err(response) => {
+                    Cbor(api::Response::Ok(response)).into_response()
+                }
+            }
         }
     };
 
@@ -182,12 +195,19 @@ async fn handle_start_login(
     let manager =
         spawn_await(get_manager_for_start_login(db, mid)).await??;
     let Some((revision, pswd, totp_secret)) = manager else {
-        return Err(ApiError::InvalidCredential("unknown manager"));
+        tracing::debug!("manager {mid} not found");
+        return Ok(Cbor(api::Response::Ok(LoginRes::InvalidCredential))
+            .into_response());
     };
 
     let pswd = PasswordHash::new(&pswd)
         .context("expect stored password is valid encoding")?;
-    verify_password(password, &pswd).await?;
+    let valid = verify_password(password, &pswd).await?;
+    if !valid {
+        tracing::debug!("invalid password");
+        return Ok(Cbor(api::Response::Ok(LoginRes::InvalidCredential))
+            .into_response());
+    }
 
     let token = LoginToken {
         mid,
@@ -282,15 +302,20 @@ async fn end_login(
     db: Database,
     token: LoginToken,
     totp_code: u32,
-) -> ApiResult<i64, ToCbor> {
+) -> ApiResult<Result<i64, LoginRes>, ToCbor> {
     api_begin_transaction!(db, conn, trans, Deferred);
 
     let res: ApiResult<_, ToCbor> = async {
         let token_id = token.verify(&mut trans).await?;
 
-        verify_totp(&mut trans, token.mid, totp_code).await?;
+        let valid = verify_totp(&mut trans, token.mid, totp_code).await?;
 
-        Ok(token_id)
+        if !valid {
+            tracing::debug!("invalid totp code");
+            return Ok(Err(LoginRes::InvalidCredential));
+        }
+
+        Ok(Ok(token_id))
     }
     .await;
 
