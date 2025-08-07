@@ -5,7 +5,7 @@ export function assertNotNull<T>(t?: T, expect?: string): NonNullable<T> {
   return t;
 }
 
-export function assert(t: boolean, expect: string) {
+export function assert(t: boolean, expect: string): asserts t {
   if (!t) {
     throw new Error(expect);
   }

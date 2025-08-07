@@ -113,6 +113,7 @@ declare namespace JSX {
     [K in keyof HTMLElementTagNameMap]:
       & HTMLElementAttrs<K>
       & {
+        key?: string;
         children?: AnyNode;
         class?: string;
         classes?: string[];

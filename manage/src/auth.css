@@ -1,0 +1,171 @@
+#auth {
+  width: 100%;
+  height: 100%;
+}
+
+.authContainer {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.authBtn {
+  min-width: var(--200unit);
+
+  background-color: var(--theme);
+
+  border: 0;
+  border-radius: var(--10unit);
+
+  display: flex;
+  justify-content: center;
+
+  padding: var(--10unit) 0;
+
+  color: var(--bgDark);
+
+  font-size: var(--20unit);
+  font-weight: bolder;
+}
+
+.authBtn:active {
+  filter: brightness(0.9);
+}
+
+.authBtn:disabled {
+  filter: brightness(0.5) grayscale(1);
+}
+
+#authPanel {
+  width: var(--500unit);
+  height: var(--420unit);
+
+  border-radius: var(--25unit);
+
+  background-color: var(--bgLight);
+
+  display: flex;
+  flex-direction: column;
+
+  justify-content: center;
+  align-items: center;
+
+  gap: var(--40unit);
+}
+
+#loginInputs {
+  display: flex;
+  flex-direction: column;
+
+  gap: var(--10unit);
+}
+
+.authInput {
+  display: flex;
+  flex-direction: column;
+
+  gap: var(--5unit);
+}
+
+.authInput input {
+  box-sizing: border-box;
+
+  width: var(--200unit);
+
+  color: var(--txt);
+  background-color: var(--bgDark);
+
+  border: 0;
+  border-radius: var(--10unit);
+
+  display: flex;
+  align-items: center;
+
+  padding: var(--10unit) var(--15unit);
+
+  font-size: var(--20unit);
+}
+
+.authInput input:focus-visible {
+  outline: solid var(--2unit) var(--stroke);
+}
+
+.authInput input[type="number"]::-webkit-inner-spin-button,
+.authInput input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.authInput input[type="number"] {
+  appearance: textfield;
+}
+
+#authTotpSetupPanel {
+  width: var(--700unit);
+  height: var(--420unit);
+
+  border-radius: var(--25unit);
+
+  background-color: var(--bgLight);
+
+  display: flex;
+
+  justify-content: center;
+  align-items: center;
+
+  gap: var(--80unit);
+}
+
+#authTotpSetupPanelLeft {
+  width: var(--250unit);
+
+  display: flex;
+  flex-direction: column;
+
+  gap: var(--5unit);
+}
+
+#authTotpSetupPanelLeft img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+#authTotpSetupQrCode {
+  background-color: white;
+  padding: var(--10unit);
+}
+
+#authTotpSetupSecret {
+  line-break: anywhere;
+}
+
+#authTotpSetupPanelRight {
+  display: flex;
+  flex-direction: column;
+
+  gap: var(--40unit);
+}
+
+#authAcquireSudoDesc {
+  box-sizing: border-box;
+
+  width: var(--200unit);
+
+  border-radius: var(--10unit);
+
+  background-color: var(--bgErr);
+
+  display: flex;
+
+  justify-content: center;
+  align-items: center;
+
+  padding: var(--10unit);
+
+  color: var(--bgDark);
+
+  font-weight: bolder;
+}

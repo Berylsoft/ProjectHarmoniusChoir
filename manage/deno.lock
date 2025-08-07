@@ -9,9 +9,10 @@
     "jsr:@std/fs@*": "1.0.6",
     "jsr:@std/internal@^1.0.6": "1.0.6",
     "jsr:@std/path@*": "1.0.9",
-    "jsr:@std/path@^1.0.6": "1.0.8",
+    "jsr:@std/path@^1.0.6": "1.0.9",
     "jsr:@std/path@^1.0.8": "1.0.9",
     "jsr:@std/path@^1.0.9": "1.0.9",
+    "jsr:@std/ulid@1": "1.0.0",
     "npm:colorjs.io@~0.5.2": "0.5.2",
     "npm:esbuild@*": "0.25.4",
     "npm:esbuild@~0.25.4": "0.25.4"
@@ -51,6 +52,9 @@
     },
     "@std/path@1.0.9": {
       "integrity": "260a49f11edd3db93dd38350bf9cd1b4d1366afa98e81b86167b4e3dd750129e"
+    },
+    "@std/ulid@1.0.0": {
+      "integrity": "d41c3d27a907714413649fee864b7cde8d42ee68437d22b79d5de4f81d808780"
     }
   },
   "npm": {
@@ -220,6 +224,7 @@
       "jsr:@luca/esbuild-deno-loader@~0.11.1",
       "jsr:@std/assert@1",
       "jsr:@std/path@^1.0.9",
+      "jsr:@std/ulid@1",
       "npm:colorjs.io@~0.5.2",
       "npm:esbuild@~0.25.4"
     ]

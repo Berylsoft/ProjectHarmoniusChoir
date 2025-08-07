@@ -1,6 +1,44 @@
+@import "auth.css";
+
+:root {
+  --txt: #e6e6e6;
+  --txtSec: #808080;
+
+  --bgDark: #1a1a1a;
+  --bgLight: #262626;
+
+  --stroke: #333333;
+
+  --txtErr: #f36969;
+  --txtInfo: #227add;
+  --txtSuccess: #9be975;
+  --bgErr: #e75e5f;
+
+  --theme: #79c551;
+
+  --1unit: 0.0625rem;
+  --2unit: calc(var(--1unit) * 2);
+  --5unit: calc(var(--1unit) * 5);
+  --10unit: calc(var(--1unit) * 10);
+  --15unit: calc(var(--1unit) * 15);
+  --20unit: calc(var(--1unit) * 20);
+  --25unit: calc(var(--1unit) * 25);
+  --40unit: calc(var(--1unit) * 40);
+  --80unit: calc(var(--1unit) * 80);
+  --200unit: calc(var(--1unit) * 200);
+  --250unit: calc(var(--1unit) * 250);
+  --420unit: calc(var(--1unit) * 420);
+  --500unit: calc(var(--1unit) * 500);
+  --700unit: calc(var(--1unit) * 700);
+
+  color: var(--txt);
+  background-color: var(--bgDark);
+
+  font-family: sans-serif;
+  font-size: 16px;
+}
+
 #app {
   width: 100cqw;
   height: 100cqh;
-
-  background-color: oklch(0.8 0 0);
 }
