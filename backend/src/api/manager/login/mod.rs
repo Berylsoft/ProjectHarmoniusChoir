@@ -54,6 +54,7 @@ pub enum LoginRes {
     TotpVerify {
         token: SignedData<LoginToken>,
     },
+    Success,
     InvalidCredential,
 }
 
@@ -253,7 +254,7 @@ fn login_finish_res(
             },
             key,
         )],
-        Cbor(api::Response::Ok(())),
+        Cbor(api::Response::Ok(LoginRes::Success)),
     )
         .into_response()
 }
