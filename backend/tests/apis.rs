@@ -552,7 +552,7 @@ impl TestApp {
         &mut self,
         method: Method,
         cookie_store_id: u64,
-    ) -> ReqBuilder {
+    ) -> ReqBuilder<'_> {
         let cookie_jar = self.cookies.get(&cookie_store_id);
 
         let cookie_jar = if let Some(cookie_jar) = cookie_jar {
