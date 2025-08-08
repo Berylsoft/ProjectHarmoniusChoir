@@ -1,4 +1,5 @@
 @import "auth.css";
+@import "manage.css";
 
 :root {
   --txt: #e6e6e6;
@@ -18,6 +19,7 @@
 
   --1unit: 0.0625rem;
   --2unit: calc(var(--1unit) * 2);
+  --3unit: calc(var(--1unit) * 3);
   --5unit: calc(var(--1unit) * 5);
   --10unit: calc(var(--1unit) * 10);
   --15unit: calc(var(--1unit) * 15);
@@ -27,9 +29,11 @@
   --80unit: calc(var(--1unit) * 80);
   --200unit: calc(var(--1unit) * 200);
   --250unit: calc(var(--1unit) * 250);
+  --400unit: calc(var(--1unit) * 400);
   --420unit: calc(var(--1unit) * 420);
   --500unit: calc(var(--1unit) * 500);
   --700unit: calc(var(--1unit) * 700);
+  --800unit: calc(var(--1unit) * 800);
 
   color: var(--txt);
   background-color: var(--bgDark);
@@ -41,4 +45,20 @@
 #app {
   width: 100cqw;
   height: 100cqh;
+}
+
+[data-txt-sec="true"] {
+  color: var(--txtSec);
+}
+
+[data-txt-err="true"] {
+  color: var(--txtErr);
+}
+
+[data-txt-success="true"] {
+  color: var(--txtSuccess);
+}
+
+[data-txt-info="true"] {
+  color: var(--txtInfo);
 }

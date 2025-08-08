@@ -119,6 +119,7 @@ declare namespace JSX {
         classes?: string[];
         style?: ElementStyle;
         with?: (ref: ElementBuilder<HTMLElementTagNameMap[K]>) => void;
+        "sub:jsxContent"?: Signal<JSX.Element>;
       }
       & WithListeners
       & WithSubscribers<HTMLElementTagNameMap[K]>;

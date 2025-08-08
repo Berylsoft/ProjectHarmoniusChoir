@@ -1,0 +1,155 @@
+#manage {
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+}
+
+#manageNavBar {
+  box-sizing: border-box;
+
+  width: 100%;
+
+  background-color: var(--bgLight);
+
+  border-radius: 0 0 var(--15unit) var(--15unit);
+  padding: var(--10unit) var(--15unit);
+
+  display: flex;
+  justify-content: space-between;
+}
+
+#manageNavBarBtns {
+  display: flex;
+  align-items: center;
+  gap: var(--10unit);
+}
+
+.manageBtn {
+  background-color: var(--bgDark);
+
+  border: 0;
+  border-radius: var(--10unit);
+  padding: var(--5unit) var(--10unit);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  color: var(--txt);
+}
+
+#manageContent {
+  box-sizing: border-box;
+
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  gap: var(--10unit);
+
+  justify-content: center;
+  align-items: center;
+
+  padding: var(--10unit);
+}
+
+#manageProjectListPanel {
+  width: var(--400unit);
+  height: var(--800unit);
+
+  background-color: var(--bgLight);
+
+  border-radius: var(--15unit);
+
+  padding: var(--15unit);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--25unit);
+}
+
+#manageProjectList {
+  width: 100%;
+  height: 100%;
+}
+
+.manageProjectListItemContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.manageProjectListItemSep {
+  padding: var(--3unit) var(--25unit);
+}
+
+.manageProjectListItemSep::before {
+  display: block;
+
+  content: "";
+
+  width: 100%;
+  height: var(--2unit);
+
+  background-color: var(--stroke);
+
+  border-radius: var(--1unit);
+}
+
+#manageProjectUserPanel {
+  box-sizing: border-box;
+
+  height: 100%;
+
+  border-radius: var(--15unit);
+
+  background-color: var(--bgLight);
+
+  padding: var(--15unit);
+
+  display: flex;
+  flex-direction: column;
+
+  gap: var(--15unit);
+}
+
+#manageProjectUserList {
+  height: 100%;
+
+  border: var(--1unit) solid var(--stroke);
+  border-radius: var(--10unit);
+
+  display: grid;
+  grid-template-columns: repeat(9, max-content);
+  grid-auto-rows: min-content;
+
+  overflow: auto;
+}
+
+#manageProjectUserListHdr,
+#manageProjectUserListRow {
+  display: contents;
+}
+#manageProjectUserListHdr > div,
+#manageProjectUserListRow > div {
+  border-bottom: var(--1unit) solid var(--stroke);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--10unit);
+}
+#manageProjectUserListHdr > div {
+  padding: var(--10unit) var(--5unit);
+  background-color: var(--bgDark);
+}
+#manageProjectUserListHdr > div:not(:last-child),
+#manageProjectUserListRow > div:not(:last-child) {
+  border-right: var(--1unit) solid var(--stroke);
+}
+#manageProjectUserListRow > div {
+  padding: var(--5unit) var(--15unit);
+}

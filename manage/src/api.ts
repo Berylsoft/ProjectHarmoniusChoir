@@ -2,6 +2,8 @@ import CBOR from "./libs/cbor.js";
 import { ulid } from "jsr:@std/ulid";
 import { redirectAuth, redirectAuthSudo } from "./redirect.ts";
 import { notify } from "./notify.ts";
+import { Status } from "./shared/projectUser.ts";
+import { GroupInfo } from "./shared/submit.ts";
 
 const ENDPOINT: string = "http://localhost";
 
@@ -30,7 +32,14 @@ type Path =
 type OpaqueType = { __opaque__: undefined };
 
 type Data = {
-  [key: string]: string | number | bigint | Uint8Array | OpaqueType | Data;
+  [key: string]:
+    | boolean
+    | number
+    | string
+    | bigint
+    | Uint8Array
+    | OpaqueType
+    | Data;
 };
 
 export async function post<T>(path: Path, body?: Data): Promise<T> {
@@ -41,7 +50,7 @@ export async function post<T>(path: Path, body?: Data): Promise<T> {
     headers: {
       "Content-Type": "application/cbor",
     },
-    body: bodyEncoded,
+    body: new Uint8Array(bodyEncoded),
   });
 
   if (res.status == 401) {
@@ -70,6 +79,8 @@ export async function post<T>(path: Path, body?: Data): Promise<T> {
   return CBOR.decode(data)["Ok"];
 }
 
+(globalThis as Record<string, unknown>)["apiPost"] = post;
+
 export type LoginTotpSetupToken = OpaqueType;
 export type LoginToken = OpaqueType;
 export type LoginReq =
@@ -93,3 +104,37 @@ export async function acquireSudo(
   return await post("/acquire_sudo", req);
 }
 
+export type GetInfoRes = { id: number };
+export async function getInfo(): Promise<GetInfoRes> {
+  return await post("/get_info");
+}
+
+export type ListProjectsRes = { projects: ListProjectsProject[] };
+export type ListProjectsProject = {
+  pid: number;
+  name: string;
+};
+export async function listProjects(): Promise<ListProjectsRes> {
+  return await post("/list_projects");
+}
+
+export type ListProjectUsersReq = {
+  pid: number;
+  sort_by?: "JoinedAt" | "Status";
+  reverse?: boolean;
+};
+export type ListProjectUsersRes = {
+  project_users: ListProjectUsersProjectUser[];
+};
+export type ListProjectUsersProjectUser = {
+  id: number;
+  uid: number;
+  status: Status;
+  name: null | string;
+  group_info: null | GroupInfo;
+};
+export async function listProjectUsers(
+  req: ListProjectUsersReq,
+): Promise<ListProjectUsersRes> {
+  return await post("/list_project_users", req);
+}

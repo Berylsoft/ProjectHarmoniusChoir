@@ -67,6 +67,16 @@ export function buildJsx<
               key.replace(/^on:/, "") as keyof HTMLElementEventMap,
               props[key],
             );
+          } else if (key.startsWith("sub:jsxContent")) {
+            const signal = props[key] as Signal<JSX.Element>;
+
+            e.children(signal.get());
+
+            const subscriber = (v: JSX.Element) => {
+              e.children(v);
+            };
+            signal.subscribe(new WeakRef(subscriber));
+            (e.element as Record<string, unknown>)[key] = subscriber;
           } else if (key.startsWith("sub:")) {
             const to = key.replace(
               /^sub:/,

@@ -1,10 +1,10 @@
-import { post } from "./api.ts";
 import { render } from "./libs/ElementBuilder.ts";
 import { Auth } from "./auth.tsx";
 import { readNav, writeNav } from "./nav.ts";
 import { setRedirectAuth, setRedirectAuthSudo } from "./redirect.ts";
 import { assertNotNull, unreachable } from "./utils/assertion.ts";
 import { Level, setLevel } from "./utils/logging.ts";
+import { Manage } from "./manage.tsx";
 
 setLevel(Level.Trace);
 
@@ -37,8 +37,11 @@ function App() {
         </div>
       );
     case "manage":
-      post("/get_info").then(console.log);
-      return <div id="app">Manage</div>;
+      return (
+        <div id="app">
+          <Manage nav={nav} />
+        </div>
+      );
 
     default:
       return (
