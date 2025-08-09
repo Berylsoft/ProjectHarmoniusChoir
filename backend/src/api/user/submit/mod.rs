@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::Context as _;
 use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
@@ -9,11 +7,10 @@ use crate::{
     ServerState,
     api::{
         self, ApiResult, ToJson,
-        shared::{file, project_user, submit},
+        shared::{file, project_user},
         user::UserToken,
     },
-    api_bail_not_found, api_bail_status, api_begin_transaction,
-    api_param_assert,
+    api_bail_status, api_begin_transaction,
     database::Database,
     extractors::Token,
 };
@@ -22,7 +19,7 @@ use crate::{
 pub struct SubmitReq {
     pid: i64,
     comment: Box<str>,
-    files: Vec<i64>,
+    include_pre_submit_file: bool,
 }
 
 pub(crate) async fn router(
@@ -43,11 +40,6 @@ async fn do_submit(
     token: UserToken,
     req: SubmitReq,
 ) -> ApiResult<(), ToJson> {
-    let distinct_len =
-        req.files.iter().copied().collect::<HashSet<_>>().len();
-    api_param_assert!(req.files.len() == distinct_len, "invalid files");
-    api_param_assert!(!req.files.is_empty(), "invalid files");
-
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
@@ -86,42 +78,24 @@ async fn do_submit(
             );
         };
         let source = file::Source::new(req.pid, token.uid, None, stage);
-        let source_pre_submit = file::Source::new(
-            req.pid,
-            token.uid,
-            None,
-            file::Stage::PreSubmit,
-        );
 
-        // expect passed pre_submit is the latest one
-        // and current state is after pre submit passed
-        let group_info =
-            submit::GroupInfo::get_by_puid(&mut trans, puid).await?;
-        let passed_pre_submit_id: Option<i64> = if group_info.choir {
-            Some(
-                sqlx::query_scalar(include_str!(
-                    "./sqls/get_last_pre_submit_by_puid.sql"
-                ))
-                .bind(puid)
-                .fetch_one(&mut *trans)
+        let mut pending =
+            file::Info::get_pending(&mut trans, source).await?;
+        let from_pre_submit =
+            file::get_pre_submit_file_for_submit(&mut trans, puid)
                 .await
-                .context("get_last_pre_submit_by_puid")?,
-            )
-        } else {
-            None
-        };
-
-        for &file_id in &req.files {
-            check_file(
-                &mut trans,
-                file_id,
-                source,
-                source_pre_submit,
-                passed_pre_submit_id,
-            )
-            .await?;
+                .context("file::get_pre_submit_file_for_submit")?;
+        if req.include_pre_submit_file
+            && let Some(pre_submit) = from_pre_submit
+        {
+            pending.push(pre_submit);
         }
 
+        if pending.is_empty() {
+            api_bail_status!("no available file");
+        }
+
+        // ==================== write boundary ====================
         let sid: i64 =
             sqlx::query_scalar(include_str!("./sqls/ins_submit.sql"))
                 .bind(puid)
@@ -131,8 +105,8 @@ async fn do_submit(
                 .await
                 .context("ins_submit")?;
 
-        for &file_id in &req.files {
-            file::use_file(&mut trans, file_id, stage, sid).await?;
+        for info in pending {
+            file::use_file(&mut trans, info.id, stage, sid).await?;
         }
 
         ApiResult::Ok(())
@@ -140,71 +114,4 @@ async fn do_submit(
     .await;
 
     api::end_transaction(result, trans).await
-}
-
-async fn check_file(
-    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    id: i64,
-    source: file::Source,
-    source_pre_submit: file::Source,
-    passed_pre_submit_id: Option<i64>,
-) -> Result<(), api::ApiError<ToJson>> {
-    let status = file::Status::get_by_id(trans, id)
-        .await
-        .context("file::Status::get_by_id")?;
-    let Some(status) = status else {
-        api_bail_not_found!("file not found", format!("f{id} not exists"))
-    };
-
-    let (can_use, can_use_src) = if status == file::Status::Pending {
-        (file::is_uploaded_by(trans, id, source).await?, "pending")
-    } else if let Some(passed_pre_submit_id) = passed_pre_submit_id
-        && let file::Status::Used(used) = status
-    {
-        // expect a file only be used once
-        // and is a passed pre submit
-        if !matches!(&*used, [(file::Stage::PreSubmit, _)]) {
-            api_bail_status!(
-                "invalid file",
-                format!(
-                    "f{id} invalid previous usage of a file for submit: {used:?}"
-                )
-            );
-        }
-
-        if used[0].1 != passed_pre_submit_id {
-            api_bail_status!(
-                "invalid file",
-                format!(
-                    "f{id} used by invalid pre-submit, expect {}, but {}",
-                    passed_pre_submit_id, used[0].1
-                )
-            );
-        }
-
-        (
-            file::is_uploaded_by(trans, id, source_pre_submit).await?,
-            "pre-submit",
-        )
-    } else {
-        api_bail_status!(
-            "invalid file",
-            format!(
-                "f{id} in invalid status for submit: {status:?}, \
-in choir: {}",
-                passed_pre_submit_id.is_some()
-            )
-        );
-    };
-
-    if !can_use {
-        api_bail_status!(
-            "invalid file",
-            format!(
-                "f{id} is_uploaded_by check failed, check as {can_use_src}"
-            )
-        )
-    }
-
-    Ok(())
 }

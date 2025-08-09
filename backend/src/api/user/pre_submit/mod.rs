@@ -10,7 +10,7 @@ use crate::{
         shared::{file, project, project_user},
         user::UserToken,
     },
-    api_bail_status, api_begin_transaction,
+    api_bail, api_bail_status, api_begin_transaction,
     database::Database,
     extractors::Token,
 };
@@ -22,13 +22,7 @@ pub struct PreSubmitReq {
     harmony_group_intention: Option<bool>,
     comment: Box<str>,
 
-    file: PreSubmitFile,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum PreSubmitFile {
-    File(i64),
-    Skip(Box<str>),
+    skip: Option<Box<str>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -52,7 +46,6 @@ pub(crate) async fn router(
     Ok(Json(api::Response::Ok(pre_submit_res)))
 }
 
-#[expect(clippy::too_many_lines)]
 async fn do_submit(
     db: Database,
     token: UserToken,
@@ -63,7 +56,7 @@ async fn do_submit(
         name,
         harmony_group_intention: hgi,
         comment,
-        file,
+        skip,
     } = req;
 
     if !is_valid_name(&name) {
@@ -98,52 +91,34 @@ async fn do_submit(
         let stage = file::Stage::PreSubmit;
         let source = file::Source::new(pid, token.uid, None, stage);
 
-        match &file {
-            PreSubmitFile::File(file_id) => {
-                let status =
-                    file::Status::get_by_id(&mut trans, *file_id)
-                        .await
-                        .context("file::Status::get_by_id")?;
-                if !matches!(status, Some(file::Status::Pending)) {
-                    tracing::debug!(
-                        "invalid file status for pre-submit: {status:?}"
-                    );
-                    api_bail_status!(
-                        "invalid file",
-                        format!(
-                            "invalid file status \
-for pre-submit: {status:?}"
-                        )
-                    );
-                }
+        let pending = file::Info::get_pending(&mut trans, source).await?;
 
-                let is_uploaded_by =
-                    file::is_uploaded_by(&mut trans, *file_id, source)
-                        .await?;
-                if !is_uploaded_by {
-                    api_bail_status!(
-                        "invalid file",
-                        format!(
-                            "the user {} can't use this file",
-                            token.uid
-                        )
-                    );
-                }
+        if let Some(skip) = skip {
+            if !pending.is_empty() {
+                api_bail_status!(
+                    "already uploaded file",
+                    "can't use skip password when have file pending"
+                );
             }
-            PreSubmitFile::Skip(skip_pswd) => {
-                // expect pid verified by verify_joined_project
-                let p_skip_pswd: Box<str> =
-                    sqlx::query_scalar(include_str!(
-                        "./sqls/get_pre_submit_skip_password_by_pid.sql"
-                    ))
-                    .bind(pid)
-                    .fetch_one(&mut *trans)
-                    .await
-                    .context("get_pre_submit_skip_password_by_pid")?;
-                if skip_pswd != &p_skip_pswd {
-                    return Ok(PreSubmitRes::InvalidSkipPassword);
-                }
+
+            // expect pid verified by verify_joined_project
+            let skip_pswd: Box<str> = sqlx::query_scalar(include_str!(
+                "./sqls/get_pre_submit_skip_password_by_pid.sql"
+            ))
+            .bind(pid)
+            .fetch_one(&mut *trans)
+            .await
+            .context("get_pre_submit_skip_password_by_pid")?;
+            if skip != skip_pswd {
+                return Ok(PreSubmitRes::InvalidSkipPassword);
             }
+        } else if pending.is_empty() {
+            api_bail_status!("no available file");
+        } else if pending.len() > 1 {
+            api_bail!(
+                "expect only allowed one file \
+per project per user per pre-submit"
+            );
         }
 
         let (status, _) =
@@ -174,8 +149,8 @@ for pre-submit: {status:?}"
         .await
         .context("ins_pre_submit")?;
 
-        if let PreSubmitFile::File(file_id) = file {
-            file::use_file(&mut trans, file_id, stage, pre_submit_id)
+        if let Some(info) = pending.first() {
+            file::use_file(&mut trans, info.id, stage, pre_submit_id)
                 .await?;
         }
 

@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::Context as _;
 use axum::{extract::State, response::IntoResponse};
 use chrono::Utc;
@@ -14,7 +12,6 @@ use crate::{
         spawn_await,
     },
     api_bail_not_found, api_bail_status, api_begin_transaction,
-    api_param_assert,
     database::Database,
     extractors::{Cbor, Token},
 };
@@ -22,7 +19,6 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MasterReq {
     puid: i64,
-    files: Vec<i64>,
     comment: Box<str>,
 }
 
@@ -44,11 +40,6 @@ async fn do_master(
     token: ManagerToken,
     req: MasterReq,
 ) -> ApiResult<(), ToCbor> {
-    let distinct_len =
-        req.files.iter().copied().collect::<HashSet<_>>().len();
-    api_param_assert!(req.files.len() == distinct_len, "invalid files");
-    api_param_assert!(!req.files.is_empty(), "invalid files");
-
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
@@ -88,34 +79,9 @@ async fn do_master(
             file::Stage::Master,
         );
 
-        for &file_id in &req.files {
-            let is_uploaded_by =
-                file::is_uploaded_by(&mut trans, file_id, source).await?;
-
-            if !is_uploaded_by {
-                api_bail_not_found!(
-                    "file not found",
-                    format!(
-                        "the file {file_id} is not uploaded by \
-the manager for this purpose or not exists"
-                    )
-                );
-            }
-
-            let status = file::Status::get_by_id(&mut trans, file_id)
-                .await
-                .context("file::Status::get_by_id")?
-                .context("file id verified by is_uploaded_by")?;
-
-            if status != file::Status::Pending {
-                api_bail_status!(
-                    "invalid file",
-                    format!(
-                        "file have {file_id} invalid status \
-for master: {status:?}"
-                    )
-                );
-            }
+        let pending = file::Info::get_pending(&mut trans, source).await?;
+        if pending.is_empty() {
+            api_bail_status!("no avaiable file");
         }
 
         // ==================== write boundary ====================
@@ -130,8 +96,8 @@ for master: {status:?}"
                 .await
                 .context("ins_master")?;
 
-        for file_id in req.files {
-            file::use_file(&mut trans, file_id, file::Stage::Master, id)
+        for info in pending {
+            file::use_file(&mut trans, info.id, file::Stage::Master, id)
                 .await?;
         }
 

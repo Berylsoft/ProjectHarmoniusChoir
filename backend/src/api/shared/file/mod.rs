@@ -14,7 +14,10 @@ use strum::{EnumString, IntoStaticStr};
 
 use crate::{
     S3,
-    api::{ApiResult, shared::project_user},
+    api::{
+        ApiResult,
+        shared::{project_user, submit},
+    },
     api_assert, api_bail_not_found, api_bail_status, api_param_assert,
 };
 
@@ -719,35 +722,6 @@ pub async fn get_file_users_by_id(
 }
 
 /// check if the file is uploaded by the user
-/// for the project and stage
-///
-/// or
-///
-/// check if the file is uploaded by the manager
-/// for the user and project and stage
-/// # Errors
-/// database error
-pub async fn is_uploaded_by(
-    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    id: i64,
-    source: Source,
-) -> anyhow::Result<bool> {
-    sqlx::query_scalar::<_, i64>(include_str!(
-        "./sqls/is_uploaded_by.sql"
-    ))
-    .bind(id)
-    .bind(source.project_id)
-    .bind(source.user_id)
-    .bind(source.manager_id)
-    .bind(source.manager_id)
-    .bind(source.stage.into_str())
-    .fetch_one(&mut **trans)
-    .await
-    .context("is_uploaded_by")
-    .map(|it| it > 0)
-}
-
-/// check if the file is uploaded by the user
 ///
 /// or
 ///
@@ -773,7 +747,7 @@ pub async fn is_uploaded_by_simple(
     .map(|it| it > 0)
 }
 
-/// expect valid `id`, and checked by `can_use_file`
+/// expect valid `id`, and checked "can use"
 /// # Errors
 /// database error
 pub async fn use_file(
@@ -944,4 +918,41 @@ pub(crate) async fn verify_project_not_ended_by_id<S>(
     }
 
     Ok(())
+}
+
+pub(crate) async fn get_pre_submit_file_for_submit(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    puid: i64,
+) -> anyhow::Result<Option<Info>> {
+    let (status, _) = project_user::Status::get_by_puid(trans, puid)
+        .await
+        .context("project_user::Status::get_by_puid")?;
+
+    if Stage::try_from(status) == Ok(Stage::Submit) {
+        // expect have a passed pre-submit when `stage == Stage::Submit`
+        let group_info =
+            submit::GroupInfo::get_by_puid(trans, puid).await?;
+        if group_info.choir
+            && let Some(file_info) =
+                Info::get_of_latest_pre_submit_by_puid(trans, puid)
+                    .await?
+        {
+            let file_status = Status::get_by_id(trans, file_info.id)
+                .await
+                .context("file::Status::get_by_id")?
+                .context("expect file exists")?;
+
+            // the file is got by the latest pre submit
+            // so expect it's `file::Status::Used`
+            // so expect the `uses` must include the pre submit
+            // so expect when `len` == 1, it only include the pre submit
+            if let Status::Used(uses) = file_status
+                && uses.len() == 1
+            {
+                return Ok(Some(file_info));
+            }
+        }
+    }
+
+    Ok(None)
 }

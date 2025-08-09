@@ -1371,9 +1371,7 @@ async fn user_pre_submit_skip_file(
             "name": "TheName",
             "harmony_group_intention": true,
             "comment": "The Comment",
-            "file": {
-                "Skip": "thepswd",
-            }
+            "skip": "thepswd",
         }}))
         .await?;
 
@@ -1575,7 +1573,7 @@ async fn user_list_pending_files(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 45
+    content-length: 68
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1586,7 +1584,8 @@ async fn user_list_pending_files(mut app: TestApp) -> anyhow::Result<()> {
             "id": 1,
             "name": "test.wav"
           }
-        ]
+        ],
+        "pre_submit_file": null
       }
     }
     "#);
@@ -1944,18 +1943,17 @@ async fn user_list_pending_files_before_submit(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 45
+    content-length: 64
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
-        "files": [
-          {
-            "id": 1,
-            "name": "test.wav"
-          }
-        ]
+        "files": [],
+        "pre_submit_file": {
+          "id": 1,
+          "name": "test.wav"
+        }
       }
     }
     "#);
@@ -1972,7 +1970,7 @@ async fn user_submit(mut app: TestApp) -> anyhow::Result<()> {
         .send_json(json!({"data": {
             "pid": 1,
             "comment": "some comment for submit, or maybe not",
-            "files": [1],
+            "include_pre_submit_file": true,
         }}))
         .await?;
 
