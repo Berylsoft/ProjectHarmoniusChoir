@@ -153,3 +153,46 @@
 #manageProjectUserListRow > div {
   padding: var(--5unit) var(--15unit);
 }
+
+.manageInfoBtn {
+  background-color: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--txtInfo);
+}
+
+#manageDetailNone,
+#manageDetail {
+  box-sizing: border-box;
+
+  width: 100%;
+  height: 100%;
+
+  border-radius: var(--15unit);
+
+  background-color: var(--bgLight);
+
+  display: flex;
+}
+
+#manageDetailNone {
+  justify-content: center;
+  align-items: center;
+}
+
+#manageDetail {
+  flex-direction: column;
+  gap: var(--15unit);
+
+  padding: var(--15unit);
+}
+
+#manageDetailTitle {
+  display: flex;
+  justify-content: space-between;
+}
+
+#manageDetailTitleBtns {
+  display: flex;
+  gap: var(--10unit);
+}

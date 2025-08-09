@@ -95,7 +95,6 @@ export function buildJsx<
             signal.subscribe(new WeakRef(subscriber));
             (theElement as Record<string, unknown>)[key] = subscriber;
           } else {
-            // deno-lint-ignore no-explicit-any
             (e.element as Record<string, unknown>)[key] = props[key];
           }
           break;

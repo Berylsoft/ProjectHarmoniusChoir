@@ -10,9 +10,9 @@
 
   --stroke: #333333;
 
+  --txtOk: #9be975;
   --txtErr: #f36969;
   --txtInfo: #227add;
-  --txtSuccess: #9be975;
   --bgErr: #e75e5f;
 
   --theme: #79c551;
@@ -55,8 +55,8 @@
   color: var(--txtErr);
 }
 
-[data-txt-success="true"] {
-  color: var(--txtSuccess);
+[data-txt-ok="true"] {
+  color: var(--txtOk);
 }
 
 [data-txt-info="true"] {
