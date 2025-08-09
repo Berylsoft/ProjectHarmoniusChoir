@@ -3,6 +3,7 @@ SELECT COUNT(*)
     WHERE project_id = ?
         AND user_id = ?
         AND manager_id = ?
+        AND stage = ?
         AND NOT EXISTS (
             SELECT 1
                 FROM file_infos

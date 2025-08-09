@@ -119,6 +119,7 @@ impl Info {
             .bind(source.user_id)
             .bind(source.manager_id)
             .bind(source.manager_id)
+            .bind(source.stage.into_str())
             .fetch_all(&mut **trans)
             .await
             .context("get_pending_files")
@@ -302,6 +303,7 @@ pub(crate) async fn upload_check_pending_file_count(
             ))
             .bind(source.project_id)
             .bind(source.user_id)
+            .bind(stage.into_str())
             .fetch_one(&mut **trans)
             .await
             .context("get_user_pending_file_count_by_pid_uid")?
@@ -313,6 +315,7 @@ pub(crate) async fn upload_check_pending_file_count(
             .bind(source.project_id)
             .bind(source.user_id)
             .bind(mid)
+            .bind(stage.into_str())
             .fetch_one(&mut **trans)
             .await
             .context("get_manager_pending_file_count_by_pid_uid_mid")?

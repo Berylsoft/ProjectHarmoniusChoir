@@ -66,7 +66,7 @@ async fn do_pending_files(
             pid,
             uid,
             Some(token.mid),
-            file::Stage::PreSubmit,
+            file::Stage::Master,
         );
 
         let files = file::Info::get_pending(&mut trans, source).await?;

@@ -52,22 +52,21 @@ async fn do_list_pending_files(
             .verify_joined_project(&mut trans, req.pid, true)
             .await?;
 
-        let source = file::Source::new(
-            req.pid,
-            token.uid,
-            None,
-            file::Stage::PreSubmit,
-        );
-
-        let mut files =
-            file::Info::get_pending(&mut trans, source).await?;
-
         let (status, _) =
             project_user::Status::get_by_puid(&mut trans, puid)
                 .await
                 .context("project_user::Status::get_by_puid")?;
 
-        if file::Stage::try_from(status) == Ok(file::Stage::Submit) {
+        let Ok(stage) = file::Stage::try_from(status) else {
+            return Ok(ListPendingFilesRes { files: vec![] });
+        };
+
+        let source = file::Source::new(req.pid, token.uid, None, stage);
+
+        let mut files =
+            file::Info::get_pending(&mut trans, source).await?;
+
+        if stage == file::Stage::Submit {
             let group_info =
                 submit::GroupInfo::get_by_puid(&mut trans, puid).await?;
             if group_info.choir
