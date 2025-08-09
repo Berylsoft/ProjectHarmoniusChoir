@@ -2311,26 +2311,29 @@ async fn manager_master_info(mut app: TestApp) -> anyhow::Result<()> {
         .await?;
 
     let mut body = res.body_to_cbor()?;
-    let created_at = cbor_remove(&mut body, &["Ok", "created_at"]);
+    let created_at =
+        cbor_remove(&mut body, &["Ok", "Info", "created_at"]);
     let _: DateTime<Utc> = created_at.into_text().unwrap().parse()?;
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 136
+    content-length: 142
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
       "Ok": {
-        "mid": 0,
-        "mname": "root",
-        "comment": "some comment for master, or maybe empty",
-        "files": [
-          {
-            "id": 2,
-            "name": "test.wav"
-          }
-        ]
+        "Info": {
+          "mid": 0,
+          "mname": "root",
+          "comment": "some comment for master, or maybe empty",
+          "files": [
+            {
+              "id": 2,
+              "name": "test.wav"
+            }
+          ]
+        }
       }
     }
     "#);

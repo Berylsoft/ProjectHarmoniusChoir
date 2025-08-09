@@ -12,7 +12,7 @@ use crate::{
         shared::{file, project_user},
         spawn_await,
     },
-    api_bail_not_found, api_bail_status, api_begin_transaction,
+    api_bail_not_found, api_begin_transaction,
     database::Database,
     extractors::{Cbor, Token},
 };
@@ -23,7 +23,13 @@ pub struct MasterInfoReq {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MasterInfoRes {
+pub enum MasterInfoRes {
+    None,
+    Info(MasterInfo),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MasterInfo {
     mid: i64,
     mname: Box<str>,
     created_at: DateTime<Utc>,
@@ -88,10 +94,7 @@ async fn do_master_info(
         .context("get_master_info_by_puid")?;
 
         let Some(info) = info else {
-            api_bail_status!(
-                "not mastered yet",
-                format!("project user {} is not mastered", req.puid)
-            );
+            return Ok(MasterInfoRes::None);
         };
 
         let mname =
@@ -102,7 +105,7 @@ async fn do_master_info(
         )
         .await?;
 
-        ApiResult::Ok(MasterInfoRes {
+        ApiResult::Ok(MasterInfoRes::Info(MasterInfo {
             mid: info.manager_id,
             mname,
             created_at: info
@@ -112,7 +115,7 @@ async fn do_master_info(
             comment: info.comment,
 
             files,
-        })
+        }))
     }
     .await;
 
