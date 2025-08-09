@@ -9,7 +9,7 @@ use crate::{
         shared::{file, project_user, submit},
         user::UserToken,
     },
-    api_bail, api_begin_transaction,
+    api_begin_transaction,
     database::Database,
     extractors::Token,
 };
@@ -90,8 +90,6 @@ async fn do_list_pending_files(
                     && uses.len() == 1
                 {
                     files.push(file_info);
-                } else {
-                    api_bail!("unreachable");
                 }
             }
         }
