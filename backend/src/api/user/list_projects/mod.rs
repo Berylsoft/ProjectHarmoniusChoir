@@ -56,6 +56,7 @@ async fn do_list_projects(
 
         let projects: Vec<ProjectRow> =
             sqlx::query_as(include_str!("./sqls/list_projects.sql"))
+                .bind(token.uid)
                 .fetch_all(&mut *trans)
                 .await
                 .context("list_projects")?;
