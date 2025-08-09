@@ -1180,6 +1180,39 @@ async fn user_join_project(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
+    next!(app; user_list_projects_after_join);
+
+    Ok(())
+}
+
+async fn user_list_projects_after_join(
+    mut app: TestApp,
+) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/list_projects")
+        .send_json(json!({"data": null}))
+        .await?;
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 66
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {
+        "projects": [
+          {
+            "id": 1,
+            "joined": true,
+            "name": "Test Project"
+          }
+        ]
+      }
+    }
+    "#);
+
     next!(app; manager_get_info);
 
     Ok(())
