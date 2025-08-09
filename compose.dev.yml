@@ -12,8 +12,11 @@ services:
         required: true
     ports:
       - "8081:8081"
+    volumes:
+      - "./data/backend:/app"
     environment:
       RUST_LOG: backend=trace,sqlx=info,tower_http::trace::make_span=debug,info
+      SQL_DB: "sqlite://database.db?mode=rwc"
       REDIS_DB: "redis://cache"
       AWS_ENDPOINT_URL: "http://s3:9000"
       AWS_REGION: default
@@ -27,6 +30,8 @@ services:
     image: minio/minio
     ports:
       - "9001:9001"
+    volumes:
+      - "./data/minio:/mnt/data"
     command: server /mnt/data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
