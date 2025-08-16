@@ -6,5 +6,6 @@ SELECT
             FROM project_users pu
             WHERE pu.user_id = ?
                 AND pu.project_id = p.id
-    ) as joined
+    ) as joined,
+    p.end_time as end_time
     FROM projects p;

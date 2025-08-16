@@ -1,6 +1,6 @@
 use anyhow::Context as _;
 use axum::{Json, extract::State, response::IntoResponse};
-use itertools::Itertools;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
@@ -22,6 +22,7 @@ pub struct Project {
     id: i64,
     name: Box<str>,
     joined: bool,
+    ended: bool,
 }
 
 pub(crate) async fn router(
@@ -50,6 +51,7 @@ async fn do_list_projects(
             id: i64,
             name: Box<str>,
             joined: i64,
+            end_time: Box<str>,
         }
 
         token.verify(&mut trans).await?;
@@ -61,14 +63,25 @@ async fn do_list_projects(
                 .await
                 .context("list_projects")?;
 
+        let now = Utc::now();
+
         let projects = projects
             .into_iter()
-            .map(|it| Project {
-                id: it.id,
-                name: it.name,
-                joined: it.joined > 0,
+            .map(|it| {
+                let end_time: DateTime<Utc> = it
+                    .end_time
+                    .parse()
+                    .context("parse end_time from db")?;
+                let ended = end_time < now;
+
+                Ok(Project {
+                    id: it.id,
+                    name: it.name,
+                    joined: it.joined > 0,
+                    ended,
+                })
             })
-            .collect_vec();
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         ApiResult::<_, _>::Ok(projects)
     }

@@ -1104,7 +1104,7 @@ async fn user_list_projects(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 67
+    content-length: 81
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1112,6 +1112,7 @@ async fn user_list_projects(mut app: TestApp) -> anyhow::Result<()> {
       "Ok": {
         "projects": [
           {
+            "ended": false,
             "id": 1,
             "joined": false,
             "name": "Test Project"
@@ -1196,7 +1197,7 @@ async fn user_list_projects_after_join(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 66
+    content-length: 80
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1204,6 +1205,7 @@ async fn user_list_projects_after_join(
       "Ok": {
         "projects": [
           {
+            "ended": false,
             "id": 1,
             "joined": true,
             "name": "Test Project"
