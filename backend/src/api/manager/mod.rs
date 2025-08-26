@@ -143,6 +143,10 @@ impl ManagerToken {
         read_only_to_project: bool,
     ) -> ApiResult<(), S> {
         if self.is_root() {
+            if !read_only_to_project {
+                project::verify_not_ended(trans, pid).await?;
+            }
+
             return Ok(());
         }
 
