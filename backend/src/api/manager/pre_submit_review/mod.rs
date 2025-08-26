@@ -11,8 +11,8 @@ use crate::{
         shared::submit::{self, PreSubmitReviewRow},
         spawn_await,
     },
-    api_assert, api_bail, api_bail_not_found, api_begin_transaction,
-    api_param_assert,
+    api_assert, api_bail, api_bail_not_found, api_bail_status,
+    api_begin_transaction, api_param_assert,
     database::Database,
     extractors::{Cbor, Token},
 };
@@ -24,12 +24,6 @@ pub struct PreSubmitReviewReq {
     status: submit::PreSubmitStatus,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum PreSubmitReviewRes {
-    Success,
-    AlreadyReviewed,
-}
-
 pub(crate) async fn router(
     state: State<ServerState>,
     token: Token<ManagerToken>,
@@ -38,16 +32,16 @@ pub(crate) async fn router(
     let ServerState { mut cache, db, .. } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    let response = spawn_await(do_review(db, token.0, req)).await??;
+    spawn_await(do_review(db, token.0, req)).await??;
 
-    Ok(Cbor(api::Response::Ok(response)))
+    Ok(Cbor(api::Response::Ok(())))
 }
 
 async fn do_review(
     db: Database,
     token: ManagerToken,
     req: PreSubmitReviewReq,
-) -> ApiResult<PreSubmitReviewRes, ToCbor> {
+) -> ApiResult<(), ToCbor> {
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
@@ -67,7 +61,10 @@ async fn do_review(
         };
 
         if submit_review_id.is_some() {
-            return Ok(PreSubmitReviewRes::AlreadyReviewed);
+            api_bail_status!(
+                "already reviewed",
+                format!("{} already reviewed", req.sid)
+            );
         }
 
         let Some(submit_pid) = submit_pid else {
@@ -116,7 +113,7 @@ async fn do_review(
 
         api_assert!(ins_result.rows_affected() == 1);
 
-        ApiResult::Ok(PreSubmitReviewRes::Success)
+        ApiResult::Ok(())
     }
     .await;
 
