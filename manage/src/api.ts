@@ -3,7 +3,14 @@ import { ulid } from "jsr:@std/ulid";
 import { redirectAuth, redirectAuthSudo } from "./redirect.ts";
 import { notify } from "./notify.ts";
 import { Status } from "./shared/projectUser.ts";
-import { GroupInfo } from "./shared/submit.ts";
+import {
+  Detail as SubmitDetail,
+  GroupInfo,
+  PreSubmitStatus,
+} from "./shared/submit.ts";
+import { Info as FileInfo } from "./shared/file.ts";
+import { PresignedReq } from "./file.ts";
+import { assert } from "./utils/assertion.ts";
 
 const ENDPOINT: string = "http://localhost";
 
@@ -137,4 +144,54 @@ export async function listProjectUsers(
   req: ListProjectUsersReq,
 ): Promise<ListProjectUsersRes> {
   return await post("/list_project_users", req);
+}
+
+export type PreSubmitInfoReq = {
+  puid: number;
+};
+export type PreSubmitInfoRes = {
+  pre_submits: PreSubmitInfo[];
+};
+export type PreSubmitInfo = {
+  id: number;
+  created_at: string;
+  name: string;
+  harmony_group_intention: null | boolean;
+  comment: string;
+  file_info: null | FileInfo;
+  status: null | SubmitDetail<PreSubmitStatus>;
+};
+export async function preSubmitInfo(
+  req: PreSubmitInfoReq,
+): Promise<PreSubmitInfoRes> {
+  return await post("/pre_submit_info", req);
+}
+
+export type GetFileReq = {
+  pid: number;
+  file_id: number;
+  type: GetFileType;
+};
+export type GetFileType = "Preview" | "Download";
+export type GetFileRes = {
+  presigned_req: PresignedReq;
+};
+export async function getFile(req: GetFileReq): Promise<GetFileRes> {
+  return await post("/get_file", req);
+}
+export async function openFile(pid: number, id: number, type: GetFileType) {
+  const req = (await getFile({ pid, file_id: id, type })).presigned_req;
+  assert(req.method === "GET", "expect get");
+  assert(req.headers.length === 0, "expect no header");
+
+  globalThis.open(req.uri);
+}
+
+export type PreSubmitReview = {
+  pid: number;
+  sid: number;
+  status: PreSubmitStatus;
+};
+export async function preSubmitReview(req: PreSubmitReview) {
+  await post("/pre_submit_review", req);
 }

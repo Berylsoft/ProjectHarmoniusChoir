@@ -22,9 +22,11 @@
   --3unit: calc(var(--1unit) * 3);
   --5unit: calc(var(--1unit) * 5);
   --10unit: calc(var(--1unit) * 10);
+  --14unit: calc(var(--1unit) * 14);
   --15unit: calc(var(--1unit) * 15);
   --20unit: calc(var(--1unit) * 20);
   --25unit: calc(var(--1unit) * 25);
+  --30unit: calc(var(--1unit) * 30);
   --40unit: calc(var(--1unit) * 40);
   --80unit: calc(var(--1unit) * 80);
   --200unit: calc(var(--1unit) * 200);
@@ -47,18 +49,22 @@
   height: 100cqh;
 }
 
-[data-txt-sec="true"] {
+.txtSec {
   color: var(--txtSec);
 }
 
-[data-txt-err="true"] {
+.txtErr {
   color: var(--txtErr);
 }
 
-[data-txt-ok="true"] {
+.txtOk {
   color: var(--txtOk);
 }
 
-[data-txt-info="true"] {
+.txtInfo {
   color: var(--txtInfo);
+}
+
+.dyn {
+  display: contents;
 }

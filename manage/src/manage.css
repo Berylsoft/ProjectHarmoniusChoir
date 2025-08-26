@@ -196,3 +196,130 @@
   display: flex;
   gap: var(--10unit);
 }
+
+#manageDetailContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--30unit);
+}
+
+.manageUserInput {
+  background-color: var(--bgDark);
+
+  border-radius: var(--5unit);
+  padding: var(--5unit) var(--10unit);
+
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+
+  color: var(--txt);
+}
+
+.manageSubmitInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--5unit);
+}
+
+.manageSubmitInfoItem {
+  display: flex;
+  align-items: center;
+  gap: var(--10unit);
+}
+
+.manageSubmitSep {
+  padding: var(--5unit) var(--15unit);
+}
+
+.manageSubmitSep::before {
+  display: block;
+
+  content: "";
+
+  width: 100%;
+  height: var(--2unit);
+
+  background-color: var(--stroke);
+
+  border-radius: var(--1unit);
+}
+
+.manageNamedTextArea {
+  background-color: var(--bgDark);
+
+  padding: var(--10unit);
+  border-radius: var(--5unit);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--10unit);
+}
+
+.manageNamedTextArea > span {
+  color: var(--txtSec);
+  font-size: var(--14unit);
+}
+
+.manageNamedTextArea > textarea {
+  background-color: transparent;
+
+  min-height: var(--80unit);
+
+  resize: vertical;
+  border: 0;
+  outline: none;
+
+  color: var(--txt);
+}
+
+.manageNamedTextArea > textarea::placeholder {
+  color: var(--txtSec);
+}
+
+.manageSelector {
+  background-color: var(--bgDark);
+
+  border-radius: var(--5unit);
+
+  display: flex;
+}
+.manageSelector > div {
+  padding: var(--5unit);
+
+  user-select: none;
+}
+.manageSelector > div:is(:first-child) {
+  padding-left: var(--10unit);
+}
+.manageSelector > div:is(:last-child) {
+  padding-right: var(--10unit);
+}
+
+.manageSubmitReview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--10unit);
+}
+
+.manageSubmitOps {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--5unit);
+}
+
+.manageSubmitReviewSubmitBtn {
+  background-color: var(--theme);
+
+  border: 0;
+  border-radius: var(--5unit);
+  padding: var(--5unit) var(--10unit);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  color: var(--bgDark);
+}
