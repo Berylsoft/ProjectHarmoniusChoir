@@ -1,16 +1,13 @@
 #manage {
   height: 100%;
 
-  display: flex;
-  flex-direction: column;
-
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto;
+  grid-template-rows: max-content auto;
 }
 
 #manageNavBar {
   box-sizing: border-box;
-
-  width: 100%;
 
   background-color: var(--bgLight);
 
@@ -44,19 +41,24 @@
 #manageContent {
   box-sizing: border-box;
 
-  width: 100%;
-  height: 100%;
+  min-height: 0;
 
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content auto;
   gap: var(--10unit);
-
-  justify-content: center;
-  align-items: center;
 
   padding: var(--10unit);
 }
 
+#manageContent:has(#manageProjectListPanel) {
+  grid-template-columns: auto;
+  align-items: center;
+  justify-content: center;
+}
+
 #manageProjectListPanel {
+  box-sizing: border-box;
+
   width: var(--400unit);
   height: var(--800unit);
 
@@ -66,14 +68,14 @@
 
   padding: var(--15unit);
 
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 100%;
+  grid-template-rows: max-content minmax(0, auto);
   gap: var(--25unit);
 }
 
 #manageProjectList {
-  width: 100%;
-  height: 100%;
+  overflow: auto;
 }
 
 .manageProjectListItemContent {
@@ -102,7 +104,7 @@
 #manageProjectUserPanel {
   box-sizing: border-box;
 
-  height: 100%;
+  min-height: 0;
 
   border-radius: var(--15unit);
 
@@ -110,15 +112,14 @@
 
   padding: var(--15unit);
 
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto;
+  grid-template-rows: min-content minmax(0, auto);
 
   gap: var(--15unit);
 }
 
 #manageProjectUserList {
-  height: 100%;
-
   border: var(--1unit) solid var(--stroke);
   border-radius: var(--10unit);
 
@@ -165,26 +166,22 @@
 #manageDetail {
   box-sizing: border-box;
 
-  width: 100%;
-  height: 100%;
+  min-height: 0;
 
   border-radius: var(--15unit);
+  padding: var(--15unit);
 
   background-color: var(--bgLight);
-
-  display: flex;
 }
-
+#manageDetail {
+  display: grid;
+  grid-template-rows: max-content auto;
+  gap: var(--15unit);
+}
 #manageDetailNone {
+  display: flex;
   justify-content: center;
   align-items: center;
-}
-
-#manageDetail {
-  flex-direction: column;
-  gap: var(--15unit);
-
-  padding: var(--15unit);
 }
 
 #manageDetailTitle {
@@ -198,9 +195,13 @@
 }
 
 #manageDetailContent {
+  min-height: 0;
+
   display: flex;
   flex-direction: column;
   gap: var(--30unit);
+
+  overflow: auto;
 }
 
 .manageUserInput {
