@@ -16,9 +16,13 @@ import {
   statusToStageName,
   statusToStatusEnum,
 } from "./shared/projectUser.ts";
-import { PreSubmitRejectReason, PreSubmitStatus } from "./shared/submit.ts";
+import {
+  GroupInfo,
+  groupInfoTxt,
+  PreSubmitRejectReason,
+  PreSubmitStatus,
+} from "./shared/submit.ts";
 import { assert, assertNotNull, unreachable } from "./utils/assertion.ts";
-import { debug } from "./utils/logging.ts";
 
 export function Manage(props: { nav: URL }) {
   const nav = props.nav;
@@ -65,7 +69,7 @@ export function Manage(props: { nav: URL }) {
             type="button"
             class="manageBtn"
             on:click={() => {
-              // TODO:
+              // TODO: logout
               notify("TODO");
             }}
           >
@@ -190,7 +194,6 @@ function ProjectUserListRow(
       ? <span class="txtSec">[待提交]</span>
       : <span class="txtSec">[待审核]</span>);
 
-  // TODO:
   let preSubmitStatus;
   switch (statusEnum) {
     case StatusEnum.Entered: {
@@ -229,16 +232,27 @@ function ProjectUserListRow(
     );
   }
 
-  // TODO:
   const groupInfo = statusToStatusEnum(pu.status) < StatusEnum.PreSubmitPassed
     ? ""
-    : (
-      <>
-        todo
-      </>
-    );
+    : (() => {
+      assert(
+        pu.group_info !== null,
+        "expect group_info when pre-submit passed",
+      );
+      return (
+        <>
+          {Object.entries(pu.group_info).map((
+            [k, v],
+          ) => (
+            <span key={k} class={v ? "" : "txtSec"}>
+              {groupInfoTxt[k as keyof GroupInfo]}
+            </span>
+          ))}
+        </>
+      );
+    })();
 
-  // TODO:
+  // TODO: submit status
   const submitStatus = statusToStatusEnum(pu.status) < StatusEnum.Submitted
     ? ""
     : (
@@ -247,7 +261,7 @@ function ProjectUserListRow(
       </>
     );
 
-  // TODO:
+  // TODO: master status
   const masterStatus = statusToStatusEnum(pu.status) < StatusEnum.SubmitPassed
     ? ""
     : (
@@ -258,7 +272,7 @@ function ProjectUserListRow(
 
   return (
     <div id="manageProjectUserListRow">
-      {/* TODO: */}
+      {/* TODO: bundle checkbox */}
       <div>todo</div>
       <div>{pu.uid.toString()}</div>
       <div>{pu.id.toString()}</div>
@@ -459,11 +473,11 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
       <NamedTextArea title="备注" value={submit.comment} readonly />
     );
 
-    const passed = {
+    const passed: PreSubmitStatus = {
       "Passed": { lead: true, choir: false, harmony: false },
     };
-    const reject = {
-      "Rejected": { reason: "DeviceOrEnvironment" as PreSubmitRejectReason },
+    const reject: PreSubmitStatus = {
+      "Rejected": { reason: "DeviceOrEnvironment" },
     };
     const status = createSignal<PreSubmitStatus>(
       submit.status?.status ?? passed,
@@ -472,25 +486,24 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
 
     function renderSubOps(s: PreSubmitStatus) {
       if ("Passed" in s) {
+        const options = Object.keys(groupInfoTxt) as (keyof GroupInfo)[];
+
         return (
           <>
             <Selector
-              items={[
-                { name: "领唱" },
-                { name: "合唱" },
-                { name: "和声" },
-              ]}
               multi
-              defaultSelect={[
-                passed.Passed.lead ? 0 : null,
-                passed.Passed.choir ? 1 : null,
-                passed.Passed.harmony ? 2 : null,
-              ].filter((it) => it !== null)}
               readonly={readonly}
+              items={options.map((it) => ({
+                name: groupInfoTxt[it],
+              }))}
+              defaultSelect={options.map((
+                it,
+                idx,
+              ) => (s.Passed[it] ? idx : null)).filter((it) => it !== null)}
               onSelect={(v) => {
-                passed["Passed"].lead = v.includes(0);
-                passed["Passed"].choir = v.includes(1);
-                passed["Passed"].harmony = v.includes(2);
+                options.forEach((it, idx) => {
+                  s.Passed[it] = v.includes(idx);
+                });
                 status.notify();
               }}
             />
@@ -517,12 +530,12 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
                 }
               })}
               defaultSelect={[
-                idxToReason.findIndex((it) => it === reject.Rejected.reason),
+                idxToReason.findIndex((it) => it === s.Rejected.reason),
               ]}
               readonly={readonly}
               onSelect={(v) => {
                 assert(v.length === 1, "expect single select");
-                reject.Rejected.reason = idxToReason[v[0]];
+                s.Rejected.reason = idxToReason[v[0]];
                 status.notify();
               }}
             />
