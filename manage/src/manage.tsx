@@ -18,6 +18,7 @@ import {
 } from "./shared/projectUser.ts";
 import { PreSubmitRejectReason, PreSubmitStatus } from "./shared/submit.ts";
 import { assert, assertNotNull, unreachable } from "./utils/assertion.ts";
+import { debug } from "./utils/logging.ts";
 
 export function Manage(props: { nav: URL }) {
   const nav = props.nav;
@@ -185,9 +186,9 @@ function ProjectUserListRow(
   const statusEnum = statusToStatusEnum(pu.status);
 
   const puname = pu.name ??
-      pu.status === "Entered"
-    ? <span class="txtSec">[待提交]</span>
-    : <span class="txtSec">[待审核]</span>;
+    (pu.status === "Entered" || pu.status === "PreSubmitRejected"
+      ? <span class="txtSec">[待提交]</span>
+      : <span class="txtSec">[待审核]</span>);
 
   // TODO:
   let preSubmitStatus;
