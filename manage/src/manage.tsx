@@ -20,6 +20,7 @@ import {
   GroupInfo,
   groupInfoTxt,
   PreSubmitRejectReason,
+  preSubmitRejectReasonTxt,
   PreSubmitStatus,
 } from "./shared/submit.ts";
 import { assert, assertNotNull, unreachable } from "./utils/assertion.ts";
@@ -510,32 +511,21 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
           </>
         );
       } else if ("Rejected" in s) {
-        const idxToReason: PreSubmitRejectReason[] = [
-          "DeviceOrEnvironment",
-          "RequirementNotMet",
-          "InvalidName",
-        ];
+        const options = Object.keys(
+          preSubmitRejectReasonTxt,
+        ) as PreSubmitRejectReason[];
 
         return (
           <>
             <Selector
-              items={idxToReason.map((it) => {
-                switch (it) {
-                  case "DeviceOrEnvironment":
-                    return "设备或环境";
-                  case "RequirementNotMet":
-                    return "未达到标准";
-                  case "InvalidName":
-                    return "用户名问题";
-                }
-              })}
+              items={options.map((it) => preSubmitRejectReasonTxt[it])}
               defaultSelect={[
-                idxToReason.findIndex((it) => it === s.Rejected.reason),
+                options.findIndex((it) => it === s.Rejected.reason),
               ]}
               readonly={readonly}
               onSelect={(v) => {
                 assert(v.length === 1, "expect single select");
-                s.Rejected.reason = idxToReason[v[0]];
+                s.Rejected.reason = options[v[0]];
                 status.notify();
               }}
             />

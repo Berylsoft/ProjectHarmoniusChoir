@@ -26,3 +26,11 @@ export type PreSubmitRejectReason =
   | "DeviceOrEnvironment"
   | "RequirementNotMet"
   | "InvalidName";
+
+export const preSubmitRejectReasonTxt: {
+  [T in PreSubmitRejectReason]: string;
+} = {
+  DeviceOrEnvironment: "设备或环境",
+  RequirementNotMet: "未达到标准",
+  InvalidName: "用户名问题",
+};
