@@ -279,21 +279,24 @@
 }
 
 .manageSelector {
+  max-width: max-content;
+
   background-color: var(--bgDark);
 
   border-radius: var(--5unit);
 
   display: flex;
 }
-.manageSelector > div {
+.manageSelector > button {
   padding: var(--5unit);
 
-  user-select: none;
+  border: 0;
+  background: transparent;
 }
-.manageSelector > div:is(:first-child) {
+.manageSelector > button:is(:first-child) {
   padding-left: var(--10unit);
 }
-.manageSelector > div:is(:last-child) {
+.manageSelector > button:is(:last-child) {
   padding-right: var(--10unit);
 }
 
@@ -305,9 +308,10 @@
 }
 
 .manageSubmitOps {
+  width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: var(--5unit);
 }
 
@@ -323,4 +327,40 @@
   align-items: center;
 
   color: var(--bgDark);
+}
+
+.manageSubmitFileList {
+  background-color: var(--bgDark);
+  padding: var(--10unit);
+  border-radius: var(--5unit);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--5unit);
+}
+
+.manageSubmitFile {
+  display: flex;
+  align-items: center;
+  gap: var(--5unit);
+}
+
+.manageSubmitFile > div {
+  width: var(--16unit);
+  height: var(--16unit);
+
+  outline: var(--1unit) solid var(--stroke);
+  outline-offset: calc(var(--1unit) * -1);
+  border-radius: var(--5unit);
+
+  cursor: pointer;
+}
+.manageSubmitFile > div[data-checked="true"] {
+  outline: 0;
+  background-color: var(--txt);
+}
+
+.manageSubmitFile > span {
+  user-select: none;
+  cursor: pointer;
 }

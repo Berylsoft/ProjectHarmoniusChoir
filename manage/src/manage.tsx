@@ -7,6 +7,9 @@ import {
   PreSubmitInfo,
   preSubmitInfo,
   preSubmitReview,
+  SubmitInfo,
+  submitInfo,
+  submitReview,
 } from "./api.ts";
 import { createSignal } from "./libs/Signal.ts";
 import { readNav, writeNav } from "./nav.ts";
@@ -22,6 +25,9 @@ import {
   PreSubmitRejectReason,
   preSubmitRejectReasonTxt,
   PreSubmitStatus,
+  SubmitRejectReason,
+  submitRejectReasonTxt,
+  SubmitStatus,
 } from "./shared/submit.ts";
 import { assert, assertNotNull, unreachable } from "./utils/assertion.ts";
 
@@ -195,81 +201,77 @@ function ProjectUserListRow(
       ? <span class="txtSec">[待提交]</span>
       : <span class="txtSec">[待审核]</span>);
 
-  let preSubmitStatus;
-  switch (statusEnum) {
-    case StatusEnum.Entered: {
-      preSubmitStatus = "";
-      break;
-    }
-    case StatusEnum.PreSubmitted: {
-      preSubmitStatus = "已提交";
-      break;
-    }
-    case StatusEnum.PreSubmitRejected: {
-      preSubmitStatus = <span class="txtErr">已拒绝</span>;
-      break;
-    }
-    default: {
-      preSubmitStatus = <span class="txtOk">已通过</span>;
-      break;
-    }
-  }
+  const submitDetailBtn = (
+    ty: "PreSubmit" | "Submit" | "Master",
+    isCreate: boolean = false,
+  ) => (
+    <button
+      type="button"
+      class="manageInfoBtn"
+      on:click={() => {
+        nav.searchParams.set("detailTy", ty);
+        nav.searchParams.set("puid", pu.id.toString());
+        writeNav(nav, true);
+      }}
+    >
+      {isCreate ? "创建" : "详情"}
+    </button>
+  );
+
+  const reject = () => <span class="txtErr">已拒绝</span>;
+  const passed = () => <span class="txtOk">已通过</span>;
+
+  let preSubmitStatus = statusEnum === StatusEnum.Entered
+    ? ""
+    : statusEnum === StatusEnum.PreSubmitted
+    ? "已提交"
+    : statusEnum === StatusEnum.PreSubmitRejected
+    ? reject()
+    : passed();
   if (preSubmitStatus !== "") {
     preSubmitStatus = (
       <>
-        {preSubmitStatus}{" "}
-        <button
-          type="button"
-          class="manageInfoBtn"
-          on:click={() => {
-            nav.searchParams.set("detailTy", "PreSubmit");
-            nav.searchParams.set("puid", pu.id.toString());
-            writeNav(nav, true);
-          }}
-        >
-          详情
-        </button>
+        {preSubmitStatus}
+        {submitDetailBtn("PreSubmit")}
       </>
     );
   }
 
-  const groupInfo = statusToStatusEnum(pu.status) < StatusEnum.PreSubmitPassed
-    ? ""
-    : (() => {
-      assert(
-        pu.group_info !== null,
-        "expect group_info when pre-submit passed",
-      );
-      return (
-        <>
-          {Object.entries(pu.group_info).map((
-            [k, v],
-          ) => (
-            <span key={k} class={v ? "" : "txtSec"}>
-              {groupInfoTxt[k as keyof GroupInfo]}
-            </span>
-          ))}
-        </>
-      );
-    })();
-
-  // TODO: submit status
-  const submitStatus = statusToStatusEnum(pu.status) < StatusEnum.Submitted
-    ? ""
-    : (
+  const groupInfo = statusEnum < StatusEnum.PreSubmitPassed ? "" : (() => {
+    assert(
+      pu.group_info !== null,
+      "expect group_info when pre-submit passed",
+    );
+    return (
       <>
-        todo
+        {Object.entries(pu.group_info).map((
+          [k, v],
+        ) => (
+          <span key={k} class={v ? "" : "txtSec"}>
+            {groupInfoTxt[k as keyof GroupInfo]}
+          </span>
+        ))}
       </>
     );
+  })();
+
+  let submitStatus = statusEnum < StatusEnum.Submitted
+    ? ""
+    : statusEnum === StatusEnum.Submitted
+    ? "已提交"
+    : statusEnum === StatusEnum.SubmitRejected
+    ? reject()
+    : passed();
+  if (submitStatus !== "") {
+    submitStatus = <>{submitStatus}{submitDetailBtn("Submit")}</>;
+  }
 
   // TODO: master status
-  const masterStatus = statusToStatusEnum(pu.status) < StatusEnum.SubmitPassed
+  const masterStatus = statusEnum < StatusEnum.SubmitPassed
     ? ""
-    : (
-      <>
-        todo
-      </>
-    );
+    : statusEnum === StatusEnum.SubmitPassed
+    ? submitDetailBtn("Master", true)
+    : submitDetailBtn("Master");
 
   return (
     <div id="manageProjectUserListRow">
@@ -393,7 +395,7 @@ function Detail(props: { detail: DetailParam }) {
         break;
       }
       case "Submit": {
-        content = "todo";
+        content = <DetailSubmit puid={detail.puid} pid={detail.pid} />;
         break;
       }
       case "Master": {
@@ -634,7 +636,7 @@ function NamedTextArea(
         ? (
           <textarea
             defaultValue={value ?? ""}
-            placeholder={placeholder}
+            placeholder={placeholder ?? ""}
             on:change={(e) => {
               if (onChange) {
                 const target = assertNotNull(e.target);
@@ -686,8 +688,9 @@ function Selector(
     <div class="manageSelector">
       {items.map((it, idx) => {
         return (
-          <div
+          <button
             key={idx.toString()}
+            type="button"
             on:click={() => {
               if (readonly) return;
 
@@ -715,9 +718,226 @@ function Selector(
             }}
           >
             {typeof it === "string" ? it : it.name}
-          </div>
+          </button>
         );
       })}
     </div>
   );
+}
+
+function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
+  type CheckedFiles = {
+    isChecked(id: number): boolean;
+    set(id: number, checked: boolean): void;
+    getAll(): number[];
+  };
+
+  const list = createSignal(<>loading</>);
+
+  function renderInfo(
+    submit: SubmitInfo,
+    checked_files: CheckedFiles,
+  ) {
+    const created_at = (
+      <div class="manageSubmitInfoItem">
+        提交时间:
+        <span>
+          {(new Date(submit.created_at)).toLocaleString(undefined, {
+            hour12: false,
+          })}
+        </span>
+      </div>
+    );
+
+    const comment = (
+      <NamedTextArea title="备注" value={submit.comment} readonly />
+    );
+
+    const files = (
+      <div class="manageSubmitFileList">
+        {submit.files.map((file) => {
+          let checked = checked_files.isChecked(file.id);
+          return (
+            <div class="manageSubmitFile">
+              <div
+                data-checked={checked.toString()}
+                with={(ref) => {
+                  ref.on("click", () => {
+                    checked = !checked;
+                    checked_files.set(file.id, checked);
+                    if (checked) {
+                      ref.data("checked", "true");
+                    } else {
+                      ref.data("checked", "false");
+                    }
+                  });
+                }}
+              />
+              <span
+                class="txtInfo"
+                on:click={() => {
+                  openFile(pid, file.id, "Preview");
+                }}
+              >
+                {file.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    const passed: SubmitStatus = "Passed";
+    const reject: SubmitStatus = {
+      "Rejected": { reason: "Other", detail: null },
+    };
+    const status = createSignal<SubmitStatus>(
+      submit.status?.status ?? passed,
+    );
+    const readonly = submit.status !== null;
+
+    function renderSubOps(s: SubmitStatus) {
+      if ("Passed" === s) {
+        return "";
+      } else if ("Rejected" in s) {
+        const options = Object.keys(
+          submitRejectReasonTxt,
+        ) as SubmitRejectReason[];
+
+        return (
+          <>
+            <Selector
+              items={options.map((it) => submitRejectReasonTxt[it])}
+              defaultSelect={[
+                options.findIndex((it) => it === s.Rejected.reason),
+              ]}
+              readonly={readonly}
+              onSelect={(v) => {
+                assert(v.length === 1, "expect single select");
+                s.Rejected.reason = options[v[0]];
+                status.notify();
+              }}
+            />
+            <NamedTextArea
+              title="详细说明(可选)"
+              value={s.Rejected.detail ?? ""}
+              placeholder="一些说明, 或者不写"
+              readonly={readonly}
+              onChange={(txt) => {
+                const trimmed = txt.trim();
+                if (trimmed === "") {
+                  s.Rejected.detail = null;
+                } else {
+                  s.Rejected.detail = trimmed;
+                }
+              }}
+            />
+          </>
+        );
+      } else {
+        unreachable();
+      }
+    }
+    const subOps = createSignal(renderSubOps(status.get()));
+    status.subscribe((v) => subOps.set(renderSubOps(v)));
+
+    const ops = (
+      <div class="manageSubmitOps">
+        <Selector
+          items={[
+            { name: "通过", color: "var(--txtOk)" },
+            { name: "拒绝", color: "var(--txtErr)" },
+          ]}
+          readonly={readonly}
+          defaultSelect={["Passed" === status.get() ? 0 : 1]}
+          onSelect={(v) => {
+            switch (v[0]) {
+              case 0: {
+                status.set(passed);
+                break;
+              }
+              case 1: {
+                status.set(reject);
+                break;
+              }
+              default:
+                unreachable();
+            }
+          }}
+        />
+        <div class="dyn" sub:jsxContent={subOps} />
+      </div>
+    );
+
+    const submitBtn = readonly
+      ? (() => {
+        assert(submit.status !== null, "expect status when readonly");
+        return (
+          <div>
+            审核人: <span class="manageUserInput">{submit.status.mname}</span>
+          </div>
+        );
+      })()
+      : (
+        <button
+          type="button"
+          class="manageSubmitReviewSubmitBtn"
+          on:click={() => {
+            submitReview({
+              pid,
+              sid: submit.id,
+              status: status.get(),
+              checked_files: checked_files.getAll(),
+            }).then(
+              () => {
+                globalThis.location.reload();
+              },
+            );
+          }}
+        >
+          提交
+        </button>
+      );
+
+    return (
+      <div key={submit.id.toString()}>
+        <div class="manageSubmitInfo">
+          {created_at}
+          {comment}
+          {files}
+        </div>
+        <div class="manageSubmitSep" />
+        <div class="manageSubmitReview">
+          {ops}
+          {submitBtn}
+        </div>
+      </div>
+    );
+  }
+
+  submitInfo({ puid }).then((res) => {
+    const checked_files_set = new Set(res.checked_files);
+    const checked_files: CheckedFiles = {
+      isChecked(id): boolean {
+        return checked_files_set.has(id);
+      },
+      set(id, checked) {
+        if (checked) {
+          checked_files_set.add(id);
+        } else {
+          checked_files_set.delete(id);
+        }
+      },
+      getAll(): number[] {
+        return Array.from(checked_files_set);
+      },
+    };
+
+    list.set(
+      res.submits
+        .map((submit) => renderInfo(submit, checked_files)),
+    );
+  });
+
+  return <div id="manageDetailContent" sub:jsxContent={list} />;
 }

@@ -34,3 +34,20 @@ export const preSubmitRejectReasonTxt: {
   RequirementNotMet: "未达到标准",
   InvalidName: "用户名问题",
 };
+
+export type SubmitStatus =
+  | { "Rejected": { reason: SubmitRejectReason; detail: null | string } }
+  | "Passed";
+
+export type SubmitRejectReason =
+  | "DeviceOrEnvironment"
+  | "RequirementNotMet"
+  | "Other";
+
+export const submitRejectReasonTxt: {
+  [T in SubmitRejectReason]: string;
+} = {
+  DeviceOrEnvironment: "设备或环境",
+  RequirementNotMet: "未达到标准",
+  Other: "其他",
+};

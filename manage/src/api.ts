@@ -7,9 +7,9 @@ import {
   Detail as SubmitDetail,
   GroupInfo,
   PreSubmitStatus,
+  SubmitStatus,
 } from "./shared/submit.ts";
-import { Info as FileInfo } from "./shared/file.ts";
-import { PresignedReq } from "./file.ts";
+import { Info as FileInfo, PresignedReq } from "./shared/file.ts";
 import { assert } from "./utils/assertion.ts";
 
 const ENDPOINT: string = "http://localhost";
@@ -38,14 +38,19 @@ type Path =
 
 type OpaqueType = { __opaque__: undefined };
 
+type DataPrimitives =
+  | null
+  | boolean
+  | number
+  | string
+  | bigint
+  | Uint8Array
+  | OpaqueType;
+
 type Data = {
   [key: string]:
-    | boolean
-    | number
-    | string
-    | bigint
-    | Uint8Array
-    | OpaqueType
+    | DataPrimitives
+    | DataPrimitives[]
     | Data;
 };
 
@@ -187,11 +192,41 @@ export async function openFile(pid: number, id: number, type: GetFileType) {
   globalThis.open(req.uri);
 }
 
-export type PreSubmitReview = {
+export type PreSubmitReviewReq = {
   pid: number;
   sid: number;
   status: PreSubmitStatus;
 };
-export async function preSubmitReview(req: PreSubmitReview) {
+export async function preSubmitReview(req: PreSubmitReviewReq) {
   await post("/pre_submit_review", req);
+}
+
+export type SubmitInfoReq = {
+  puid: number;
+};
+export type SubmitInfoRes = {
+  submits: SubmitInfo[];
+  checked_files: number[];
+};
+export type SubmitInfo = {
+  id: number;
+  created_at: string;
+  comment: string;
+  files: FileInfo[];
+  status: null | SubmitDetail<SubmitStatus>;
+};
+export async function submitInfo(
+  req: SubmitInfoReq,
+): Promise<SubmitInfoRes> {
+  return await post("/submit_info", req);
+}
+
+export type SubmitReviewReq = {
+  pid: number;
+  sid: number;
+  status: SubmitStatus;
+  checked_files: null | number[];
+};
+export async function submitReview(req: SubmitReviewReq) {
+  await post("/submit_review", req);
 }

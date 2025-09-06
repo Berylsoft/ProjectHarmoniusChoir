@@ -24,6 +24,7 @@
   --10unit: calc(var(--1unit) * 10);
   --14unit: calc(var(--1unit) * 14);
   --15unit: calc(var(--1unit) * 15);
+  --16unit: calc(var(--1unit) * 16);
   --20unit: calc(var(--1unit) * 20);
   --25unit: calc(var(--1unit) * 25);
   --30unit: calc(var(--1unit) * 30);
@@ -67,4 +68,11 @@
 
 .dyn {
   display: contents;
+}
+
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: auto;
 }
