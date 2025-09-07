@@ -1,6 +1,10 @@
 services:
   backend:
     build: ./backend/
+    develop:
+      watch:
+        - path: ./backend
+          action: rebuild
     depends_on:
       cache:
         condition: service_healthy
