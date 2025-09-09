@@ -204,7 +204,7 @@
   overflow: auto;
 }
 
-.manageUserInput {
+.manageUgc {
   background-color: var(--bgDark);
 
   border-radius: var(--5unit);
@@ -217,23 +217,23 @@
   color: var(--txt);
 }
 
-.manageSubmitInfo {
+.manageInfo {
   display: flex;
   flex-direction: column;
   gap: var(--5unit);
 }
 
-.manageSubmitInfoItem {
+.manageInfoItem {
   display: flex;
   align-items: center;
   gap: var(--10unit);
 }
 
-.manageSubmitSep {
+.manageDetailSep {
   padding: var(--5unit) var(--15unit);
 }
 
-.manageSubmitSep::before {
+.manageDetailSep::before {
   display: block;
 
   content: "";
@@ -300,22 +300,21 @@
   padding-right: var(--10unit);
 }
 
-.manageSubmitReview {
+.manageDetailAction {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: var(--10unit);
 }
 
-.manageSubmitOps {
-  width: 100%;
+.manageOps {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   gap: var(--5unit);
 }
 
-.manageSubmitReviewSubmitBtn {
+.manageDetailActionBtn {
+  width: fit-content;
+
   background-color: var(--theme);
 
   border: 0;
@@ -329,7 +328,7 @@
   color: var(--bgDark);
 }
 
-.manageSubmitFileList {
+.manageItemList {
   background-color: var(--bgDark);
   padding: var(--10unit);
   border-radius: var(--5unit);
@@ -352,15 +351,31 @@
   outline: var(--1unit) solid var(--stroke);
   outline-offset: calc(var(--1unit) * -1);
   border-radius: var(--5unit);
-
-  cursor: pointer;
 }
 .manageSubmitFile > div[data-checked="true"] {
   outline: 0;
   background-color: var(--txt);
 }
 
-.manageSubmitFile > span {
-  user-select: none;
-  cursor: pointer;
+.manageFileUploader {
+  background-color: var(--bgDark);
+  padding: var(--10unit);
+  border-radius: var(--5unit);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--10unit);
+}
+.manageFileUploader button {
+  background-color: var(--bgLight);
+}
+.manageFileUploader > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--5unit);
+}
+.manageFileUploader > div > div {
+  display: flex;
+  align-items: center;
+  gap: var(--10unit);
 }

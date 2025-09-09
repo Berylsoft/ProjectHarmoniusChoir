@@ -47,12 +47,14 @@ type DataPrimitives =
   | Uint8Array
   | OpaqueType;
 
-type Data = {
-  [key: string]:
-    | DataPrimitives
-    | DataPrimitives[]
-    | Data;
-};
+type Data =
+  | string
+  | {
+    [key: string]:
+      | DataPrimitives
+      | DataPrimitives[]
+      | Data;
+  };
 
 export async function post<T>(path: Path, body?: Data): Promise<T> {
   const bodyEncoded = CBOR.encode({ data: body, nonce: ulid() });
@@ -229,4 +231,74 @@ export type SubmitReviewReq = {
 };
 export async function submitReview(req: SubmitReviewReq) {
   await post("/submit_review", req);
+}
+
+export type MasterInfoReq = { puid: number };
+export type MasterInfoRes =
+  | "None"
+  | {
+    "Info": {
+      mid: number;
+      mname: string;
+      created_at: string;
+      comment: string;
+      files: FileInfo[];
+    };
+  };
+export async function masterInfo(req: MasterInfoReq): Promise<MasterInfoRes> {
+  return await post("/master_info", req);
+}
+
+export type MasterReq = { puid: number; comment: string };
+export async function master(req: MasterReq) {
+  await post("/master", req);
+}
+
+export type UploadFileReq =
+  | {
+    "Start": {
+      puid: number;
+      name: string;
+      size: number;
+      md5: string;
+      head: string;
+    };
+  }
+  | "List"
+  | { "Continue": { file_id: number } }
+  | { "Finish": { file_id: number } };
+export type UploadFileRes =
+  | {
+    "File": {
+      id: number;
+      presigned_req: PresignedReq;
+    };
+  }
+  | { "List": { files: FileInfo[] } }
+  | { "Continue": { presigned_req: PresignedReq } }
+  | "Success"
+  | "CountReached"
+  | "CapacityReached"
+  | "InvalidFileName"
+  | "InvalidFileType"
+  | "UploadNotFinish";
+export async function uploadFile(req: UploadFileReq): Promise<UploadFileRes> {
+  return await post("/upload_file", req);
+}
+
+export type ListPendingFilesReq = {
+  puid: number;
+};
+export type ListPendingFilesRes = {
+  files: FileInfo[];
+};
+export async function listPendingFiles(
+  req: ListPendingFilesReq,
+): Promise<ListPendingFilesRes> {
+  return await post("/list_pending_files", req);
+}
+
+export type DeleteFileReq = { file_id: number };
+export async function deleteFile(req: DeleteFileReq) {
+  await post("/delete_file", req);
 }

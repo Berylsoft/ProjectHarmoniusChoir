@@ -50,6 +50,10 @@
   height: 100cqh;
 }
 
+.txt {
+  color: var(--txt);
+}
+
 .txtSec {
   color: var(--txtSec);
 }
@@ -75,4 +79,9 @@ button {
 }
 button:disabled {
   cursor: auto;
+}
+
+.clickable {
+  user-select: none;
+  cursor: pointer;
 }

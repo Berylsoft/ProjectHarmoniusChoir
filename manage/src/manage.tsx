@@ -1,8 +1,12 @@
 import {
+  deleteFile,
   getInfo,
+  listPendingFiles,
   listProjects,
   listProjectUsers,
   ListProjectUsersProjectUser,
+  master,
+  masterInfo,
   openFile,
   PreSubmitInfo,
   preSubmitInfo,
@@ -10,10 +14,13 @@ import {
   SubmitInfo,
   submitInfo,
   submitReview,
+  uploadFile,
+  UploadFileRes,
 } from "./api.ts";
-import { createSignal } from "./libs/Signal.ts";
+import { createEffect, createSignal } from "./libs/Signal.ts";
 import { readNav, writeNav } from "./nav.ts";
 import { notify } from "./notify.ts";
+import { Info as FileInfo, PresignedReq } from "./shared/file.ts";
 import {
   StatusEnum,
   statusToStageName,
@@ -30,6 +37,9 @@ import {
   SubmitStatus,
 } from "./shared/submit.ts";
 import { assert, assertNotNull, unreachable } from "./utils/assertion.ts";
+import { md5 } from "npm:js-md5";
+import { uint8arrayToHex } from "./utils/hex.ts";
+import { debug, error } from "./utils/logging.ts";
 
 export function Manage(props: { nav: URL }) {
   const nav = props.nav;
@@ -266,7 +276,6 @@ function ProjectUserListRow(
     submitStatus = <>{submitStatus}{submitDetailBtn("Submit")}</>;
   }
 
-  // TODO: master status
   const masterStatus = statusEnum < StatusEnum.SubmitPassed
     ? ""
     : statusEnum === StatusEnum.SubmitPassed
@@ -399,7 +408,7 @@ function Detail(props: { detail: DetailParam }) {
         break;
       }
       case "Master": {
-        content = "todo";
+        content = <DetailMaster puid={detail.puid} pid={detail.pid} />;
         break;
       }
       case "Bundle": {
@@ -424,7 +433,7 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
 
   function renderInfo(submit: PreSubmitInfo) {
     const created_at = (
-      <div class="manageSubmitInfoItem">
+      <div class="manageInfoItem">
         提交时间:
         <span>
           {(new Date(submit.created_at)).toLocaleString(undefined, {
@@ -435,16 +444,16 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
     );
 
     const uname = (
-      <div class="manageSubmitInfoItem">
-        待审项目用户名:<span class="manageUserInput">{submit.name}</span>
+      <div class="manageInfoItem">
+        待审项目用户名:<span class="manageUgc">{submit.name}</span>
       </div>
     );
 
     const harmony_group_intention = submit.harmony_group_intention !== null
       ? (
-        <div class="manageSubmitInfoItem">
+        <div class="manageInfoItem">
           和声组意向:
-          <span class="manageUserInput">
+          <span class="manageUgc">
             {submit.harmony_group_intention ? "是" : "否"}
           </span>
         </div>
@@ -453,10 +462,10 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
 
     const file_info = submit.file_info;
     const file = (
-      <div class="manageSubmitInfoItem">
+      <div class="manageInfoItem">
         文件: {file_info !== null
           ? (
-            <span class="manageUserInput">
+            <span class="manageUgc">
               <button
                 type="button"
                 class="manageInfoBtn"
@@ -541,7 +550,7 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
     status.subscribe((v) => subOps.set(renderSubOps(v)));
 
     const ops = (
-      <div class="manageSubmitOps">
+      <div class="manageOps">
         <Selector
           items={[
             { name: "通过", color: "var(--txtOk)" },
@@ -572,21 +581,22 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
       ? (() => {
         assert(submit.status !== null, "expect status when readonly");
         return (
-          <div>
-            审核人: <span class="manageUserInput">{submit.status.mname}</span>
+          <div class="manageInfoItem">
+            审核人: <span class="manageUgc">{submit.status.mname}</span>
           </div>
         );
       })()
       : (
         <button
           type="button"
-          class="manageSubmitReviewSubmitBtn"
+          class="manageDetailActionBtn"
           on:click={() => {
-            preSubmitReview({ pid, sid: submit.id, status: status.get() }).then(
-              () => {
-                globalThis.location.reload();
-              },
-            );
+            preSubmitReview({ pid, sid: submit.id, status: status.get() })
+              .then(
+                () => {
+                  globalThis.location.reload();
+                },
+              );
           }}
         >
           提交
@@ -595,15 +605,15 @@ function DetailPreSubmit({ puid, pid }: { puid: number; pid: number }) {
 
     return (
       <div key={submit.id.toString()}>
-        <div class="manageSubmitInfo">
+        <div class="manageInfo">
           {created_at}
           {uname}
           {harmony_group_intention}
           {file}
           {comment}
         </div>
-        <div class="manageSubmitSep" />
-        <div class="manageSubmitReview">
+        <div class="manageDetailSep" />
+        <div class="manageDetailAction">
           {ops}
           {submitBtn}
         </div>
@@ -737,9 +747,10 @@ function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
   function renderInfo(
     submit: SubmitInfo,
     checked_files: CheckedFiles,
+    all_readonly: boolean,
   ) {
     const created_at = (
-      <div class="manageSubmitInfoItem">
+      <div class="manageInfoItem">
         提交时间:
         <span>
           {(new Date(submit.created_at)).toLocaleString(undefined, {
@@ -754,14 +765,17 @@ function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
     );
 
     const files = (
-      <div class="manageSubmitFileList">
+      <div class="manageItemList">
         {submit.files.map((file) => {
           let checked = checked_files.isChecked(file.id);
           return (
             <div class="manageSubmitFile">
               <div
+                class={all_readonly ? "" : "clickable"}
                 data-checked={checked.toString()}
                 with={(ref) => {
+                  if (all_readonly) return;
+
                   ref.on("click", () => {
                     checked = !checked;
                     checked_files.set(file.id, checked);
@@ -774,7 +788,7 @@ function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
                 }}
               />
               <span
-                class="txtInfo"
+                class="txtInfo clickable"
                 on:click={() => {
                   openFile(pid, file.id, "Preview");
                 }}
@@ -842,7 +856,7 @@ function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
     status.subscribe((v) => subOps.set(renderSubOps(v)));
 
     const ops = (
-      <div class="manageSubmitOps">
+      <div class="manageOps">
         <Selector
           items={[
             { name: "通过", color: "var(--txtOk)" },
@@ -873,15 +887,15 @@ function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
       ? (() => {
         assert(submit.status !== null, "expect status when readonly");
         return (
-          <div>
-            审核人: <span class="manageUserInput">{submit.status.mname}</span>
+          <div class="manageInfoItem">
+            审核人: <span class="manageUgc">{submit.status.mname}</span>
           </div>
         );
       })()
       : (
         <button
           type="button"
-          class="manageSubmitReviewSubmitBtn"
+          class="manageDetailActionBtn"
           on:click={() => {
             submitReview({
               pid,
@@ -901,13 +915,13 @@ function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
 
     return (
       <div key={submit.id.toString()}>
-        <div class="manageSubmitInfo">
+        <div class="manageInfo">
           {created_at}
           {comment}
           {files}
         </div>
-        <div class="manageSubmitSep" />
-        <div class="manageSubmitReview">
+        <div class="manageDetailSep" />
+        <div class="manageDetailAction">
           {ops}
           {submitBtn}
         </div>
@@ -933,11 +947,398 @@ function DetailSubmit({ puid, pid }: { puid: number; pid: number }) {
       },
     };
 
+    const all_readonly = res.submits[0]?.status?.status != undefined;
+
     list.set(
       res.submits
-        .map((submit) => renderInfo(submit, checked_files)),
+        .map((submit) => renderInfo(submit, checked_files, all_readonly)),
     );
   });
 
   return <div id="manageDetailContent" sub:jsxContent={list} />;
+}
+
+function DetailMaster({ puid, pid }: { puid: number; pid: number }) {
+  const detail = createSignal(<>loading</>);
+
+  masterInfo({ puid }).then((res) => {
+    if (res === "None") {
+      // create ##########################################################
+      type Files = {
+        pending: FileInfo[];
+        uploading: FileInfo[];
+      };
+      const files = createSignal<Files>({
+        pending: [],
+        uploading: [],
+      });
+      type Uploading = {
+        progress: number;
+        cancel: () => void;
+      };
+      const uploading = createSignal<Map<number, Uploading>>(new Map());
+
+      const fetchPending = async () => {
+        files.get().pending = (await listPendingFiles({ puid })).files;
+        files.notify();
+      };
+
+      const fetchUploading = async () => {
+        const res = await uploadFile("List");
+        if (typeof res === "object" && "List" in res) {
+          files.get().uploading = res.List.files;
+          files.notify();
+        } else {
+          unreachable();
+        }
+      };
+
+      const uploadS3 = async (
+        id: number,
+        req: PresignedReq,
+        file: File,
+        is_cont: boolean,
+      ) => {
+        debug("start s3 upload");
+        assert(req.method === "PUT", "expect s3 req method is PUT");
+
+        const progress = uploading.get();
+
+        const xhr = new XMLHttpRequest();
+        xhr.open(req.method, req.uri);
+        for (const hdr of req.headers) {
+          if (hdr[0].toLowerCase() === "content-length") continue;
+          xhr.setRequestHeader(hdr[0], hdr[1]);
+        }
+
+        xhr.onerror = (e) => {
+          error("%o", e);
+          if (is_cont) {
+            notify(
+              "上传失败, 请检查选择的文件和上次尝试的文件一致, 或请联系管理员",
+            );
+          } else {
+            notify("上传失败, 未知错误, 请稍后重试或联系管理员");
+          }
+
+          progress.delete(id);
+          uploading.notify();
+        };
+
+        xhr.upload.onprogress = (e) => {
+          assert(e.lengthComputable, "expect lengthComputable");
+          const p = e.loaded / e.total;
+          assertNotNull(progress.get(id), "expect uploading").progress = p;
+          uploading.notify();
+        };
+
+        xhr.onload = async () => {
+          if (xhr.status === 200) {
+            debug("finishing");
+            const res = await uploadFile({ "Finish": { file_id: id } });
+            assert(res === "Success", "expect no other res when success");
+          } else {
+            const msg = xhr.responseXML?.querySelector("Message")
+              ?.textContent;
+            if (msg) {
+              notify(`上传失败: ${msg}`);
+            } else {
+              notify(`上传失败, 未知错误, 请稍后重试或联系管理员`);
+            }
+          }
+
+          progress.delete(id);
+          uploading.notify();
+          await fetchPending();
+          await fetchUploading();
+        };
+
+        xhr.onabort = () => {
+          debug("aborting");
+          progress.delete(id);
+          uploading.notify();
+        };
+
+        progress.set(id, {
+          progress: 0,
+          cancel: () => {
+            xhr.abort();
+          },
+        });
+        uploading.notify();
+        xhr.send(file);
+
+        await fetchUploading();
+      };
+
+      const upload = async (file: File, cont_id?: number) => {
+        let res: UploadFileRes;
+        if (cont_id === undefined) {
+          debug("reading");
+          const bytes = await file.bytes();
+          const hash = md5.create().update(bytes).hex();
+          const head = uint8arrayToHex(bytes.slice(0, Math.min(12, file.size)));
+
+          debug("starting");
+          res = await uploadFile({
+            "Start": {
+              puid,
+              name: file.name,
+              size: file.size,
+              md5: hash,
+              head,
+            },
+          });
+        } else {
+          debug("continuing");
+          res = await uploadFile({
+            "Continue": {
+              file_id: cont_id,
+            },
+          });
+        }
+
+        if (typeof res === "object") {
+          if ("File" in res) {
+            await uploadS3(res.File.id, res.File.presigned_req, file, false);
+          } else if ("Continue" in res) {
+            const id = assertNotNull(cont_id);
+            await uploadS3(id, res.Continue.presigned_req, file, true);
+          } else {
+            unreachable();
+          }
+        } else {
+          switch (res) {
+            case "CountReached":
+              notify("文件数量达到上限");
+              break;
+            case "CapacityReached":
+              notify("请联系管理员(cap)");
+              break;
+            case "InvalidFileName":
+              notify("不支持的文件名");
+              break;
+            case "InvalidFileType":
+              notify("不支持的文件类型");
+              break;
+
+            default:
+              unreachable();
+          }
+        }
+      };
+
+      const uploadBtn = (txt: string, cont_id?: number) => (
+        <button
+          type="button"
+          class="manageDetailActionBtn txt"
+          on:click={() => {
+            const input = (
+              <input
+                type="file"
+                multiple
+                on:change={(e) => {
+                  const files = (e.target as HTMLInputElement).files;
+                  assert(files != null, "expect files");
+
+                  for (const file of Array.from(files)) {
+                    upload(file, cont_id);
+                  }
+                }}
+              />
+            ) as ElementBuilder<HTMLInputElement>;
+            input.element.click();
+          }}
+        >
+          {txt}
+        </button>
+      );
+
+      const deleteBtn = (id: number, is_pending?: boolean) => (
+        <button
+          type="button"
+          class="manageDetailActionBtn txtErr"
+          on:click={async () => {
+            const upload = uploading.get().get(id);
+            if (upload) {
+              upload.cancel();
+            }
+
+            await deleteFile({ file_id: id });
+            if (is_pending) {
+              await fetchPending();
+            } else {
+              await fetchUploading();
+            }
+          }}
+        >
+          删除
+        </button>
+      );
+
+      let comment = "";
+      const commentInput = (
+        <NamedTextArea
+          title="备注(可选)"
+          placeholder="一些备注, 或者不写"
+          onChange={(txt) => {
+            comment = txt.trim();
+          }}
+        />
+      );
+
+      const submit = (
+        <button
+          type="button"
+          class="manageDetailActionBtn"
+          on:click={() => {
+            const f = files.get();
+            if (f.pending.length === 0) {
+              notify("请先上传文件");
+              return;
+            }
+            if (f.uploading.length > 0) {
+              notify("请完成文件上传或删除待完成上传的文件");
+              return;
+            }
+            master({ puid, comment })
+              .then(() => {
+                globalThis.location.reload();
+              });
+          }}
+        >
+          提交
+        </button>
+      );
+
+      files.subscribe((files) => {
+        const fileUploader = (
+          <div class="manageFileUploader">
+            {uploadBtn("上传")}
+            {files.pending.length + files.uploading.length > 0
+              ? (
+                <div>
+                  {files.pending.map((file) => {
+                    return (
+                      <div>
+                        {deleteBtn(file.id, true)}
+                        <span
+                          class="txtInfo clickable"
+                          on:click={() => {
+                            openFile(pid, file.id, "Preview");
+                          }}
+                        >
+                          {file.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {files.uploading.map((file) => {
+                    const progressOrCont = createSignal<JSX.Element>("");
+
+                    function updateProgress(
+                      uploading: Map<number, Uploading>,
+                    ) {
+                      const progress = uploading.get(file.id)?.progress;
+                      progressOrCont.set(
+                        progress !== undefined
+                          ? (
+                            <span class="txtSec">
+                              {(progress * 100).toFixed(2)}%
+                            </span>
+                          )
+                          : uploadBtn("继续", file.id),
+                      );
+                    }
+
+                    const [sub] = createEffect(
+                      { uploading },
+                      ({ uploading }) => {
+                        updateProgress(uploading);
+                      },
+                      true,
+                    );
+                    (progressOrCont as unknown as Record<string, unknown>)
+                      .__upload_progress_sub = sub;
+                    updateProgress(uploading.get());
+
+                    return (
+                      <div>
+                        {deleteBtn(file.id)}
+                        <span>
+                          {file.name}
+                        </span>
+                        {<div class="dyn" sub:jsxContent={progressOrCont} />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+              : ""}
+          </div>
+        );
+
+        detail.set(
+          <div class="manageOps">
+            {fileUploader}
+            {commentInput}
+            {submit}
+          </div>,
+        );
+      });
+      fetchPending();
+      fetchUploading();
+    } else {
+      // detail ##########################################################
+      const info = res.Info;
+      const created_at = (
+        <div class="manageInfoItem">
+          创建时间:
+          <span>
+            {(new Date(info.created_at)).toLocaleString(undefined, {
+              hour12: false,
+            })}
+          </span>
+        </div>
+      );
+
+      const mname = (
+        <div class="manageInfoItem">
+          创建人: <span class="manageUgc">{info.mname}</span>
+        </div>
+      );
+
+      const comment = (
+        <NamedTextArea title="备注" value={info.comment} readonly />
+      );
+
+      const files = (
+        <div class="manageItemList">
+          {info.files.map((file) => {
+            return (
+              <span
+                class="txtInfo clickable"
+                on:click={() => {
+                  openFile(pid, file.id, "Preview");
+                }}
+              >
+                {file.name}
+              </span>
+            );
+          })}
+        </div>
+      );
+
+      detail.set(
+        <div class="manageInfo">
+          {created_at}
+          {mname}
+          {comment}
+          {files}
+        </div>,
+      );
+    }
+  });
+
+  return <div id="manageDetailContent" sub:jsxContent={detail} />;
 }

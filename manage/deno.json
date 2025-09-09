@@ -20,6 +20,7 @@
     "@std/ulid": "jsr:@std/ulid@^1.0.0",
     "colorjs.io": "npm:colorjs.io@^0.5.2",
     "esbuild": "npm:esbuild@^0.25.4",
+    "js-md5": "npm:js-md5@^0.8.3",
     "jsx/jsx-runtime": "./src/libs/buildJsx.ts",
   }
 }
