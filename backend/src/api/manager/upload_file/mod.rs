@@ -95,6 +95,7 @@ pub(crate) async fn router(
     Ok(Cbor(api::Response::Ok(response)))
 }
 
+#[expect(clippy::cognitive_complexity)]
 async fn do_upload_file_start(
     db: Database,
     s3: S3,
