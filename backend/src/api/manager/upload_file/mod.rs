@@ -13,8 +13,7 @@ use crate::{
         },
         spawn_await,
     },
-    api_bail_not_found, api_bail_status, api_begin_transaction,
-    api_param_assert,
+    api_bail_not_found, api_begin_transaction, api_param_assert,
     database::Database,
     extractors::{Cbor, Token},
 };
@@ -51,8 +50,12 @@ pub enum UploadFileRes {
         presigned_req: PresignedReq,
     },
     Success,
-    InvalidFileType,
+    // upload only
+    CountReached,
     CapacityReached,
+    InvalidFileName,
+    InvalidFileType,
+    // finish only
     UploadNotFinish,
 }
 
@@ -98,7 +101,10 @@ async fn do_upload_file_start(
     token: ManagerToken,
     req: UploadFileStart,
 ) -> ApiResult<UploadFileRes, ToCbor> {
-    api_param_assert!(file::is_valid_filename(&req.name));
+    if !file::is_valid_filename(&req.name) {
+        tracing::debug!("invalid file name");
+        return Ok(UploadFileRes::InvalidFileName);
+    }
 
     let file_type = file::Type::detect(&req.head);
     let Some(file_type) = file_type else {
@@ -161,8 +167,7 @@ async fn do_upload_file_start(
         .await
         .context("file::upload_check_pending_file_count")?;
         if !can_upload_new {
-            // ensure by client
-            api_bail_status!("pending count reached");
+            return Ok(UploadFileRes::CountReached);
         }
 
         let enough_capacity =
