@@ -1077,7 +1077,8 @@ function DetailMaster({ puid, pid }: { puid: number; pid: number }) {
           debug("reading");
           const bytes = await file.bytes();
           const hash = md5.create().update(bytes).hex();
-          const head = uint8arrayToHex(bytes.slice(0, Math.min(12, file.size)));
+          const head = uint8arrayToHex(bytes.slice(0, Math.min(12, file.size)))
+            .padEnd(12 * 2, "0");
 
           debug("starting");
           res = await uploadFile({
