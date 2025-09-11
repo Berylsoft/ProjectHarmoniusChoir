@@ -106,6 +106,7 @@ pub struct PendingJob {
 }
 
 pub type PendingJobs = Arc<Mutex<HashMap<i64, PendingJob>>>;
+pub type ArcWechat = Arc<dyn wechat::Wechat>;
 
 #[derive(Debug, Clone)]
 pub struct ServerState {
@@ -114,7 +115,7 @@ pub struct ServerState {
     pub cache: MultiplexedConnection,
     pub s3: S3,
     pub pending_jobs: PendingJobs,
-    pub wechat: Arc<dyn wechat::Wechat>,
+    pub wechat: ArcWechat,
 }
 
 impl ServerState {
@@ -124,7 +125,7 @@ impl ServerState {
         db: Database,
         cache: MultiplexedConnection,
         s3: S3,
-        wechat: Arc<dyn wechat::Wechat>,
+        wechat: ArcWechat,
     ) -> Self {
         Self {
             key,
@@ -427,7 +428,7 @@ pub async fn init_s3() -> anyhow::Result<S3> {
     Ok(S3::new(client, bucket))
 }
 
-fn init_wechat() -> anyhow::Result<Arc<dyn wechat::Wechat>> {
+fn init_wechat() -> anyhow::Result<ArcWechat> {
     let app_id = var_optional("WECHAT_APP_ID")
         .context("failed to get WECHAT_APP_ID env")?
         .context("expect WECHAT_APP_ID")?;
