@@ -74,7 +74,9 @@ impl wechat::Wechat for TestWechatImpl {
     fn jscode2session<'a, 'fut>(
         &'a self,
         js_code: Box<str>,
-    ) -> Pin<Box<dyn Future<Output = wechat::Result<Box<str>>> + 'fut>>
+    ) -> Pin<
+        Box<dyn Future<Output = wechat::Result<Box<str>>> + Send + 'fut>,
+    >
     where
         'a: 'fut,
     {
@@ -86,7 +88,7 @@ impl wechat::Wechat for TestWechatImpl {
         _page: Box<str>,
         _touser: Box<str>,
         _message: wechat::Message,
-    ) -> Pin<Box<dyn Future<Output = wechat::Result<()>> + 'fut>>
+    ) -> Pin<Box<dyn Future<Output = wechat::Result<()>> + Send + 'fut>>
     where
         'a: 'fut,
     {

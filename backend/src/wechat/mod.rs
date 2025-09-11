@@ -57,7 +57,7 @@ pub trait Wechat: Debug + Sync + Send {
     fn jscode2session<'a, 'fut>(
         &'a self,
         js_code: Box<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<Box<str>>> + 'fut>>
+    ) -> Pin<Box<dyn Future<Output = Result<Box<str>>> + Send + 'fut>>
     where
         'a: 'fut;
 
@@ -66,7 +66,7 @@ pub trait Wechat: Debug + Sync + Send {
         page: Box<str>,
         touser: Box<str>,
         message: Message,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + 'fut>>
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'fut>>
     where
         'a: 'fut;
 }
@@ -131,7 +131,7 @@ impl Wechat for WechatImpl {
     fn jscode2session<'a, 'fut>(
         &'a self,
         js_code: Box<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<Box<str>>> + 'fut>>
+    ) -> Pin<Box<dyn Future<Output = Result<Box<str>>> + Send + 'fut>>
     where
         'a: 'fut,
     {
@@ -180,7 +180,7 @@ impl Wechat for WechatImpl {
         page: Box<str>,
         touser: Box<str>,
         message: Message,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + 'fut>>
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'fut>>
     where
         'a: 'fut,
     {
