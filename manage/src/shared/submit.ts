@@ -2,6 +2,7 @@ export type GroupInfo = {
   lead: boolean;
   choir: boolean;
   harmony: boolean;
+  choir_harmony: boolean;
 };
 
 export const groupInfoTxt: {
@@ -10,6 +11,7 @@ export const groupInfoTxt: {
   lead: "领唱",
   choir: "合唱",
   harmony: "和声",
+  choir_harmony: "合唱和声",
 };
 
 export type Detail<S> = {
