@@ -8,4 +8,4 @@ INSERT INTO review_pre_submits (
     harmony,
     choir_harmony,
     reason
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? );
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? );

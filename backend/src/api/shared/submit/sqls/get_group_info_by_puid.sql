@@ -1,7 +1,7 @@
 SELECT
     r.lead as lead,
     r.choir as choir,
-    r.harmony as harmony
+    r.harmony as harmony,
     r.choir_harmony as choir_harmony
     FROM status_pre_submits s
     LEFT JOIN review_pre_submits r
