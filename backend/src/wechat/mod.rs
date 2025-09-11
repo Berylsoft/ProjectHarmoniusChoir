@@ -75,9 +75,15 @@ pub trait Wechat: Debug + Sync + Send {
         page: Box<str>,
         touser: Box<str>,
         message: Message,
-    ) -> Pin<Box<dyn Future<Output = core::result::Result<(), Infallible>> + Send + 'fut>>
+    ) -> Pin<
+        Box<
+            dyn Future<Output = core::result::Result<(), Infallible>>
+                + Send
+                + 'fut,
+        >,
+    >
     where
-        'a: 'fut
+        'a: 'fut,
     {
         let fut = async {
             let res = self.send_message(page, touser, message).await;
