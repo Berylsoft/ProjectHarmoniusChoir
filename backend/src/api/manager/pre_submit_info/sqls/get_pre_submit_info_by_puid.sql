@@ -11,6 +11,7 @@ SELECT
     r.lead as r_lead, -- null-able
     r.choir as r_choir, -- null-able
     r.harmony as r_harmony, -- null-able
+    r.choir_harmony as r_choir_harmony, -- null-able
     r.reason as r_reason -- null-able
 FROM status_pre_submits s
 LEFT JOIN file_infos fi

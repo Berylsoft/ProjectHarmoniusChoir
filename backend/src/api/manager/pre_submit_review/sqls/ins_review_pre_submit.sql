@@ -6,5 +6,6 @@ INSERT INTO review_pre_submits (
     lead,
     choir,
     harmony,
+    choir_harmony,
     reason
 ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? );

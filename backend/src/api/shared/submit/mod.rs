@@ -71,8 +71,17 @@ impl TryFrom<PreSubmitReviewRow> for PreSubmitStatus {
                     .context("parse reason from db result")?,
             },
             Status::Passed => {
-                let (Some(lead), Some(choir), Some(harmony)) =
-                    (value.lead, value.choir, value.harmony)
+                let (
+                    Some(lead),
+                    Some(choir),
+                    Some(harmony),
+                    Some(choir_harmony),
+                ) = (
+                    value.lead,
+                    value.choir,
+                    value.harmony,
+                    value.choir_harmony,
+                )
                 else {
                     anyhow::bail!("get group info when passed");
                 };
@@ -80,6 +89,7 @@ impl TryFrom<PreSubmitReviewRow> for PreSubmitStatus {
                     lead,
                     choir,
                     harmony,
+                    choir_harmony,
                 })
             }
         })
@@ -92,25 +102,35 @@ pub struct PreSubmitReviewRow {
     pub lead: Option<bool>,
     pub choir: Option<bool>,
     pub harmony: Option<bool>,
+    pub choir_harmony: Option<bool>,
     pub reason: Option<Box<str>>,
 }
 
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, FromRow,
 )]
+#[expect(clippy::struct_excessive_bools)]
 pub struct GroupInfo {
     pub lead: bool,
     pub choir: bool,
     pub harmony: bool,
+    pub choir_harmony: bool,
 }
 
 impl GroupInfo {
     #[must_use]
-    pub const fn new(lead: bool, choir: bool, harmony: bool) -> Self {
+    #[expect(clippy::fn_params_excessive_bools)]
+    pub const fn new(
+        lead: bool,
+        choir: bool,
+        harmony: bool,
+        choir_harmony: bool,
+    ) -> Self {
         Self {
             lead,
             choir,
             harmony,
+            choir_harmony,
         }
     }
 

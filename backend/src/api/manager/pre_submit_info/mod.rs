@@ -78,6 +78,7 @@ async fn do_pre_submit_info(
             r_lead: Option<bool>,
             r_choir: Option<bool>,
             r_harmony: Option<bool>,
+            r_choir_harmony: Option<bool>,
             r_reason: Option<Box<str>>,
         }
 
@@ -114,6 +115,7 @@ async fn do_pre_submit_info(
                     lead: i.r_lead,
                     choir: i.r_choir,
                     harmony: i.r_harmony,
+                    choir_harmony: i.r_choir_harmony,
                     reason: i.r_reason,
                 }
                 .try_into()

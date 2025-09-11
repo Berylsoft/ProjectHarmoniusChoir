@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS "review_pre_submits" (
 	"lead" BOOLEAN,
 	"choir" BOOLEAN,
 	"harmony" BOOLEAN,
+	"choir_harmony" BOOLEAN,
 	"reason" TEXT,
 	PRIMARY KEY("id")
 );

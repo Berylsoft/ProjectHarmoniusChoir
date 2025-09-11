@@ -81,6 +81,7 @@ async fn do_review(
                     lead: None,
                     choir: None,
                     harmony: None,
+                    choir_harmony: None,
                     reason: Some(reason.to_string().into()),
                 }
             }
@@ -88,11 +89,13 @@ async fn do_review(
                 lead,
                 choir,
                 harmony,
+                choir_harmony,
             }) => PreSubmitReviewRow {
                 status: submit::Status::Passed.to_string().into(),
                 lead: Some(lead),
                 choir: Some(choir),
                 harmony: Some(harmony),
+                choir_harmony: Some(choir_harmony),
                 reason: None,
             },
         };
@@ -106,6 +109,7 @@ async fn do_review(
                 .bind(row.lead)
                 .bind(row.choir)
                 .bind(row.harmony)
+                .bind(row.choir_harmony)
                 .bind(row.reason)
                 .execute(&mut *trans)
                 .await
