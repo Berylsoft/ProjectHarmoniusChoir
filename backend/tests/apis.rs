@@ -1772,6 +1772,7 @@ async fn manager_pre_submit_review(
                     "lead" => false,
                     "choir" => true,
                     "harmony" => true,
+                    "choir_harmony" => false,
                 }
             }
         }})?)
@@ -1808,7 +1809,7 @@ async fn manager_list_project_users_after_pre_submit_passed(
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 100
+    content-length: 115
     content-type: application/cbor
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1823,7 +1824,8 @@ async fn manager_list_project_users_after_pre_submit_passed(
             "group_info": {
               "lead": false,
               "choir": true,
-              "harmony": true
+              "harmony": true,
+              "choir_harmony": false
             }
           }
         ]
@@ -1856,7 +1858,7 @@ async fn user_project_info_after_pre_submit_passed(
 
     insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
     HTTP/1.1 200 OK
-    content-length: 430
+    content-length: 452
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
@@ -1877,6 +1879,7 @@ async fn user_project_info_after_pre_submit_passed(
         "pre_submit_detail": {
           "Passed": {
             "choir": true,
+            "choir_harmony": false,
             "harmony": true,
             "lead": false
           }
