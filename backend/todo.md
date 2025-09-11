@@ -87,7 +87,7 @@ Other to do:
   - change submit file limit to 100
   - check lower bound of 1 file for submit and master
 - [ ] disallow (pre)submit while have uploading files #IMPORTANT
-- [ ] add choir harmony group #IMPORTANT
+- [x] add choir harmony group
 - [ ] user file capacity manage
 - [ ] notification #IMPORTANT
 - [ ] database indexes #IMPORTANT
