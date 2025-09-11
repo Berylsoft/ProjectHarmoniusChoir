@@ -80,6 +80,18 @@ impl wechat::Wechat for TestWechatImpl {
     {
         Box::pin(std::future::ready(Ok(js_code)))
     }
+
+    fn send_message<'a, 'fut>(
+        &'a self,
+        _page: Box<str>,
+        _touser: Box<str>,
+        _message: wechat::Message,
+    ) -> Pin<Box<dyn Future<Output = wechat::Result<()>> + 'fut>>
+    where
+        'a: 'fut,
+    {
+        Box::pin(std::future::ready(Ok(())))
+    }
 }
 
 struct TestResponse {

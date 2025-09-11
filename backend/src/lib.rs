@@ -436,7 +436,20 @@ fn init_wechat() -> anyhow::Result<Arc<dyn wechat::Wechat>> {
         .context("failed to get WECHAT_APP_SECRET env")?
         .context("expect WECHAT_APP_SECRET")?;
 
-    Ok(Arc::new(WechatImpl::new(app_id.into(), app_secret.into())))
+    let template_id = var_optional("WECHAT_TEMPLATE_ID")
+        .context("failed to get WECHAT_TEMPLATE_ID env")?
+        .context("expect WECHAT_TEMPLATE_ID")?;
+
+    let wechat_channel = var_optional("WECHAT_CHANNEL")
+        .context("failed to get WECHAT_CHANNEL env")?
+        .context("expect WECHAT_CHANNEL")?;
+
+    Ok(Arc::new(WechatImpl::new(
+        app_id.into(),
+        app_secret.into(),
+        template_id.into(),
+        wechat_channel.into(),
+    )))
 }
 
 async fn initialize_server_state() -> anyhow::Result<ServerState> {
