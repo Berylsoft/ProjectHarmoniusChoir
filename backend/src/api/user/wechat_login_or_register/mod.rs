@@ -10,16 +10,18 @@ use super::UserToken;
 use crate::{
     ServerState,
     api::{
-        self, ApiResult, Response, ToJson, end_transaction, spawn_await,
+        self, ApiError, ApiResult, Response, ToJson, end_transaction,
+        spawn_await,
     },
-    api_begin_transaction,
+    api_bail, api_bail_status, api_begin_transaction,
     database::Database,
     utils::cookie_set_token,
+    wechat,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WechatLoginOrRegisterReq {
-    code: String,
+    code: Box<str>,
 }
 
 pub(crate) async fn router(
@@ -28,9 +30,42 @@ pub(crate) async fn router(
 ) -> api::ApiResult<impl IntoResponse, ToJson> {
     let req = req.0.verified(&mut state.0.cache).await?;
 
-    // TODO: actual wechat auth
-    tracing::info!("{req:?}");
-    let wechat_openid = req.code;
+    let login_res = state.wechat.jscode2session(req.code.clone()).await;
+    let wechat_openid = match login_res {
+        Ok(openid) => openid,
+        Err(err) => match err {
+            wechat::Error::InvalidJscode(msg) => {
+                return Err(ApiError::BadParam {
+                    msg: "invalid jscode".into(),
+                    detail: format!(
+                        "invalid jscode {code:?}: {msg}",
+                        code = req.code
+                    )
+                    .into_boxed_str(),
+                });
+            }
+            wechat::Error::RateLimited(msg) => {
+                api_bail_status!("throttle", format!("throttle: {msg}"));
+            }
+            wechat::Error::HighRisk(msg) => {
+                api_bail_status!(
+                    "forbidden",
+                    format!("code blocked: {msg}")
+                );
+            }
+            err @ wechat::Error::System(_) => {
+                api_bail!("{err}")
+            }
+            wechat::Error::Unknown(err) => {
+                return Err(ApiError::Unknown(
+                    err.context("Wechat::jscode2session"),
+                ));
+            }
+            err => {
+                api_bail!("Wechat::jscode2session Err unreachable: {err}")
+            }
+        },
+    };
 
     let (uid, token_id) =
         spawn_await(do_register_or_login(state.0.db, wechat_openid))
@@ -51,7 +86,7 @@ pub(crate) async fn router(
 
 async fn do_register_or_login(
     db: Database,
-    wechat_openid: String,
+    wechat_openid: Box<str>,
 ) -> ApiResult<(i64, i64), ToJson> {
     api_begin_transaction!(db, conn, trans, Immediate);
 
