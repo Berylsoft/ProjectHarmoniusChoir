@@ -29,6 +29,7 @@ use backend::{
     database::Database,
     init_cache, init_s3, router,
     signing::SignedData,
+    wechat,
 };
 use chrono::{DateTime, TimeDelta, Utc};
 use ciborium::cbor;
@@ -63,6 +64,21 @@ impl MakeRequestId for TestMakeRequestId {
         Some(RequestId::new(
             "01D39ZY06FGSCTVN4T2V9PKHFZ".parse().unwrap(),
         ))
+    }
+}
+
+#[derive(Debug)]
+struct TestWechatImpl;
+
+impl wechat::Wechat for TestWechatImpl {
+    fn jscode2session<'a, 'fut>(
+        &'a self,
+        js_code: Box<str>,
+    ) -> Pin<Box<dyn Future<Output = wechat::Result<Box<str>>> + 'fut>>
+    where
+        'a: 'fut,
+    {
+        Box::pin(std::future::ready(Ok(js_code)))
     }
 }
 
@@ -415,7 +431,9 @@ impl TestApp {
             s3
         };
 
-        let state = ServerState::new(key, db, cache, s3);
+        let wechat = Arc::new(TestWechatImpl);
+
+        let state = ServerState::new(key, db, cache, s3, wechat);
 
         let root_pswd = init_root_if_not_exists(&state).await?.unwrap();
 

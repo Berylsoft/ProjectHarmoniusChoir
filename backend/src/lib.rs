@@ -40,6 +40,7 @@ use tower_http::{
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
+use wechat::WechatImpl;
 
 use crate::api::{
     manager::{
@@ -56,6 +57,7 @@ pub mod database;
 mod extractors;
 pub mod signing;
 mod utils;
+pub mod wechat;
 
 #[global_allocator]
 static GLOBAL_ALLOCATOR: MiMalloc = MiMalloc;
@@ -112,6 +114,7 @@ pub struct ServerState {
     pub cache: MultiplexedConnection,
     pub s3: S3,
     pub pending_jobs: PendingJobs,
+    pub wechat: Arc<dyn wechat::Wechat>,
 }
 
 impl ServerState {
@@ -121,6 +124,7 @@ impl ServerState {
         db: Database,
         cache: MultiplexedConnection,
         s3: S3,
+        wechat: Arc<dyn wechat::Wechat>,
     ) -> Self {
         Self {
             key,
@@ -128,6 +132,7 @@ impl ServerState {
             cache,
             s3,
             pending_jobs: Default::default(),
+            wechat,
         }
     }
 }
@@ -422,6 +427,18 @@ pub async fn init_s3() -> anyhow::Result<S3> {
     Ok(S3::new(client, bucket))
 }
 
+fn init_wechat() -> anyhow::Result<Arc<dyn wechat::Wechat>> {
+    let app_id = var_optional("WECHAT_APP_ID")
+        .context("failed to get WECHAT_APP_ID env")?
+        .context("expect WECHAT_APP_ID")?;
+
+    let app_secret = var_optional("WECHAT_APP_SECRET")
+        .context("failed to get WECHAT_APP_SECRET env")?
+        .context("expect WECHAT_APP_SECRET")?;
+
+    Ok(Arc::new(WechatImpl::new(app_id.into(), app_secret.into())))
+}
+
 async fn initialize_server_state() -> anyhow::Result<ServerState> {
     let key = get_or_init_signing_key()
         .context("failed to get_or_init signingkey")?;
@@ -440,12 +457,15 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
 
     let s3 = init_s3().await.context("init s3")?;
 
+    let wechat = init_wechat()?;
+
     let state = ServerState {
         key,
         db,
         cache,
         s3,
         pending_jobs: Default::default(),
+        wechat,
     };
 
     let default_password = init_root_if_not_exists(&state)
