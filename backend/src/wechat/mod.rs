@@ -99,9 +99,29 @@ pub trait Wechat: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct Message {
+    /// 20个以内字符
     content: Box<str>,
+    /// 5个以内汉字
     result: Box<str>,
     time: DateTime<Utc>,
+}
+
+impl Message {
+    /// # Errors
+    /// when content or result length exceed
+    pub fn new(
+        content: Box<str>,
+        result: Box<str>,
+        time: DateTime<Utc>,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(content.chars().count() <= 20);
+        anyhow::ensure!(result.chars().count() <= 5);
+        Ok(Self {
+            content,
+            result,
+            time,
+        })
+    }
 }
 
 pub(crate) struct WechatImpl {
