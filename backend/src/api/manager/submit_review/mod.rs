@@ -7,10 +7,10 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ServerState,
+    ArcWechat, ServerState,
     api::{
         self, ApiResult, ToCbor,
-        manager::ManagerToken,
+        manager::{ManagerToken, send_message_infallible},
         shared::{
             file,
             submit::{self, SubmitReviewRow},
@@ -21,6 +21,7 @@ use crate::{
     api_begin_transaction, api_param_assert,
     database::Database,
     extractors::{Cbor, Token},
+    wechat::{self, Message},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,10 +37,15 @@ pub(crate) async fn router(
     token: Token<ManagerToken>,
     req: Cbor<api::Request<SubmitReviewReq>>,
 ) -> api::ApiResult<impl IntoResponse, ToCbor> {
-    let ServerState { mut cache, db, .. } = state.0;
+    let ServerState {
+        mut cache,
+        db,
+        wechat,
+        ..
+    } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    spawn_await(do_submit_review(db, token.0, req)).await??;
+    spawn_await(do_submit_review(db, wechat, token.0, req)).await??;
 
     Ok(Cbor(api::Response::Ok(())))
 }
@@ -47,6 +53,7 @@ pub(crate) async fn router(
 #[expect(clippy::too_many_lines)]
 async fn do_submit_review(
     db: Database,
+    wechat: ArcWechat,
     token: ManagerToken,
     req: SubmitReviewReq,
 ) -> ApiResult<(), ToCbor> {
@@ -63,8 +70,8 @@ async fn do_submit_review(
             .verify_can_access_project(&mut trans, req.pid, false)
             .await?;
 
-        // broken invariant if puid or pid is null
-        let puid_pid_rid: Option<(i64, i64, Option<i64>)> =
+        // broken invariant if puid or pid or uid is null
+        let puid_pid_uid_rid: Option<(i64, i64, i64, Option<i64>)> =
             sqlx::query_as(include_str!(
                 "./sqls/get_puid_pid_rid_by_sid.sql"
             ))
@@ -72,7 +79,7 @@ async fn do_submit_review(
             .fetch_optional(&mut *trans)
             .await
             .context("get_puid_pid_rid_by_sid")?;
-        let Some((p_uid, pid, rid)) = puid_pid_rid else {
+        let Some((p_uid, pid, uid, rid)) = puid_pid_uid_rid else {
             api_bail_not_found!(
                 "submit not found",
                 format!("invalid sid: {}", req.sid)
@@ -138,12 +145,19 @@ async fn do_submit_review(
             }
         }
 
+        let message_result = match &req.status {
+            submit::SubmitStatus::Rejected { .. } => {
+                wechat::ReviewResult::Rejected
+            }
+            submit::SubmitStatus::Passed => wechat::ReviewResult::Passed,
+        };
+
         let row = match req.status {
             submit::SubmitStatus::Rejected { reason, detail } => {
                 SubmitReviewRow {
                     status: submit::Status::Rejected.to_string().into(),
                     reason: Some(reason.to_string().into()),
-                    reason_detail: detail.map(|it| it.to_string().into()),
+                    reason_detail: detail,
                 }
             }
             submit::SubmitStatus::Passed => SubmitReviewRow {
@@ -153,11 +167,13 @@ async fn do_submit_review(
             },
         };
 
+        let now = Utc::now();
+
         let ins_result =
             sqlx::query(include_str!("./sqls/ins_review_submit.sql"))
                 .bind(req.sid)
                 .bind(token.mid)
-                .bind(Utc::now().to_rfc3339())
+                .bind(now.to_rfc3339())
                 .bind(group_id)
                 .bind(row.status)
                 .bind(row.reason)
@@ -167,6 +183,22 @@ async fn do_submit_review(
                 .context("ins_review_submit")?;
 
         api_assert!(ins_result.rows_affected() == 1);
+
+        let message = Message {
+            content: wechat::ReviewContent::Submit,
+            result: message_result,
+            time: now,
+        };
+
+        send_message_infallible(
+            &mut trans,
+            wechat.as_ref(),
+            pid,
+            uid,
+            message,
+        )
+        .await
+        .context("send_message_infallible")?;
 
         ApiResult::Ok(())
     }

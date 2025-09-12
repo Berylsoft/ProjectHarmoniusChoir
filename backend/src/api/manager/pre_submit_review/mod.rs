@@ -11,7 +11,7 @@ use crate::{
         shared::submit::{self, PreSubmitReviewRow},
         spawn_await,
     },
-    api_assert, api_bail, api_bail_not_found, api_bail_status,
+    api_assert, api_bail_not_found, api_bail_status,
     api_begin_transaction, api_param_assert,
     database::Database,
     extractors::{Cbor, Token},
@@ -42,7 +42,6 @@ pub(crate) async fn router(
     Ok(Cbor(api::Response::Ok(())))
 }
 
-#[expect(clippy::too_many_lines)]
 async fn do_review(
     db: Database,
     wechat: ArcWechat,
@@ -57,11 +56,8 @@ async fn do_review(
             .verify_can_access_project(&mut trans, req.pid, false)
             .await?;
 
-        let submit_pid_uid_rid: Option<(
-            Option<i64>,
-            Option<i64>,
-            Option<i64>,
-        )> =
+        // broken invariant if pid or uid is null
+        let submit_pid_uid_rid: Option<(i64, i64, Option<i64>)> =
             sqlx::query_as(include_str!("./sqls/get_pid_rid_by_sid.sql"))
                 .bind(req.sid)
                 .fetch_optional(&mut *trans)
@@ -80,12 +76,16 @@ async fn do_review(
             );
         }
 
-        let (Some(submit_pid), Some(uid)) = (submit_pid, uid) else {
-            api_bail!(
-                "expect valid project_user_id in status_pre_submits"
-            );
-        };
         api_param_assert!(submit_pid == req.pid, "bad pid/sid");
+
+        let message_result = match &req.status {
+            submit::PreSubmitStatus::Rejected { .. } => {
+                wechat::ReviewResult::Rejected
+            }
+            submit::PreSubmitStatus::Passed(_) => {
+                wechat::ReviewResult::Passed
+            }
+        };
 
         let row = match req.status {
             submit::PreSubmitStatus::Rejected { reason } => {
@@ -134,14 +134,7 @@ async fn do_review(
 
         let message = Message {
             content: wechat::ReviewContent::PreSubmit,
-            result: match req.status {
-                submit::PreSubmitStatus::Rejected { .. } => {
-                    wechat::ReviewResult::Rejected
-                }
-                submit::PreSubmitStatus::Passed(_) => {
-                    wechat::ReviewResult::Passed
-                }
-            },
+            result: message_result,
             time: now,
         };
 
