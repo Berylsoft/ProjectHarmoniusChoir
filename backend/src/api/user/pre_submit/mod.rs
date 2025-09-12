@@ -88,6 +88,12 @@ async fn do_submit(
             });
         }
 
+        let have_uploading =
+            file::have_uploading(&mut trans, token.uid, None).await?;
+        if have_uploading {
+            api_bail_status!("have uploading files");
+        }
+
         let stage = file::Stage::PreSubmit;
         let source = file::Source::new(pid, token.uid, None, stage);
 

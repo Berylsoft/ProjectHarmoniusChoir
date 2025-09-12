@@ -956,3 +956,22 @@ pub(crate) async fn get_pre_submit_file_for_submit(
 
     Ok(None)
 }
+
+/// expect `uid` and `mid` is valid
+pub(crate) async fn have_uploading(
+    trans: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    uid: i64,
+    mid: Option<i64>,
+) -> anyhow::Result<bool> {
+    let have_uploading: i64 = sqlx::query_scalar(include_str!(
+        "./sqls/have_uploading_files.sql"
+    ))
+    .bind(mid)
+    .bind(uid)
+    .bind(mid)
+    .fetch_one(&mut **trans)
+    .await
+    .context("have_uploading_files")?;
+
+    Ok(have_uploading > 0)
+}

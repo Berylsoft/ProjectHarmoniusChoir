@@ -77,6 +77,13 @@ async fn do_submit(
                 format!("status: {status:?}")
             );
         };
+
+        let have_uploading =
+            file::have_uploading(&mut trans, token.uid, None).await?;
+        if have_uploading {
+            api_bail_status!("have uploading files")
+        }
+
         let source = file::Source::new(req.pid, token.uid, None, stage);
 
         let mut pending =

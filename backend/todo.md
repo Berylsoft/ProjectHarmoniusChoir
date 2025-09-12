@@ -86,7 +86,7 @@ Other to do:
 - [x] allow multiple files in master
   - change submit file limit to 100
   - check lower bound of 1 file for submit and master
-- [ ] disallow (pre)submit while have uploading files #IMPORTANT
+- [x] disallow (pre)submit while have uploading files
 - [x] add choir harmony group
 - [ ] user file capacity manage
 - [ ] notification #IMPORTANT

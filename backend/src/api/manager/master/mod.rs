@@ -72,6 +72,13 @@ async fn do_master(
             api_bail_status!("already mastered");
         }
 
+        let have_uploading =
+            file::have_uploading(&mut trans, uid, Some(token.mid))
+                .await?;
+        if have_uploading {
+            api_bail_status!("have uploading files");
+        }
+
         let source = file::Source::new(
             pid,
             uid,
