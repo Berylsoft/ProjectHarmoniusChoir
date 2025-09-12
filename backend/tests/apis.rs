@@ -2013,12 +2013,12 @@ async fn user_submit(mut app: TestApp) -> anyhow::Result<()> {
 
     insta::assert_snapshot!(res, @r#"
     HTTP/1.1 200 OK
-    content-length: 11
+    content-length: 16
     content-type: application/json
     x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
 
     {
-      "Ok": null
+      "Ok": "Success"
     }
     "#);
 

@@ -13,6 +13,7 @@ use crate::{
     api_bail, api_bail_status, api_begin_transaction,
     database::Database,
     extractors::Token,
+    utils::length_check_quick,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,6 +30,7 @@ pub struct PreSubmitReq {
 pub enum PreSubmitRes {
     Success,
     InvalidName,
+    InvalidComment,
     InvalidSkipPassword,
 }
 
@@ -46,6 +48,7 @@ pub(crate) async fn router(
     Ok(Json(api::Response::Ok(pre_submit_res)))
 }
 
+#[expect(clippy::too_many_lines, clippy::cognitive_complexity)]
 async fn do_submit(
     db: Database,
     token: UserToken,
@@ -62,6 +65,18 @@ async fn do_submit(
     if !is_valid_name(&name) {
         tracing::debug!("invalid name");
         return Ok(PreSubmitRes::InvalidName);
+    }
+
+    if !length_check_quick(&comment, 200) {
+        tracing::debug!("comment too long");
+        return Ok(PreSubmitRes::InvalidComment);
+    }
+
+    if let Some(skip) = &skip
+        && !length_check_quick(skip, 20)
+    {
+        tracing::debug!("skip password too long");
+        return Ok(PreSubmitRes::InvalidSkipPassword);
     }
 
     api_begin_transaction!(db, conn, trans, Immediate);
@@ -116,6 +131,7 @@ async fn do_submit(
             .await
             .context("get_pre_submit_skip_password_by_pid")?;
             if skip != skip_pswd {
+                tracing::debug!("incorrect skip password");
                 return Ok(PreSubmitRes::InvalidSkipPassword);
             }
         } else if pending.is_empty() {

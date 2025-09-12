@@ -13,6 +13,7 @@ use crate::{
     api_bail_status, api_begin_transaction,
     database::Database,
     extractors::Token,
+    utils::length_check_quick,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -20,6 +21,12 @@ pub struct SubmitReq {
     pid: i64,
     comment: Box<str>,
     include_pre_submit_file: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SubmitRes {
+    Success,
+    InvalidComment,
 }
 
 pub(crate) async fn router(
@@ -30,16 +37,22 @@ pub(crate) async fn router(
     let ServerState { mut cache, db, .. } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    api::spawn_await(do_submit(db, token.0, req)).await??;
+    let response =
+        api::spawn_await(do_submit(db, token.0, req)).await??;
 
-    Ok(Json(api::Response::Ok(())))
+    Ok(Json(api::Response::Ok(response)))
 }
 
 async fn do_submit(
     db: Database,
     token: UserToken,
     req: SubmitReq,
-) -> ApiResult<(), ToJson> {
+) -> ApiResult<SubmitRes, ToJson> {
+    if !length_check_quick(&req.comment, 200) {
+        tracing::debug!("comment too long");
+        return Ok(SubmitRes::InvalidComment);
+    }
+
     api_begin_transaction!(db, conn, trans, Immediate);
 
     let result = async {
@@ -116,7 +129,7 @@ async fn do_submit(
             file::use_file(&mut trans, info.id, stage, sid).await?;
         }
 
-        ApiResult::Ok(())
+        ApiResult::Ok(SubmitRes::Success)
     }
     .await;
 

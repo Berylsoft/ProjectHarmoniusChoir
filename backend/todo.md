@@ -90,8 +90,8 @@ Other to do:
 - [x] add choir harmony group
 - [ ] user file capacity manage
 - [x] notification
-- [ ] limit (pre)submit comment length to 200
-- [ ] limit skip password length to 20
+- [x] limit (pre)submit comment length to 200
+- [x] limit skip password length to 20
 - [ ] database indexes #IMPORTANT
 - [ ] token renew
 - [ ] use Box\<str> directly for those FromRow
