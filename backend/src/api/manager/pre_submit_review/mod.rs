@@ -4,10 +4,10 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ServerState,
+    ArcWechat, ServerState,
     api::{
         self, ApiResult, ToCbor,
-        manager::ManagerToken,
+        manager::{ManagerToken, send_message_infallible},
         shared::submit::{self, PreSubmitReviewRow},
         spawn_await,
     },
@@ -15,6 +15,7 @@ use crate::{
     api_begin_transaction, api_param_assert,
     database::Database,
     extractors::{Cbor, Token},
+    wechat::{self, Message},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,16 +30,21 @@ pub(crate) async fn router(
     token: Token<ManagerToken>,
     req: Cbor<api::Request<PreSubmitReviewReq>>,
 ) -> api::ApiResult<impl IntoResponse, ToCbor> {
-    let ServerState { mut cache, db, .. } = state.0;
+    let ServerState {
+        mut cache,
+        db,
+        wechat,
+        ..
+    } = state.0;
     let req = req.0.verified(&mut cache).await?;
 
-    spawn_await(do_review(db, token.0, req)).await??;
-
+    spawn_await(do_review(db, wechat, token.0, req)).await??;
     Ok(Cbor(api::Response::Ok(())))
 }
 
 async fn do_review(
     db: Database,
+    wechat: ArcWechat,
     token: ManagerToken,
     req: PreSubmitReviewReq,
 ) -> ApiResult<(), ToCbor> {
@@ -100,11 +106,13 @@ async fn do_review(
             },
         };
 
+        let now = Utc::now();
+
         let ins_result =
             sqlx::query(include_str!("./sqls/ins_review_pre_submit.sql"))
                 .bind(req.sid)
                 .bind(token.mid)
-                .bind(Utc::now().to_rfc3339())
+                .bind(now.to_rfc3339())
                 .bind(row.status)
                 .bind(row.lead)
                 .bind(row.choir)
@@ -116,6 +124,29 @@ async fn do_review(
                 .context("ins_review_pre_submit")?;
 
         api_assert!(ins_result.rows_affected() == 1);
+
+        let message = Message {
+            content: wechat::ReviewContent::PreSubmit,
+            result: match req.status {
+                submit::PreSubmitStatus::Rejected { .. } => {
+                    wechat::ReviewResult::Rejected
+                }
+                submit::PreSubmitStatus::Passed(_) => {
+                    wechat::ReviewResult::Passed
+                }
+            },
+            time: now,
+        };
+
+        send_message_infallible(
+            &mut trans,
+            wechat.as_ref(),
+            req.pid,
+            todo!(),
+            message,
+        )
+        .await
+        .context("send_message_infallible")?;
 
         ApiResult::Ok(())
     }

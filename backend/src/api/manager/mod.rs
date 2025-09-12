@@ -18,6 +18,7 @@ use crate::{
     api::{ApiError, ApiResult, shared::project},
     api_begin_transaction,
     database::try_end_transaction,
+    wechat::{Message, Wechat},
 };
 
 pub mod acquire_sudo;
@@ -342,4 +343,29 @@ async fn get_name_by_id<S>(
             .await
             .context("get_name_by_id")?;
     Ok(name)
+}
+
+async fn send_message_infallible(
+    trans: &mut Transaction<'_, sqlx::Sqlite>,
+    wechat: &dyn Wechat,
+    project_id: i64,
+    uid: i64,
+    message: Message,
+) -> anyhow::Result<()> {
+    let openid: Option<Box<str>> =
+        sqlx::query_scalar(include_str!("./sqls/get_openid_by_uid.sql"))
+            .bind(uid)
+            .fetch_optional(&mut **trans)
+            .await
+            .context("get_openid_by_uid")?;
+
+    let Some(openid) = openid else {
+        return Ok(());
+    };
+
+    let page = format!("/recruit/{project_id}").into();
+
+    wechat.send_message_infallible(page, openid, message).await;
+
+    Ok(())
 }
