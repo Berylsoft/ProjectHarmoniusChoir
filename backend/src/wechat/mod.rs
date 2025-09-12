@@ -1,4 +1,4 @@
-use std::{convert::Infallible, fmt::Debug, pin::Pin, time::Duration};
+use std::{fmt::Debug, pin::Pin, time::Duration};
 
 use anyhow::Context;
 use chrono::{DateTime, Datelike, FixedOffset, TimeDelta, Timelike, Utc};
@@ -75,13 +75,7 @@ pub trait Wechat: Debug + Sync + Send {
         page: Box<str>,
         to_user: Box<str>,
         message: Message,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = core::result::Result<(), Infallible>>
-                + Send
-                + 'fut,
-        >,
-    >
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'fut>>
     where
         'a: 'fut,
     {
@@ -90,7 +84,6 @@ pub trait Wechat: Debug + Sync + Send {
             if let Err(err) = res {
                 tracing::error!("{}", err);
             }
-            Ok(())
         };
 
         Box::pin(fut)
