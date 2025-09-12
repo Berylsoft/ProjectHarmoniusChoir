@@ -91,30 +91,44 @@ pub trait Wechat: Debug + Sync + Send {
 }
 
 #[derive(Debug)]
-pub struct Message {
-    /// 20个以内字符
-    content: Box<str>,
-    /// 5个以内汉字
-    result: Box<str>,
-    time: DateTime<Utc>,
+pub enum ReviewContent {
+    PreSubmit,
+    Submit,
 }
 
-impl Message {
-    /// # Errors
-    /// when content or result length exceed
-    pub fn new(
-        content: Box<str>,
-        result: Box<str>,
-        time: DateTime<Utc>,
-    ) -> anyhow::Result<Self> {
-        anyhow::ensure!(content.chars().count() <= 20);
-        anyhow::ensure!(result.chars().count() <= 5);
-        Ok(Self {
-            content,
-            result,
-            time,
-        })
+impl ReviewContent {
+    const fn to_message(&self) -> &'static str {
+        // 20个以内字符
+        // TODO: const assert?
+        match self {
+            Self::PreSubmit => "初审",
+            Self::Submit => "正式提交",
+        }
     }
+}
+
+#[derive(Debug)]
+pub enum ReviewResult {
+    Passed,
+    Rejected,
+}
+
+impl ReviewResult {
+    const fn to_message(&self) -> &'static str {
+        // 5个以内汉字
+        // TODO: const assert?
+        match self {
+            Self::Passed => "通过",
+            Self::Rejected => "未通过",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Message {
+    pub content: ReviewContent,
+    pub result: ReviewResult,
+    pub time: DateTime<Utc>,
 }
 
 pub(crate) struct WechatImpl {
@@ -236,10 +250,12 @@ impl Wechat for WechatImpl {
             }
             #[derive(Serialize)]
             struct Data {
+                /// 20个以内字符
                 #[serde(rename = "thing2")]
-                content: Value<Box<str>>,
+                content: Value<&'static str>,
+                /// 5个以内汉字
                 #[serde(rename = "phrase1")]
-                result: Value<Box<str>>,
+                result: Value<&'static str>,
                 #[serde(rename = "date3")]
                 time: Value<Box<str>>,
             }
@@ -258,6 +274,8 @@ impl Wechat for WechatImpl {
                 time,
             } = message;
             let time = to_wechat_datetime(time);
+            let content = content.to_message();
+            let result = result.to_message();
             let data = Data {
                 content: Value { value: content },
                 result: Value { value: result },
