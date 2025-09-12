@@ -3,5 +3,5 @@ SELECT id, name
     WHERE id in (
         SELECT project_id
             FROM project_managers_latest 
-            WHERE manager_id = ?;
+            WHERE manager_id = ?
     );
