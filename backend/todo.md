@@ -92,7 +92,7 @@ Other to do:
 - [x] notification
 - [x] limit (pre)submit comment length to 200
 - [x] limit skip password length to 20
-- [ ] database indexes #IMPORTANT
+- [x] database indexes
 - [ ] token renew
 - [ ] use Box\<str> directly for those FromRow
 - [ ] log every event

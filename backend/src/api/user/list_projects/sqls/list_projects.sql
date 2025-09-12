@@ -9,3 +9,4 @@ SELECT
     ) as joined,
     p.end_time as end_time
     FROM projects p;
+--# analyze ignore
