@@ -64,7 +64,7 @@ pub trait Wechat: Debug + Sync + Send {
     fn send_message<'a, 'fut>(
         &'a self,
         page: Box<str>,
-        touser: Box<str>,
+        to_user: Box<str>,
         message: Message,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'fut>>
     where
@@ -73,7 +73,7 @@ pub trait Wechat: Debug + Sync + Send {
     fn send_message_infallible<'a, 'fut>(
         &'a self,
         page: Box<str>,
-        touser: Box<str>,
+        to_user: Box<str>,
         message: Message,
     ) -> Pin<
         Box<
@@ -86,7 +86,7 @@ pub trait Wechat: Debug + Sync + Send {
         'a: 'fut,
     {
         let fut = async {
-            let res = self.send_message(page, touser, message).await;
+            let res = self.send_message(page, to_user, message).await;
             if let Err(err) = res {
                 tracing::error!("{}", err);
             }
@@ -204,7 +204,7 @@ impl Wechat for WechatImpl {
     fn send_message<'a, 'fut>(
         &'a self,
         page: Box<str>,
-        touser: Box<str>,
+        to_user: Box<str>,
         message: Message,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'fut>>
     where
@@ -213,7 +213,8 @@ impl Wechat for WechatImpl {
         let fut = async move {
             #[derive(Serialize)]
             struct SendMessageRequest<'a> {
-                touser: Box<str>,
+                #[serde(rename = "touser")]
+                to_user: Box<str>,
                 template_id: &'a str,
                 page: Box<str>,
                 miniprogram_state: &'a str,
@@ -251,7 +252,7 @@ impl Wechat for WechatImpl {
             };
             let access_token = self.get_access_token().await?;
             let body = SendMessageRequest {
-                touser,
+                to_user,
                 template_id: &self.template_id,
                 page,
                 miniprogram_state: &self.wechat_channel,

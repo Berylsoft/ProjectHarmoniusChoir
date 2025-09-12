@@ -86,7 +86,7 @@ impl wechat::Wechat for TestWechatImpl {
     fn send_message<'a, 'fut>(
         &'a self,
         _page: Box<str>,
-        _touser: Box<str>,
+        _to_user: Box<str>,
         _message: wechat::Message,
     ) -> Pin<Box<dyn Future<Output = wechat::Result<()>> + Send + 'fut>>
     where
