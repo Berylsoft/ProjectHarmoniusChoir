@@ -42,6 +42,7 @@ pub(crate) async fn router(
     Ok(Cbor(api::Response::Ok(())))
 }
 
+#[expect(clippy::too_many_lines)]
 async fn do_review(
     db: Database,
     wechat: ArcWechat,
@@ -56,13 +57,19 @@ async fn do_review(
             .verify_can_access_project(&mut trans, req.pid, false)
             .await?;
 
-        let submit_pid_rid: Option<(Option<i64>, Option<i64>)> =
+        let submit_pid_uid_rid: Option<(
+            Option<i64>,
+            Option<i64>,
+            Option<i64>,
+        )> =
             sqlx::query_as(include_str!("./sqls/get_pid_rid_by_sid.sql"))
                 .bind(req.sid)
                 .fetch_optional(&mut *trans)
                 .await
                 .context("get_pid_rid_by_sid")?;
-        let Some((submit_pid, submit_review_id)) = submit_pid_rid else {
+        let Some((submit_pid, uid, submit_review_id)) =
+            submit_pid_uid_rid
+        else {
             api_bail_not_found!("pre submit not found", "invalid sid")
         };
 
@@ -73,7 +80,7 @@ async fn do_review(
             );
         }
 
-        let Some(submit_pid) = submit_pid else {
+        let (Some(submit_pid), Some(uid)) = (submit_pid, uid) else {
             api_bail!(
                 "expect valid project_user_id in status_pre_submits"
             );
@@ -141,8 +148,8 @@ async fn do_review(
         send_message_infallible(
             &mut trans,
             wechat.as_ref(),
-            req.pid,
-            todo!(),
+            submit_pid,
+            uid,
             message,
         )
         .await
