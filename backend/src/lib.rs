@@ -107,6 +107,7 @@ pub struct PendingJob {
 
 pub type PendingJobs = Arc<Mutex<HashMap<i64, PendingJob>>>;
 pub type ArcWechat = Arc<dyn wechat::Wechat>;
+pub type UnameUid = Arc<HashMap<Box<str>, i64>>;
 
 #[derive(Debug, Clone)]
 pub struct ServerState {
@@ -116,6 +117,7 @@ pub struct ServerState {
     pub s3: S3,
     pub pending_jobs: PendingJobs,
     pub wechat: ArcWechat,
+    pub uname_uid: UnameUid,
 }
 
 impl ServerState {
@@ -126,6 +128,7 @@ impl ServerState {
         cache: MultiplexedConnection,
         s3: S3,
         wechat: ArcWechat,
+        uname_uid: UnameUid,
     ) -> Self {
         Self {
             key,
@@ -134,6 +137,7 @@ impl ServerState {
             s3,
             pending_jobs: Default::default(),
             wechat,
+            uname_uid,
         }
     }
 }
@@ -147,6 +151,10 @@ where
     MakeReqId: MakeRequestId + Send + Sync + Clone + 'static,
 {
     Router::new()
+        .route(
+            "/api/user/wechat_claim",
+            routing::post(user::wechat_claim::router),
+        )
         .route(
             "/api/user/wechat_login_or_register",
             routing::post(wechat_login_or_register::router),
@@ -453,6 +461,22 @@ fn init_wechat() -> anyhow::Result<ArcWechat> {
     )))
 }
 
+fn init_uname_uid() -> anyhow::Result<UnameUid> {
+    let Some(uname_uid_path) = var_optional("UNAME_UID_MAP")
+        .context("failed to get UNAME_UID_MAP env")?
+    else {
+        return Ok(Default::default());
+    };
+
+    let uname_uid = std::fs::read_to_string(uname_uid_path)
+        .context("reading UnameUid")?;
+
+    Ok(Arc::new(
+        serde_json::from_str(&uname_uid)
+            .context("serde_json::from_str")?,
+    ))
+}
+
 async fn initialize_server_state() -> anyhow::Result<ServerState> {
     let key = get_or_init_signing_key()
         .context("failed to get_or_init signingkey")?;
@@ -473,6 +497,8 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
 
     let wechat = init_wechat()?;
 
+    let uname_uid = init_uname_uid().context("init_uname_uid")?;
+
     let state = ServerState {
         key,
         db,
@@ -480,6 +506,7 @@ async fn initialize_server_state() -> anyhow::Result<ServerState> {
         s3,
         pending_jobs: Default::default(),
         wechat,
+        uname_uid,
     };
 
     let default_password = init_root_if_not_exists(&state)

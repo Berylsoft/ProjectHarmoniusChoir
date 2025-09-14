@@ -5,6 +5,9 @@ CREATE INDEX IF NOT EXISTS idx_users__is_deleted
 CREATE INDEX IF NOT EXISTS idx_users__id__revision
     ON users(id, revision DESC);
 
+CREATE INDEX IF NOT EXISTS idx_users__wechat_openid
+    ON users(wechat_openid);
+
 CREATE INDEX IF NOT EXISTS idx_managers__id__revision
     ON managers(id, revision DESC);
 

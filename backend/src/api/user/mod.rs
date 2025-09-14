@@ -18,6 +18,7 @@ pub mod revoke_all_tokens;
 pub mod submit;
 pub mod template;
 pub mod upload_file;
+pub mod wechat_claim;
 pub mod wechat_login_or_register;
 
 #[derive(Debug, Serialize, Deserialize)]

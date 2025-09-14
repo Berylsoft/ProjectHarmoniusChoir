@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::{
-    database::try_end_transaction, extractors::Cbor, impl_deref,
+    database::try_end_transaction,
+    extractors::Cbor,
+    impl_deref,
+    wechat::{self, Wechat},
 };
 
 pub mod manager;
@@ -320,7 +323,6 @@ pub fn is_valid_name(name: &str) -> bool {
 
     true
 }
-
 /// failed assert indicate a client fault
 #[macro_export]
 macro_rules! api_param_assert {
@@ -388,4 +390,41 @@ macro_rules! api_bail_status {
     ($msg:expr) => {
         api_bail_status!($msg, $msg)
     };
+}
+
+async fn get_openid_by_jscode<S>(
+    wechat: &dyn Wechat,
+    jscode: &str,
+) -> ApiResult<Box<str>, S> {
+    let login_res = wechat.jscode2session(jscode.into()).await;
+    match login_res {
+        Ok(openid) => Ok(openid),
+        Err(err) => match err {
+            wechat::Error::InvalidJscode(msg) => {
+                Err(ApiError::BadParam {
+                    msg: "invalid jscode".into(),
+                    detail: format!("invalid jscode {jscode:?}: {msg}")
+                        .into(),
+                })
+            }
+            wechat::Error::RateLimited(msg) => {
+                api_bail_status!("throttle", format!("throttle: {msg}"));
+            }
+            wechat::Error::HighRisk(msg) => {
+                api_bail_status!(
+                    "forbidden",
+                    format!("code blocked: {msg}")
+                );
+            }
+            err @ wechat::Error::System(_) => {
+                api_bail!("{err}")
+            }
+            wechat::Error::Unknown(err) => Err(ApiError::Unknown(
+                err.context("Wechat::jscode2session"),
+            )),
+            err => {
+                api_bail!("Wechat::jscode2session Err unreachable: {err}")
+            }
+        },
+    }
 }

@@ -447,7 +447,10 @@ impl TestApp {
 
         let wechat = Arc::new(TestWechatImpl);
 
-        let state = ServerState::new(key, db, cache, s3, wechat);
+        let uname_uid = Default::default();
+
+        let state =
+            ServerState::new(key, db, cache, s3, wechat, uname_uid);
 
         let root_pswd = init_root_if_not_exists(&state).await?.unwrap();
 
