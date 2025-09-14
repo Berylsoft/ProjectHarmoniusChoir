@@ -1633,8 +1633,6 @@ async fn user_list_pending_files(mut app: TestApp) -> anyhow::Result<()> {
 }
 
 async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
-    let file_id = *app.get::<i64>("test_file::file_id");
-
     let res = app
         .req_builder(Method::POST, 1)
         .api("/user/pre_submit")
@@ -1643,9 +1641,7 @@ async fn user_pre_submit(mut app: TestApp) -> anyhow::Result<()> {
             "name": "TheName",
             "harmony_group_intention": true,
             "comment": "The Comment",
-            "file": {
-                "File": file_id,
-            }
+            "skip": null,
         }}))
         .await?;
 
