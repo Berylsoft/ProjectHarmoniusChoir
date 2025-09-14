@@ -352,10 +352,11 @@ async fn send_message_infallible(
     uid: i64,
     message: Message,
 ) -> anyhow::Result<()> {
+    // broken invariant if user not exists
     let openid: Option<Box<str>> =
         sqlx::query_scalar(include_str!("./sqls/get_openid_by_uid.sql"))
             .bind(uid)
-            .fetch_optional(&mut **trans)
+            .fetch_one(&mut **trans)
             .await
             .context("get_openid_by_uid")?;
 
