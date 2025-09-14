@@ -160,6 +160,10 @@ where
             routing::post(wechat_login_or_register::router),
         )
         .route(
+            "/api/user/login_as",
+            routing::post(user::login_as::router),
+        )
+        .route(
             "/api/user/revoke_all_tokens",
             routing::post(revoke_all_tokens::router),
         )
@@ -280,6 +284,10 @@ where
         .route(
             "/api/manager/root/project_manager_edit",
             routing::post(project_manager_edit::router),
+        )
+        .route(
+            "/api/manager/root/gen_login_as",
+            routing::post(manager::gen_login_as::router),
         )
         .layer((
             SetRequestIdLayer::x_request_id(make_req_id),

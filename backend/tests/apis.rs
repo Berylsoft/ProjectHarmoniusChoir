@@ -1050,7 +1050,6 @@ async fn manager_project_manager_edit(
 }
 
 async fn user_login(mut app: TestApp) -> anyhow::Result<()> {
-    // TODO: mock wechat api
     let send_time = Utc::now();
     let mut res = app
         .req_builder(Method::POST, 1)
@@ -1079,7 +1078,72 @@ async fn user_login(mut app: TestApp) -> anyhow::Result<()> {
     }
     "#);
 
-    next!(app; user_revoke_all_tokens, user_get_info);
+    next!(app; user_revoke_all_tokens, manager_gen_login_as, user_get_info);
+
+    Ok(())
+}
+
+async fn manager_gen_login_as(mut app: TestApp) -> anyhow::Result<()> {
+    let res = app
+        .req_builder(Method::POST, 0)
+        .api("/manager/root/gen_login_as")
+        .send_cbor(cbor!({"data" => {
+            "uid" => 1,
+        }})?)
+        .await?;
+
+    let mut body = res.body_to_cbor()?;
+    let token = cbor_remove(&mut body, &["Ok", "token"])
+        .into_text()
+        .unwrap()
+        .into_boxed_str();
+    app.set("login_as:1:token", token);
+    insta::assert_snapshot!(res.to_string_with_body(&body)?, @r#"
+    HTTP/1.1 200 OK
+    content-length: 180
+    content-type: application/cbor
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": {}
+    }
+    "#);
+
+    next!(app; user_login_as);
+
+    Ok(())
+}
+
+async fn user_login_as(mut app: TestApp) -> anyhow::Result<()> {
+    let token = app.get::<Box<str>>("login_as:1:token").clone();
+
+    let send_time = Utc::now();
+    let mut res = app
+        .req_builder(Method::POST, 1)
+        .api("/user/login_as")
+        .send_json(json!({
+            "data": {
+                "token": token
+            },
+        }))
+        .await?;
+
+    let cookies = res.take_cookies()?;
+    assert_eq!(cookies.iter().count(), 1);
+    let token =
+        verified_token::<UserToken>(&cookies, &app.verifying_key())?;
+    assert!(token.expired > send_time);
+
+    insta::assert_snapshot!(res, @r#"
+    HTTP/1.1 200 OK
+    content-length: 11
+    content-type: application/json
+    x-request-id: 01D39ZY06FGSCTVN4T2V9PKHFZ
+
+    {
+      "Ok": null
+    }
+    "#);
 
     Ok(())
 }

@@ -323,6 +323,7 @@ pub fn is_valid_name(name: &str) -> bool {
 
     true
 }
+
 /// failed assert indicate a client fault
 #[macro_export]
 macro_rules! api_param_assert {
@@ -336,6 +337,20 @@ macro_rules! api_param_assert {
     };
     ($expr:expr) => {
         api_param_assert!($expr, "bad param")
+    };
+}
+
+/// indicate a client fault
+#[macro_export]
+macro_rules! api_bail_param {
+    ($msg:expr, $detail:literal) => {
+        return Err($crate::api::ApiError::BadParam {
+            msg: $msg.into(),
+            detail: $detail.into(),
+        });
+    };
+    ($msg:expr) => {
+        api_bail_param!($msg, $msg)
     };
 }
 

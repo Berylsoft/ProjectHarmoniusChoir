@@ -12,6 +12,7 @@ pub mod get_info;
 pub mod join_project;
 pub mod list_pending_files;
 pub mod list_projects;
+pub mod login_as;
 pub mod pre_submit;
 pub mod project_info;
 pub mod revoke_all_tokens;

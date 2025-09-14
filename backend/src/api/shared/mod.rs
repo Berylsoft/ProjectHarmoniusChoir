@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod file;
 pub mod project;
 pub mod project_user;

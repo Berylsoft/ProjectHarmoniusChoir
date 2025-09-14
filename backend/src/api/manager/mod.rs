@@ -26,6 +26,7 @@ pub mod bundle_job;
 pub mod create_manager;
 pub mod create_project;
 pub mod delete_file;
+pub mod gen_login_as;
 pub mod get_file;
 pub mod get_info;
 pub mod list_managers;
