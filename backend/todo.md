@@ -105,4 +105,4 @@ Other to do:
 - [ ] manage - notify change password after first login
 - [ ] manage - project user list - show "hidden by default" non-passed puname
 - [-] manage - project user list - filter by status
-  - backend impl #TODO
+  - backend impl
