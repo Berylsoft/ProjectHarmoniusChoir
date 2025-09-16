@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Context as _;
 use axum::{extract::State, response::IntoResponse};
 use chrono::{DateTime, Utc};
@@ -28,6 +30,8 @@ pub struct ListProjectUsersReq {
     sort_by: SortMethod,
     #[serde(default)]
     reverse: bool,
+    #[serde(default)]
+    filter: Option<HashSet<FilterStage>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -49,6 +53,31 @@ pub struct ProjectUser {
     status: project_user::Status,
     name: Option<Box<str>>,
     group_info: Option<submit::GroupInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum FilterStage {
+    Joined,
+    PreSubmited,
+    Submited,
+    Mastered,
+    Mixed,
+}
+
+impl From<project_user::Status> for FilterStage {
+    fn from(value: project_user::Status) -> Self {
+        match value {
+            project_user::Status::Entered => Self::Joined,
+            project_user::Status::PreSubmitted
+            | project_user::Status::PreSubmitRejected
+            | project_user::Status::PreSubmitPassed => Self::PreSubmited,
+            project_user::Status::Submitted
+            | project_user::Status::SubmitRejected
+            | project_user::Status::SubmitPassed => Self::Submited,
+            project_user::Status::Mastered => Self::Mastered,
+            project_user::Status::Mixed => Self::Mixed,
+        }
+    }
 }
 
 pub(crate) async fn router(
@@ -112,6 +141,12 @@ async fn do_list_project_user(
                 project_user::Status::get_by_puid(&mut trans, pu.id)
                     .await
                     .context("project_user::Status::get_by_puid")?;
+
+            if let Some(filter) = &req.filter
+                && !filter.contains(&FilterStage::from(status))
+            {
+                continue;
+            }
 
             let name_group_info: Option<(Box<str>, GroupInfo)> =
                 if status >= project_user::Status::PreSubmitPassed {
