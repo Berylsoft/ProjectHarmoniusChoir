@@ -1,4 +1,4 @@
-use anyhow::{Context, ensure};
+use anyhow::Context;
 use axum::{
     extract::{Json, State},
     response::IntoResponse,
