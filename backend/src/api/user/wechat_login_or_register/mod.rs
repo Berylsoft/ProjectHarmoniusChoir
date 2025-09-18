@@ -99,28 +99,30 @@ async fn do_register_or_login(
         .await
         .context("get exists user by wechat openid")?;
 
+        #[expect(clippy::manual_let_else, reason = "temp")]
         let user = if let Some(it) = exists_user {
             it
         } else {
-            let cur_uid = sqlx::query_scalar::<_, i64>(include_str!(
-                "./sqls/get_latest_uid.sql"
-            ))
-            .fetch_one(&mut *trans)
-            .await
-            .context("get latest uid")?;
-
-            let uid = cur_uid + 1;
-
-            let ins_result =
-                sqlx::query(include_str!("./sqls/ins_new_user.sql"))
-                    .bind(uid)
-                    .bind(wechat_openid)
-                    .execute(&mut *trans)
-                    .await
-                    .context("ins new user")?;
-            ensure!(ins_result.rows_affected() == 1);
-
-            (uid, 1)
+            // let cur_uid = sqlx::query_scalar::<_, i64>(include_str!(
+            //     "./sqls/get_latest_uid.sql"
+            // ))
+            // .fetch_one(&mut *trans)
+            // .await
+            // .context("get latest uid")?;
+            //
+            // let uid = cur_uid + 1;
+            //
+            // let ins_result =
+            //     sqlx::query(include_str!("./sqls/ins_new_user.sql"))
+            //         .bind(uid)
+            //         .bind(wechat_openid)
+            //         .execute(&mut *trans)
+            //         .await
+            //         .context("ins new user")?;
+            // ensure!(ins_result.rows_affected() == 1);
+            //
+            // (uid, 1)
+            api_bail_status!("register not avaiable");
         };
 
         Ok(user)
