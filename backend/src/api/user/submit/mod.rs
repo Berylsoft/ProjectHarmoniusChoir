@@ -111,9 +111,9 @@ async fn do_submit(
             pending.push(pre_submit);
         }
 
-        if pending.is_empty() {
-            api_bail_status!("no available file");
-        }
+        // if pending.is_empty() {
+        //     api_bail_status!("no available file");
+        // }
 
         // ==================== write boundary ====================
         let sid: i64 =
