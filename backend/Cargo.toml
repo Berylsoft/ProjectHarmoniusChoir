@@ -2,6 +2,9 @@
 name = "backend"
 version = "0.1.0"
 edition = "2024"
+authors = ["Golden_Water <golden_water@chaosw.site>", "stackinspector"]
+license = "MPL-2.0"
+repository = "https://github.com/Berylsoft/ProjectHarmoniusChoir"
 
 [dependencies]
 anyhow = { version = "1.0.98", features = ["backtrace"] }

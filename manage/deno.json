@@ -1,4 +1,5 @@
-{  
+{
+  "license": "MPL-2.0",
   "compilerOptions": {
     "lib": ["dom", "esnext"],
     "strict": true,
@@ -9,8 +10,8 @@
     "types": ["./src/libs/jsxTypes.d.ts"]
   },
   "tasks": {
-    "dev": "deno run --allow-all --watch=./esbuild.ts,./src,./static ./esbuild.ts"
-    "build": "deno run --allow-all ./esbuild.ts"
+    "dev": "deno run --allow-all --watch=./esbuild.ts,./src,./static ./esbuild.ts",
+    "build": "deno run --allow-all ./esbuild.ts",
     "serve": "livehttpd -a 127.0.0.1 ./dist"
   },
   "imports": {
@@ -21,6 +22,6 @@
     "colorjs.io": "npm:colorjs.io@^0.5.2",
     "esbuild": "npm:esbuild@^0.25.4",
     "js-md5": "npm:js-md5@^0.8.3",
-    "jsx/jsx-runtime": "./src/libs/buildJsx.ts",
+    "jsx/jsx-runtime": "./src/libs/buildJsx.ts"
   }
 }
